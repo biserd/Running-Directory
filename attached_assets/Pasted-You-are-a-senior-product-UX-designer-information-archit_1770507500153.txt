@@ -1,0 +1,272 @@
+You are a senior product + UX designer + information architect. Design the initial USA-wide directory structure + navigation + page templates for a website called running.services.
+
+Product goal
+
+running.services is a data-driven running hub that includes:
+
+Race Calendar (USA-wide) (core)
+
+Running Routes (USA-wide)
+
+Tools Hub that links out to my existing tools on https://aitracker.run
+ (must be prominent but not spammy)
+
+Optional sections we may add later: Shoe Deals, Running Conditions, Guides
+
+This site must be programmatic-SEO ready at USA scale (states → cities → detail pages) and designed so we can generate thousands of pages from data. We are NOT relying on providers “claiming” listings for this MVP.
+
+Deliverables you must produce
+
+Sitemap + URL structure (exact path patterns) for USA scale
+
+Navigation structure (header + footer + breadcrumbs rules)
+
+Template definitions (what sections/components appear on each page type)
+
+Taxonomy + filters per directory (what filters exist and how they appear)
+
+Internal linking strategy (modules that cross-link races/routes/tools/guides for SEO)
+
+Page title/meta patterns (rules-based patterns, not final copy)
+
+Mobile-first UI with clean, modern layout suitable for a fast directory site
+
+Required information architecture (must include these top-level sections)
+
+Top-level nav (desktop): Races, Routes, Tools, Guides, (optional later: Deals, Conditions)
+Top-level on mobile: hamburger + quick search.
+
+Required directory hierarchy (USA-ready)
+
+Design path patterns that support:
+
+USA hub
+
+State hubs
+
+City/metro hubs
+
+Time-based race views (year/month)
+
+Detail pages for races and routes
+
+Collection pages (“best of”, “flat races”, “NYC April races”, etc.)
+
+Required URL patterns (include these exactly, plus any you add)
+
+Races
+
+/races/ (USA race hub)
+
+/races/usa/ (USA overview)
+
+/races/state/{state-slug}/
+
+/races/state/{state-slug}/city/{city-slug}/
+
+/races/year/{yyyy}/
+
+/races/year/{yyyy}/month/{mm}/
+
+/races/{race-slug}/ (race detail; include state/city in the page content and breadcrumbs even if not in URL)
+
+Routes
+
+/routes/
+
+/routes/state/{state-slug}/
+
+/routes/state/{state-slug}/city/{city-slug}/
+
+/routes/{route-slug}/ (route detail)
+
+Tools (must link out to AITracker.run)
+
+/tools/ (tools hub)
+
+/tools/race-predictor/ (landing page with CTA that links to AITracker)
+
+/tools/pace-calculator/ (can be on running.services or link out; design for both)
+
+/tools/training-plan/ (CTA to AITracker)
+
+/tools/vo2-estimator/ (CTA to AITracker)
+Every tool page must include a clear “Open in AITracker” button and a short explanation of what happens there.
+
+Guides
+
+/guides/
+
+/guides/{guide-slug}/
+Plus collection pages: /guides/topic/{topic-slug}/ (e.g., marathon-training, injury-prevention, fueling)
+
+Page templates (must define sections/components)
+
+Create templates for these page types with consistent reusable components:
+
+USA Hub Page (for races + routes)
+
+hero search (location, distance, month)
+
+featured collections (e.g., “Best Spring Half Marathons”)
+
+state grid (50 states)
+
+internal links to top metros
+
+tools CTA module linking to AITracker
+
+State Hub Page
+
+intro block
+
+filters + list (races or routes)
+
+top cities in state
+
+“popular collections in {state}”
+
+related guides + tools module
+
+City Hub Page
+
+quick filters (distance, date range, surface, elevation bucket)
+
+list results + map toggle (map can be a placeholder UI)
+
+“top routes near {city}” (if on races page) and vice versa
+
+“seasonality” module (months)
+
+local guide links + AITracker CTA
+
+Time View Pages (year/month)
+
+calendar-like layout + list
+
+filters: distance, state, city, weekend-only
+
+“top collections this month”
+
+Race Detail Page
+Must include modules:
+
+hero title + key facts panel (date, distance, city/state, surface, elevation if known, website/registration link)
+
+course profile section (placeholder if unknown)
+
+“who it’s good for” (rules-based bullets)
+
+logistics (start time, cutoff, bib, parking/public transit placeholder)
+
+weather norms placeholder
+
+“similar races” carousel
+
+“train for this race” module with CTA to AITracker (race predictor + plan builder)
+
+Route Detail Page
+Must include:
+
+map placeholder, distance, elevation gain, surface mix, route type (loop/out-and-back), safety notes placeholder
+
+GPX download placeholder
+
+“pace plan / workout ideas” with CTA to AITracker tools
+
+“nearby routes”
+
+“races near this route” (cross-link)
+
+Tools Hub Page
+
+grid of tools (some hosted on running.services later, but for now all have “Open in AITracker”)
+
+include “Why AITracker” card
+
+include “Free vs Pro” placeholder section
+
+Collection Page Template (programmatic SEO)
+Examples: “Flat marathons in USA”, “Best fall half marathons in California”, “5K races in NYC in April”
+
+dynamic H1
+
+short intro paragraph area (templated)
+
+filters + ranked list
+
+“related collections”
+
+guide + tools modules
+
+Filters / taxonomy (define these clearly)
+
+Races filters:
+
+distance category (5K/10K/HM/Marathon/Ultra/Other)
+
+date range + month
+
+state + city
+
+surface (road/trail/track/mixed)
+
+elevation bucket (flat/rolling/hilly — based on data if available)
+
+“weekend only”
+
+price bucket (if data exists; otherwise hide gracefully)
+
+Routes filters:
+
+distance range
+
+elevation gain range
+
+surface
+
+route type (loop/out-and-back/point-to-point)
+
+terrain (road/trail/park paths)
+
+“stroller-friendly” (optional)
+
+“night-friendly” (optional placeholder)
+
+Filters should be designed as a left sidebar on desktop + bottom sheet on mobile.
+
+Internal linking rules (SEO)
+
+Every page must have:
+
+breadcrumbs
+
+“related” modules (related races, routes, collections, guides)
+
+cross-linking: race → train/tools; route → workouts/tools; city/state → top collections
+
+footer with state links + popular collections
+
+Branding + UI constraints
+
+Clean, modern, fast directory aesthetic
+
+Mobile-first, accessible typography
+
+Design for thousands of pages (template-driven)
+
+Include a subtle but persistent cross-brand element: “Powered by AITracker tools” without making it feel like an ad.
+
+Output format
+
+Provide:
+
+A structured sitemap (bulleted)
+
+A table of page types → components/modules
+
+A list of reusable UI components (SearchBar, FilterChips, ResultCard, StatsPanel, RelatedCarousel, CTA to AITracker, etc.)
+
+Wireframe-level layout descriptions (no need for full pixel-perfect mockups, but be concrete)
+
+Do NOT build backend code. Focus on IA, templates, and component structure that a dev can implement in Next.js.
