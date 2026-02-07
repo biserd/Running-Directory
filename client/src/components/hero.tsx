@@ -22,9 +22,9 @@ export function Hero({
   return (
     <div className={cn(
       "relative flex flex-col justify-center overflow-hidden bg-slate-900 text-white",
-      size === "default" && "min-h-[400px] py-16",
-      size === "sm" && "min-h-[250px] py-12",
-      size === "lg" && "min-h-[600px] py-24"
+      size === "default" && "min-h-[300px] py-12",
+      size === "sm" && "min-h-[200px] py-8",
+      size === "lg" && "min-h-[450px] py-20"
     )}>
       {image && (
         <div className="absolute inset-0 z-0">

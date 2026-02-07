@@ -21,7 +21,7 @@ export default function Home() {
         subtitle="The comprehensive USA race calendar and route directory. Data-driven tools to help you train smarter."
         image={heroImage}
         showSearch={true}
-        size="lg"
+        size="default"
       />
 
       <section className="py-20 bg-background">
