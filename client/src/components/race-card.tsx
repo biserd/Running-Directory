@@ -1,19 +1,19 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Race } from "@/lib/mock-data";
+import type { Race } from "@shared/schema";
 import { Calendar, MapPin, Mountain, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 
 export function RaceCard({ race }: { race: Race }) {
   return (
-    <Card className="overflow-hidden hover:border-primary/50 transition-colors group h-full flex flex-col">
+    <Card className="overflow-hidden hover:border-primary/50 transition-colors group h-full flex flex-col" data-testid={`card-race-${race.id}`}>
       <CardHeader className="p-0">
         <div className="h-2 w-full bg-muted group-hover:bg-primary transition-colors" />
       </CardHeader>
       <CardContent className="p-5 flex-1">
         <div className="flex justify-between items-start mb-3">
-          <Badge variant="secondary" className="font-mono text-xs font-normal uppercase tracking-wider">
+          <Badge variant="secondary" className="font-mono text-xs font-normal uppercase tracking-wider" data-testid={`badge-distance-${race.id}`}>
             {race.distance}
           </Badge>
           <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
@@ -22,12 +22,10 @@ export function RaceCard({ race }: { race: Race }) {
           </span>
         </div>
         
-        <Link href={`/races/${race.slug}`}>
-          <a className="block group-hover:text-primary transition-colors">
+        <Link href={`/races/${race.slug}`} className="block group-hover:text-primary transition-colors" data-testid={`link-race-${race.id}`}>
             <h3 className="font-heading font-bold text-lg leading-tight mb-2">
               {race.name}
             </h3>
-          </a>
         </Link>
         
         <div className="flex items-center gap-1 text-sm text-muted-foreground mb-4">
@@ -47,10 +45,8 @@ export function RaceCard({ race }: { race: Race }) {
         </div>
       </CardContent>
       <CardFooter className="p-5 pt-0 border-t bg-muted/5 mt-auto">
-        <Link href={`/races/${race.slug}`}>
-          <a className="w-full pt-4 text-center text-sm font-medium text-primary hover:underline">
+        <Link href={`/races/${race.slug}`} className="w-full pt-4 text-center text-sm font-medium text-primary hover:underline" data-testid={`link-race-detail-${race.id}`}>
             View Details
-          </a>
         </Link>
       </CardFooter>
     </Card>

@@ -15,11 +15,9 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
     <nav aria-label="Breadcrumb" className="py-4 text-sm text-muted-foreground">
       <ol className="flex items-center flex-wrap gap-1">
         <li className="flex items-center">
-          <Link href="/">
-            <a className="hover:text-foreground transition-colors">
+          <Link href="/" className="hover:text-foreground transition-colors">
               <Home className="h-4 w-4" />
               <span className="sr-only">Home</span>
-            </a>
           </Link>
         </li>
         {items.map((item, index) => {
@@ -33,10 +31,8 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
                   {item.label}
                 </span>
               ) : (
-                <Link href={item.href}>
-                  <a className="hover:text-foreground transition-colors">
+                <Link href={item.href} className="hover:text-foreground transition-colors">
                     {item.label}
-                  </a>
                 </Link>
               )}
             </li>

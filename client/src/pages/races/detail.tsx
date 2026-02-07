@@ -1,18 +1,51 @@
 import { Layout } from "@/components/layout";
-import { Hero } from "@/components/hero";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { RACES, ROUTES } from "@/lib/mock-data";
 import { useParams, Link } from "wouter";
-import { MapPin, Calendar, Clock, Trophy, ArrowRight, Share2, ExternalLink } from "lucide-react";
+import { MapPin, Calendar, Trophy, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ToolsCTA } from "@/components/tools-cta";
+import { useQuery } from "@tanstack/react-query";
+import { apiGetRace, apiGetRoutes } from "@/lib/api";
 import { format } from "date-fns";
 
 export default function RaceDetail() {
   const { slug } = useParams();
-  // In a real app we'd fetch based on slug, here we just find one or default to first
-  const race = RACES.find(r => r.slug === slug) || RACES[0];
+  
+  const { data: race, isLoading } = useQuery({
+    queryKey: ["/api/races", slug],
+    queryFn: () => apiGetRace(slug!),
+    enabled: !!slug,
+  });
+
+  const { data: nearbyRoutes } = useQuery({
+    queryKey: ["/api/routes", { limit: 3 }],
+    queryFn: () => apiGetRoutes({ limit: 3 }),
+  });
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-16 space-y-8">
+          <Skeleton className="h-12 w-96" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </Layout>
+    );
+  }
+  
+  if (!race) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-16 text-center">
+          <h1 className="font-heading text-3xl font-bold mb-4">Race Not Found</h1>
+          <p className="text-muted-foreground mb-6">We couldn't find a race with that URL.</p>
+          <Button asChild><Link href="/races">Browse All Races</Link></Button>
+        </div>
+      </Layout>
+    );
+  }
   
   return (
     <Layout>
@@ -20,25 +53,25 @@ export default function RaceDetail() {
         <div className="container mx-auto px-4 py-8">
           <Breadcrumbs items={[
             { label: "Races", href: "/races" },
-            { label: race.state, href: `/races/state/${race.state.toLowerCase()}` },
+            { label: race.state },
             { label: race.name }
           ]} />
           
           <div className="mt-8 flex flex-col md:flex-row justify-between items-start gap-8">
             <div>
                <div className="flex gap-2 mb-4">
-                 <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">{race.distance}</Badge>
-                 <Badge variant="outline">{race.surface}</Badge>
+                 <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20" data-testid="badge-race-distance">{race.distance}</Badge>
+                 <Badge variant="outline" data-testid="badge-race-surface">{race.surface}</Badge>
                </div>
-               <h1 className="font-heading font-extrabold text-4xl md:text-5xl tracking-tight mb-4">{race.name}</h1>
+               <h1 className="font-heading font-extrabold text-4xl md:text-5xl tracking-tight mb-4" data-testid="text-race-name">{race.name}</h1>
                <div className="flex flex-wrap gap-6 text-muted-foreground">
                  <div className="flex items-center gap-2">
                    <Calendar className="h-5 w-5" />
-                   <span className="font-medium text-foreground">{format(new Date(race.date), "MMMM d, yyyy")}</span>
+                   <span className="font-medium text-foreground" data-testid="text-race-date">{format(new Date(race.date), "MMMM d, yyyy")}</span>
                  </div>
                  <div className="flex items-center gap-2">
                    <MapPin className="h-5 w-5" />
-                   <span className="font-medium text-foreground">{race.city}, {race.state}</span>
+                   <span className="font-medium text-foreground" data-testid="text-race-location">{race.city}, {race.state}</span>
                  </div>
                  <div className="flex items-center gap-2">
                    <Trophy className="h-5 w-5" />
@@ -48,8 +81,8 @@ export default function RaceDetail() {
             </div>
             
             <div className="flex flex-col gap-3 min-w-[200px]">
-              <Button size="lg" className="w-full font-semibold">Register Now</Button>
-              <Button variant="outline" className="w-full">
+              <Button size="lg" className="w-full font-semibold" data-testid="button-register">Register Now</Button>
+              <Button variant="outline" className="w-full" data-testid="button-share">
                 <Share2 className="mr-2 h-4 w-4" /> Share
               </Button>
             </div>
@@ -62,15 +95,7 @@ export default function RaceDetail() {
           <section>
             <h2 className="font-heading font-bold text-2xl mb-4">About the Race</h2>
             <div className="prose max-w-none text-muted-foreground">
-              <p>
-                Experience one of the premier {race.distance} events in {race.state}. 
-                The {race.name} offers a {race.elevation.toLowerCase()} course through the scenic streets of {race.city}.
-                Perfect for runners looking to set a PR or enjoy a supported long run.
-              </p>
-              <p className="mt-4">
-                Course highlights include historic landmarks, river views, and an electric finish line atmosphere.
-                Aid stations are located every 2 miles.
-              </p>
+              <p>{race.description || `Experience one of the premier ${race.distance} events in ${race.state}. The ${race.name} offers a ${race.elevation.toLowerCase()} course through the scenic streets of ${race.city}.`}</p>
             </div>
           </section>
           
@@ -92,36 +117,38 @@ export default function RaceDetail() {
             <ul className="space-y-4 text-sm">
               <li className="flex justify-between border-b pb-2">
                 <span className="text-muted-foreground">Start Time</span>
-                <span className="font-medium">7:00 AM</span>
+                <span className="font-medium" data-testid="text-start-time">{race.startTime || "TBA"}</span>
               </li>
               <li className="flex justify-between border-b pb-2">
                 <span className="text-muted-foreground">Time Limit</span>
-                <span className="font-medium">6 Hours</span>
+                <span className="font-medium" data-testid="text-time-limit">{race.timeLimit || "None"}</span>
               </li>
               <li className="flex justify-between border-b pb-2">
-                <span className="text-muted-foreground">Avg Temp</span>
-                <span className="font-medium">55°F / 42°F</span>
+                <span className="text-muted-foreground">Surface</span>
+                <span className="font-medium">{race.surface}</span>
               </li>
-              <li className="flex justify-between pt-2">
-                <span className="text-muted-foreground">Boston Qualifier</span>
-                <span className="font-medium text-green-600">Yes</span>
-              </li>
+              {race.bostonQualifier !== null && (
+                <li className="flex justify-between pt-2">
+                  <span className="text-muted-foreground">Boston Qualifier</span>
+                  <span className={`font-medium ${race.bostonQualifier ? "text-green-600" : "text-muted-foreground"}`} data-testid="text-bq">
+                    {race.bostonQualifier ? "Yes" : "No"}
+                  </span>
+                </li>
+              )}
             </ul>
           </div>
           
           <div>
             <h3 className="font-heading font-semibold mb-4">Nearby Routes</h3>
              <div className="space-y-4">
-               {ROUTES.slice(0, 3).map(route => (
-                 <Link key={route.id} href={`/routes/${route.slug}`}>
-                   <a className="block p-4 border rounded-lg hover:border-primary/50 transition-colors">
+               {nearbyRoutes?.map(route => (
+                 <Link key={route.id} href={`/routes/${route.slug}`} className="block p-4 border rounded-lg hover:border-primary/50 transition-colors" data-testid={`link-nearby-route-${route.id}`}>
                      <div className="font-semibold">{route.name}</div>
                      <div className="text-xs text-muted-foreground mt-1 flex gap-2">
                        <span>{route.distance} mi</span>
-                       <span>•</span>
+                       <span>·</span>
                        <span>{route.type}</span>
                      </div>
-                   </a>
                  </Link>
                ))}
              </div>

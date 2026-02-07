@@ -12,33 +12,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex flex-col bg-background font-sans">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/">
-            <a className="font-heading font-bold text-xl tracking-tighter flex items-center gap-1">
+          <Link href="/" className="font-heading font-bold text-xl tracking-tighter flex items-center gap-1">
               running<span className="text-primary">.services</span>
-            </a>
           </Link>
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <Link href="/races">
-              <a className={cn("transition-colors hover:text-primary", location.startsWith("/races") ? "text-primary" : "text-foreground/80")}>
+            <Link href="/races" className={cn("transition-colors hover:text-primary", location.startsWith("/races") ? "text-primary" : "text-foreground/80")}>
                 Races
-              </a>
             </Link>
-            <Link href="/routes">
-              <a className={cn("transition-colors hover:text-primary", location.startsWith("/routes") ? "text-primary" : "text-foreground/80")}>
+            <Link href="/routes" className={cn("transition-colors hover:text-primary", location.startsWith("/routes") ? "text-primary" : "text-foreground/80")}>
                 Routes
-              </a>
             </Link>
-            <Link href="/tools">
-              <a className={cn("transition-colors hover:text-primary", location.startsWith("/tools") ? "text-primary" : "text-foreground/80")}>
+            <Link href="/tools" className={cn("transition-colors hover:text-primary", location.startsWith("/tools") ? "text-primary" : "text-foreground/80")}>
                 Tools
-              </a>
             </Link>
-            <Link href="/guides">
-              <a className={cn("transition-colors hover:text-primary", location.startsWith("/guides") ? "text-primary" : "text-foreground/80")}>
+            <Link href="/guides" className={cn("transition-colors hover:text-primary", location.startsWith("/guides") ? "text-primary" : "text-foreground/80")}>
                 Guides
-              </a>
             </Link>
           </nav>
 
@@ -63,10 +53,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <SheetContent side="right">
                 <SheetTitle className="sr-only">Menu</SheetTitle>
                 <div className="flex flex-col gap-4 mt-8">
-                  <Link href="/races"><a className="text-lg font-medium py-2 border-b">Races</a></Link>
-                  <Link href="/routes"><a className="text-lg font-medium py-2 border-b">Routes</a></Link>
-                  <Link href="/tools"><a className="text-lg font-medium py-2 border-b">Tools</a></Link>
-                  <Link href="/guides"><a className="text-lg font-medium py-2 border-b">Guides</a></Link>
+                  <Link href="/races" className="text-lg font-medium py-2 border-b">Races</Link>
+                  <Link href="/routes" className="text-lg font-medium py-2 border-b">Routes</Link>
+                  <Link href="/tools" className="text-lg font-medium py-2 border-b">Tools</Link>
+                  <Link href="/guides" className="text-lg font-medium py-2 border-b">Guides</Link>
                 </div>
               </SheetContent>
             </Sheet>
@@ -82,10 +72,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-2 md:col-span-1">
-              <Link href="/">
-                <a className="font-heading font-bold text-lg tracking-tighter">
+              <Link href="/" className="font-heading font-bold text-lg tracking-tighter">
                   running<span className="text-primary">.services</span>
-                </a>
               </Link>
               <p className="mt-4 text-sm text-muted-foreground">
                 Data-driven race calendar and route directory for runners across the USA.
@@ -94,26 +82,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div>
               <h4 className="font-heading font-semibold mb-4">Discover</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="/races"><a className="hover:text-primary">Race Calendar</a></Link></li>
-                <li><Link href="/routes"><a className="hover:text-primary">Running Routes</a></Link></li>
-                <li><Link href="/tools"><a className="hover:text-primary">Runner Tools</a></Link></li>
-                <li><Link href="/guides"><a className="hover:text-primary">Training Guides</a></Link></li>
+                <li><Link href="/races" className="hover:text-primary">Race Calendar</Link></li>
+                <li><Link href="/routes" className="hover:text-primary">Running Routes</Link></li>
+                <li><Link href="/tools" className="hover:text-primary">Runner Tools</Link></li>
+                <li><Link href="/guides" className="hover:text-primary">Training Guides</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="font-heading font-semibold mb-4">Top States</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="/races/state/california"><a className="hover:text-primary">California Races</a></Link></li>
-                <li><Link href="/races/state/texas"><a className="hover:text-primary">Texas Races</a></Link></li>
-                <li><Link href="/races/state/florida"><a className="hover:text-primary">Florida Races</a></Link></li>
-                <li><Link href="/races/state/new-york"><a className="hover:text-primary">New York Races</a></Link></li>
+                <li><Link href="/races/state/california" className="hover:text-primary">California Races</Link></li>
+                <li><Link href="/races/state/texas" className="hover:text-primary">Texas Races</Link></li>
+                <li><Link href="/races/state/florida" className="hover:text-primary">Florida Races</Link></li>
+                <li><Link href="/races/state/new-york" className="hover:text-primary">New York Races</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="font-heading font-semibold mb-4">Tools</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="/tools/race-predictor"><a className="hover:text-primary flex items-center gap-1">Race Predictor <ArrowRight className="h-3 w-3" /></a></Link></li>
-                <li><Link href="/tools/pace-calculator"><a className="hover:text-primary flex items-center gap-1">Pace Calculator <ArrowRight className="h-3 w-3" /></a></Link></li>
+                <li><Link href="/tools/race-predictor" className="hover:text-primary flex items-center gap-1">Race Predictor <ArrowRight className="h-3 w-3" /></Link></li>
+                <li><Link href="/tools/pace-calculator" className="hover:text-primary flex items-center gap-1">Pace Calculator <ArrowRight className="h-3 w-3" /></Link></li>
                 <li><a href="https://aitracker.run" target="_blank" rel="noopener noreferrer" className="hover:text-primary flex items-center gap-1 text-primary/80">AITracker.run <ArrowRight className="h-3 w-3" /></a></li>
               </ul>
             </div>
