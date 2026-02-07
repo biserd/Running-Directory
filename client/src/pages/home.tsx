@@ -22,7 +22,16 @@ export default function Home() {
         image={heroImage}
         showSearch={true}
         size="default"
-      />
+      >
+        <div className="flex justify-center gap-4">
+          <Button size="lg" className="bg-primary hover:bg-primary/90 text-white font-semibold" asChild>
+            <Link href="/races">
+              <Calendar className="mr-2 h-4 w-4" />
+              Race Calendar
+            </Link>
+          </Button>
+        </div>
+      </Hero>
 
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">

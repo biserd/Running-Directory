@@ -9,6 +9,7 @@ interface HeroProps {
   showSearch?: boolean;
   align?: "center" | "left";
   size?: "default" | "sm" | "lg";
+  children?: React.ReactNode;
 }
 
 export function Hero({ 
@@ -17,7 +18,8 @@ export function Hero({
   image, 
   showSearch = false, 
   align = "center",
-  size = "default" 
+  size = "default",
+  children
 }: HeroProps) {
   return (
     <div className={cn(
@@ -50,6 +52,12 @@ export function Hero({
           <p className="text-lg md:text-xl text-slate-200 mb-8 max-w-2xl mx-auto leading-relaxed">
             {subtitle}
           </p>
+        )}
+
+        {children && (
+          <div className="mb-8">
+            {children}
+          </div>
         )}
         
         {showSearch && (
