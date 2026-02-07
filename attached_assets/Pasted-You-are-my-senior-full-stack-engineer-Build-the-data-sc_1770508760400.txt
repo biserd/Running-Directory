@@ -1,0 +1,112 @@
+You are my senior full-stack engineer. Build the “data schema + page generation” foundation for a USA-scale programmatic-SEO site: https://running.services
+
+GOAL
+- running.services is a data-driven hub with 3 pillars:
+  1) Races directory + calendar (USA-wide)
+  2) Routes directory (USA-wide)
+  3) Tools hub that links out to my existing tools at https://aitracker.run (prominent CTAs, but not spammy)
+- We are NOT relying on providers claiming listings for MVP.
+- Must support tens/hundreds of thousands of pages (states → cities → time views → detail pages → collections).
+- Stack target: Next.js (App Router) + Postgres + Prisma. Use ISR/revalidation-ready patterns.
+
+DELIVERABLES (produce all of these in your output)
+1) Postgres data model (Prisma schema preferred, or SQL DDL) covering:
+   - US states, cities
+   - races (canonical), race instances/occurrences by date
+   - routes (canonical)
+   - sources + raw source records
+   - collections (programmatic “best of” pages)
+   - SEO metadata fields (slug, canonical_url, noindex, last_published_at, last_seen_at, last_modified_at)
+2) Dedupe + canonicalization rules (deterministic first, fuzzy second) for races imported from multiple sources.
+3) Ingestion pipeline spec:
+   - a) Races import from licensed APIs (e.g., RunSignUp + ACTIVE) as “source records” with provenance.
+   - b) Upsert into canonical tables with stable IDs and slugs.
+   - c) Scheduled refresh strategy (daily delta import for races; monthly route refresh/regeneration).
+   - d) Data quality scoring & soft deletion strategy (e.g., “not seen in 45 days → inactive”).
+4) Page generation plan:
+   - Required URL patterns (exact):
+     Races:
+       /races/
+       /races/usa/
+       /races/state/{state-slug}/
+       /races/state/{state-slug}/city/{city-slug}/
+       /races/year/{yyyy}/
+       /races/year/{yyyy}/month/{mm}/
+       /races/{race-slug}/
+     Routes:
+       /routes/
+       /routes/state/{state-slug}/
+       /routes/state/{state-slug}/city/{city-slug}/
+       /routes/{route-slug}/
+     Tools:
+       /tools/
+       /tools/{tool-slug}/  (each page includes “Open in AITracker” CTA)
+     Guides (optional placeholder):
+       /guides/, /guides/{guide-slug}/
+     Collections:
+       /collections/{collection-slug}/
+   - For each page type: required query shape + pagination + filters + canonical tags.
+   - Sitemap generation plan (split sitemaps by type; ensure USA scale).
+   - Robots/meta noindex rules for thin/low-quality pages.
+   - Internal linking rules (related races/routes/collections/tools) computed from DB.
+5) Provide code skeletons (concise but real):
+   - Prisma schema
+   - Next.js route folder outline + example server component per page type (list + detail)
+   - A sitemap generator endpoint (or script) + index sitemap
+   - A cron job script outline for imports + revalidation triggers
+
+DATA MODEL REQUIREMENTS (minimum)
+- State: id, name, abbr, slug, fips(optional)
+- City: id, name, slug, state_id, lat, lng, population(optional)
+- RaceCanonical: id (uuid), name, slug, state_id, city_id, lat, lng, distance_meters (nullable), distance_label (5K/10K/HM/Marathon/Ultra/Other), surface (road/trail/mixed/unknown), website_url, registration_url, description_short, is_active, quality_score, first_seen_at, last_seen_at, updated_at
+- RaceOccurrence: id, race_id, start_date (date), start_time (nullable), year, month, price_min (nullable), price_max (nullable), status (scheduled/cancelled/postponed/unknown), course_elevation_gain_m (nullable), course_profile_url (nullable), last_modified_at, source_best_id (FK to SourceRecord)
+- Route: id, name, slug, state_id, city_id, lat, lng, distance_meters, elevation_gain_m, surface_mix_json, route_type(loop/out-and-back/point-to-point), polyline/geojson, gpx_url (or generated), quality_score, first_seen_at, last_seen_at, updated_at
+- Source: id, name (runsignup/active/osm/manual), type(api/open/manual), base_url, terms_url(optional)
+- SourceRecord: id, source_id, external_id, external_url, payload_json, fetched_at, last_modified_at, normalized_name, normalized_location_key, normalized_date, hash_key (for dedupe), canonical_race_id(nullable), canonical_route_id(nullable)
+- Collection: id, type (races/routes), slug, title_template, query_json (filters), is_programmatic(bool), is_active, updated_at
+
+DEDUPE RULES (must implement)
+- Normalize names: lowercase, strip punctuation, replace common tokens (e.g., “the”, “annual”), collapse whitespace.
+- Normalize location: city+state + rounded lat/lng (e.g., 3 decimals) to form a “location key”.
+- Deterministic match order:
+  1) Same canonical website/registration URL (normalized) OR same source external URL
+  2) Same normalized_name + same normalized_location_key + same start_date (±0 days)
+  3) Same normalized_name + same city/state + start_date within ±1 day
+- Fuzzy fallback (only if needed): trigram similarity on name > threshold AND same city/state AND date within ±1 day.
+- When multiple sources exist, choose “best” source_record per occurrence by source priority + field completeness.
+
+IMPORT/REFRESH STRATEGY
+- Races:
+  - Daily import job: fetch updated races since last run (delta if supported) or a rolling window (next 18 months) per state.
+  - Upsert source records; then reconcile into canonical + occurrences.
+  - If a race occurrence not seen in 45 days and date is in the future → mark “inactive” but keep historical.
+  - If date passed → keep as “archived” for SEO if page has value; otherwise noindex.
+- Routes:
+  - MVP can start with “seed routes” in top metros only (manual or computed).
+  - If generating routes from OSM later: store generation parameters + version; refresh monthly.
+
+SEO + QUALITY RULES (must design for)
+- Noindex pages with < N listings (set N=5 default) OR low quality_score
+- Canonical URLs always stable; avoid duplicate city/state/time pages
+- Generate “last updated” timestamps per page
+- Create structured data fields (at least placeholders) for Race detail + Route detail
+
+TOOLS INTEGRATION (required on every relevant page)
+- Add a “Train with AITracker” module:
+  - links to https://aitracker.run (tool deep links if possible)
+  - shown on race detail pages, route detail pages, and hubs
+- Tools pages live on running.services but primarily link out to AITracker with a clear CTA.
+
+OUTPUT FORMAT
+A) “Schema” section: Prisma schema (preferred) + explanation of key relations
+B) “Ingestion” section: step-by-step job flow + pseudocode + idempotency notes
+C) “Page Generation” section: route map + queries + indexing strategy
+D) “Code Skeleton” section: Next.js folder outline + example pages + sitemap script
+E) “Acceptance checklist” section: exact checks to confirm USA-ready
+
+CONSTRAINTS
+- Keep code skeletons concise (not a full app), but they must be accurate and implementable.
+- Assume Next.js App Router, server components, and Prisma.
+- No UI mockups in this task; focus on data + routes + generation.
+
+START NOW: produce the deliverables in the required output format.
