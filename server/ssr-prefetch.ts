@@ -391,6 +391,87 @@ const prefetchCollectionDetail: PrefetchFn = async (qc, params) => {
   return { title: "Collection Not Found | running.services", description: "The requested collection could not be found.", ogType: "website" };
 };
 
+const prefetchInfluencers: PrefetchFn = async (qc) => {
+  const list = await storage.getInfluencers({});
+  qc.setQueryData(["/api/influencers"], list);
+  return {
+    ...defaultMeta,
+    title: "Running Influencers | running.services",
+    description: "Follow the top runners, coaches, and content creators shaping the running community.",
+    ogTitle: "Running Influencers",
+    ogDescription: "Follow the top runners, coaches, and content creators shaping the running community.",
+  };
+};
+
+const prefetchInfluencerDetail: PrefetchFn = async (qc, params) => {
+  const influencer = await storage.getInfluencerBySlug(params.slug);
+  qc.setQueryData(["/api/influencers", params.slug], influencer);
+  if (influencer) {
+    return {
+      title: `${influencer.name} - Running Influencer | running.services`,
+      description: influencer.bio || `${influencer.name} is a running influencer on ${influencer.platform}.`,
+      ogTitle: influencer.name,
+      ogDescription: influencer.bio || `Follow ${influencer.name} on ${influencer.platform}`,
+      ogType: "profile",
+    };
+  }
+  return { title: "Influencer Not Found | running.services", description: "The requested influencer could not be found.", ogType: "website" };
+};
+
+const prefetchPodcasts: PrefetchFn = async (qc) => {
+  const list = await storage.getPodcasts({});
+  qc.setQueryData(["/api/podcasts"], list);
+  return {
+    ...defaultMeta,
+    title: "Running Podcasts | running.services",
+    description: "The best podcasts for runners — from training tips to elite athlete interviews.",
+    ogTitle: "Running Podcasts",
+    ogDescription: "The best podcasts for runners — from training tips to elite athlete interviews.",
+  };
+};
+
+const prefetchPodcastDetail: PrefetchFn = async (qc, params) => {
+  const podcast = await storage.getPodcastBySlug(params.slug);
+  qc.setQueryData(["/api/podcasts", params.slug], podcast);
+  if (podcast) {
+    return {
+      title: `${podcast.name} - Running Podcast | running.services`,
+      description: podcast.description || `${podcast.name} hosted by ${podcast.host}.`,
+      ogTitle: podcast.name,
+      ogDescription: podcast.description || `Listen to ${podcast.name} hosted by ${podcast.host}`,
+      ogType: "article",
+    };
+  }
+  return { title: "Podcast Not Found | running.services", description: "The requested podcast could not be found.", ogType: "website" };
+};
+
+const prefetchBooks: PrefetchFn = async (qc) => {
+  const list = await storage.getBooks({});
+  qc.setQueryData(["/api/books"], list);
+  return {
+    ...defaultMeta,
+    title: "Running Books | running.services",
+    description: "Essential reading for runners — from training science to inspiring memoirs.",
+    ogTitle: "Running Books",
+    ogDescription: "Essential reading for runners — from training science to inspiring memoirs.",
+  };
+};
+
+const prefetchBookDetail: PrefetchFn = async (qc, params) => {
+  const book = await storage.getBookBySlug(params.slug);
+  qc.setQueryData(["/api/books", params.slug], book);
+  if (book) {
+    return {
+      title: `${book.title} by ${book.author} - Running Book | running.services`,
+      description: book.description || `${book.title} by ${book.author}.`,
+      ogTitle: book.title,
+      ogDescription: book.description || `${book.title} by ${book.author}`,
+      ogType: "book",
+    };
+  }
+  return { title: "Book Not Found | running.services", description: "The requested book could not be found.", ogType: "website" };
+};
+
 interface RouteMatch {
   pattern: RegExp;
   prefetch: PrefetchFn;
@@ -415,6 +496,12 @@ const routeMatches: RouteMatch[] = [
   { pattern: /^\/guides/, prefetch: prefetchGuides, paramNames: [] },
   { pattern: /^\/collections$/, prefetch: prefetchCollections, paramNames: [] },
   { pattern: /^\/collections\/([^/]+)$/, prefetch: prefetchCollectionDetail, paramNames: ["slug"] },
+  { pattern: /^\/influencers$/, prefetch: prefetchInfluencers, paramNames: [] },
+  { pattern: /^\/influencers\/([^/]+)$/, prefetch: prefetchInfluencerDetail, paramNames: ["slug"] },
+  { pattern: /^\/podcasts$/, prefetch: prefetchPodcasts, paramNames: [] },
+  { pattern: /^\/podcasts\/([^/]+)$/, prefetch: prefetchPodcastDetail, paramNames: ["slug"] },
+  { pattern: /^\/books$/, prefetch: prefetchBooks, paramNames: [] },
+  { pattern: /^\/books\/([^/]+)$/, prefetch: prefetchBookDetail, paramNames: ["slug"] },
 ];
 
 export function getSSRPrefetch(url: string): ((qc: QueryClient) => Promise<PageMeta>) | undefined {

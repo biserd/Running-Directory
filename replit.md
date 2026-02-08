@@ -31,7 +31,7 @@ Preferred communication style: Simple, everyday language.
 ### SEO Infrastructure
 - **Dynamic Meta Tags**: Per-page title, description, og:title, og:description, og:type, twitter:title, twitter:description injected server-side
 - **JSON-LD Structured Data**: WebSite schema (home), CollectionPage (hubs/collections), SportsEvent (race details), Place (route details) injected into `<head>`
-- **Sitemaps**: Auto-generated split sitemaps: `sitemap.xml` (index), `sitemap-pages.xml`, `sitemap-races.xml`, `sitemap-routes.xml`, `sitemap-states.xml`, `sitemap-cities.xml`, `sitemap-collections.xml`
+- **Sitemaps**: Auto-generated split sitemaps: `sitemap.xml` (index), `sitemap-pages.xml`, `sitemap-races.xml`, `sitemap-routes.xml`, `sitemap-states.xml`, `sitemap-cities.xml`, `sitemap-collections.xml`, `sitemap-influencers.xml`, `sitemap-podcasts.xml`, `sitemap-books.xml`
 - **Robots.txt**: Proper crawler directives with sitemap references at `/robots.txt`
 - **SEO Routes**: Defined in `server/seo.ts`, registered before API routes
 
@@ -51,6 +51,9 @@ Preferred communication style: Simple, everyday language.
   - `/routes/{route-slug}/` — Route detail page
 - **Tools**: `/tools/`, `/tools/{tool-slug}/` — Each with AITracker CTA
 - **Collections**: `/collections/`, `/collections/{collection-slug}/` — Curated "best of" pages
+- **Influencers**: `/influencers/`, `/influencers/{influencer-slug}/` — Running influencer profiles
+- **Podcasts**: `/podcasts/`, `/podcasts/{podcast-slug}/` — Running podcast directory
+- **Books**: `/books/`, `/books/{book-slug}/` — Running book recommendations
 - **Guides**: `/guides/` — Placeholder for future content
 
 ### Frontend
@@ -78,8 +81,14 @@ Preferred communication style: Simple, everyday language.
   - `GET /api/routes/:slug` — Get a single route
   - `GET /api/collections` — List collections with filters (type, limit)
   - `GET /api/collections/:slug` — Get a single collection
+  - `GET /api/influencers` — List running influencers
+  - `GET /api/influencers/:slug` — Get a single influencer
+  - `GET /api/podcasts` — List running podcasts with optional category filter
+  - `GET /api/podcasts/:slug` — Get a single podcast
+  - `GET /api/books` — List running books with optional category filter
+  - `GET /api/books/:slug` — Get a single book
 - **Storage layer**: `server/storage.ts` implements `IStorage` interface using `DatabaseStorage` class that wraps Drizzle ORM queries
-- **Seeding**: `server/seed.ts` seeds 50 states, 18 races, 12 routes, auto-generates cities, race occurrences, sources, and 6 collections
+- **Seeding**: `server/seed.ts` seeds 50 states, 18 races, 12 routes, auto-generates cities, race occurrences, sources, 6 collections, 12 influencers, 10 podcasts, and 12 books
 - **Ingestion pipeline**: `server/ingestion/` contains RunSignUp API client, normalization utils, dedupe matching via source_records lookup, quality scoring, and full race import pipeline
 - **Admin endpoints**: Protected by ADMIN_API_KEY env var via X-ADMIN-KEY header middleware. POST /api/admin/ingest/races (full), POST /api/admin/ingest/races/state/:state (single), GET /api/admin/stats
 - **Data**: 17,150+ real races ingested from RunSignUp API across all 50 states + DC
@@ -98,6 +107,9 @@ Preferred communication style: Simple, everyday language.
   - `sources` — id, name (unique), type, baseUrl, termsUrl, priority, createdAt
   - `source_records` — id, sourceId (FK), externalId, externalUrl, payloadJson, fetchedAt, lastModifiedAt, normalizedName, normalizedLocationKey, normalizedDate, hashKey, canonicalRaceId (FK), canonicalRouteId (FK)
   - `collections` — id, type, slug (unique), title, titleTemplate, description, queryJson, isProgrammatic, isActive, updatedAt
+  - `influencers` — id, slug (unique), name, handle, platform, bio, followers, specialty, website, imageUrl, isActive
+  - `podcasts` — id, slug (unique), name, host, description, category, episodeCount, website, spotifyUrl, appleUrl, imageUrl, isActive
+  - `books` — id, slug (unique), title, author, description, category, publishYear, pages, amazonUrl, website, imageUrl, isActive
 - **Migrations**: Managed via `drizzle-kit push` (schema push approach, not migration files). Config in `drizzle.config.ts`
 - **Validation**: Zod schemas auto-generated from Drizzle schema via `drizzle-zod`
 

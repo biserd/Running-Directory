@@ -12,6 +12,9 @@ Sitemap: /sitemap-routes.xml
 Sitemap: /sitemap-states.xml
 Sitemap: /sitemap-cities.xml
 Sitemap: /sitemap-collections.xml
+Sitemap: /sitemap-influencers.xml
+Sitemap: /sitemap-podcasts.xml
+Sitemap: /sitemap-books.xml
 `;
     res.set("Content-Type", "text/plain").send(robotsTxt);
   });
@@ -24,6 +27,9 @@ Sitemap: /sitemap-collections.xml
       "/sitemap-states.xml",
       "/sitemap-cities.xml",
       "/sitemap-collections.xml",
+      "/sitemap-influencers.xml",
+      "/sitemap-podcasts.xml",
+      "/sitemap-books.xml",
     ];
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -43,6 +49,9 @@ ${sitemaps.map(s => `  <sitemap><loc>https://running.services${s}</loc></sitemap
       { url: "/tools", priority: "0.8", changefreq: "monthly" },
       { url: "/guides", priority: "0.7", changefreq: "monthly" },
       { url: "/collections", priority: "0.8", changefreq: "weekly" },
+      { url: "/influencers", priority: "0.8", changefreq: "weekly" },
+      { url: "/podcasts", priority: "0.8", changefreq: "weekly" },
+      { url: "/books", priority: "0.8", changefreq: "weekly" },
       { url: "/races/year/2025", priority: "0.8", changefreq: "daily" },
       { url: "/races/year/2026", priority: "0.8", changefreq: "daily" },
     ];
@@ -158,6 +167,57 @@ ${collectionsList.map(c => `  <url>
     <loc>https://running.services/collections/${c.slug}</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+  </url>`).join("\n")}
+</urlset>`;
+      res.set("Content-Type", "application/xml").send(xml);
+    } catch (e) {
+      res.status(500).send("Error generating sitemap");
+    }
+  });
+
+  app.get("/sitemap-influencers.xml", async (_req, res) => {
+    try {
+      const list = await storage.getInfluencers({ limit: 1000 });
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${list.map(i => `  <url>
+    <loc>https://running.services/influencers/${i.slug}</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>`).join("\n")}
+</urlset>`;
+      res.set("Content-Type", "application/xml").send(xml);
+    } catch (e) {
+      res.status(500).send("Error generating sitemap");
+    }
+  });
+
+  app.get("/sitemap-podcasts.xml", async (_req, res) => {
+    try {
+      const list = await storage.getPodcasts({ limit: 1000 });
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${list.map(p => `  <url>
+    <loc>https://running.services/podcasts/${p.slug}</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>`).join("\n")}
+</urlset>`;
+      res.set("Content-Type", "application/xml").send(xml);
+    } catch (e) {
+      res.status(500).send("Error generating sitemap");
+    }
+  });
+
+  app.get("/sitemap-books.xml", async (_req, res) => {
+    try {
+      const list = await storage.getBooks({ limit: 1000 });
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${list.map(b => `  <url>
+    <loc>https://running.services/books/${b.slug}</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>`).join("\n")}
 </urlset>`;
       res.set("Content-Type", "application/xml").send(xml);

@@ -1,4 +1,4 @@
-import type { Race, Route, State, City, Collection, RaceOccurrence } from "@shared/schema";
+import type { Race, Route, State, City, Collection, RaceOccurrence, Influencer, Podcast, Book } from "@shared/schema";
 
 async function fetchJSON<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -125,4 +125,37 @@ export function apiGetWeather(params: { lat?: number | null; lng?: number | null
   if (params.city) searchParams.set("city", params.city);
   if (params.state) searchParams.set("state", params.state);
   return fetchJSON<WeatherData>(`/api/weather?${searchParams.toString()}`);
+}
+
+export function apiGetInfluencers(limit?: number) {
+  const params = limit ? `?limit=${limit}` : "";
+  return fetchJSON<Influencer[]>(`/api/influencers${params}`);
+}
+
+export function apiGetInfluencer(slug: string) {
+  return fetchJSON<Influencer>(`/api/influencers/${slug}`);
+}
+
+export function apiGetPodcasts(params?: { category?: string; limit?: number }) {
+  const searchParams = new URLSearchParams();
+  if (params?.category) searchParams.set("category", params.category);
+  if (params?.limit) searchParams.set("limit", params.limit.toString());
+  const qs = searchParams.toString();
+  return fetchJSON<Podcast[]>(`/api/podcasts${qs ? `?${qs}` : ""}`);
+}
+
+export function apiGetPodcast(slug: string) {
+  return fetchJSON<Podcast>(`/api/podcasts/${slug}`);
+}
+
+export function apiGetBooks(params?: { category?: string; limit?: number }) {
+  const searchParams = new URLSearchParams();
+  if (params?.category) searchParams.set("category", params.category);
+  if (params?.limit) searchParams.set("limit", params.limit.toString());
+  const qs = searchParams.toString();
+  return fetchJSON<Book[]>(`/api/books${qs ? `?${qs}` : ""}`);
+}
+
+export function apiGetBook(slug: string) {
+  return fetchJSON<Book>(`/api/books/${slug}`);
 }

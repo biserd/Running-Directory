@@ -30,6 +30,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Link href="/tools" className={cn("transition-colors hover:text-primary", location.startsWith("/tools") ? "text-primary" : "text-foreground/80")}>
                 Tools
             </Link>
+            <Link href="/influencers" className={cn("transition-colors hover:text-primary", location.startsWith("/influencers") ? "text-primary" : "text-foreground/80")} data-testid="link-influencers">
+                Influencers
+            </Link>
+            <Link href="/podcasts" className={cn("transition-colors hover:text-primary", location.startsWith("/podcasts") ? "text-primary" : "text-foreground/80")} data-testid="link-podcasts">
+                Podcasts
+            </Link>
+            <Link href="/books" className={cn("transition-colors hover:text-primary", location.startsWith("/books") ? "text-primary" : "text-foreground/80")} data-testid="link-books">
+                Books
+            </Link>
             <Link href="/guides" className={cn("transition-colors hover:text-primary", location.startsWith("/guides") ? "text-primary" : "text-foreground/80")}>
                 Guides
             </Link>
@@ -62,6 +71,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </Link>
                   <Link href="/routes" className="text-lg font-medium py-2 border-b">Routes</Link>
                   <Link href="/tools" className="text-lg font-medium py-2 border-b">Tools</Link>
+                  <Link href="/influencers" className="text-lg font-medium py-2 border-b" data-testid="link-influencers-mobile">Influencers</Link>
+                  <Link href="/podcasts" className="text-lg font-medium py-2 border-b" data-testid="link-podcasts-mobile">Podcasts</Link>
+                  <Link href="/books" className="text-lg font-medium py-2 border-b" data-testid="link-books-mobile">Books</Link>
                   <Link href="/guides" className="text-lg font-medium py-2 border-b">Guides</Link>
                 </div>
               </SheetContent>
@@ -92,6 +104,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <li><Link href="/races/nearby" className="hover:text-primary">Races Near Me</Link></li>
                 <li><Link href="/routes" className="hover:text-primary">Running Routes</Link></li>
                 <li><Link href="/tools" className="hover:text-primary">Runner Tools</Link></li>
+                <li><Link href="/influencers" className="hover:text-primary" data-testid="link-influencers-footer">Influencers</Link></li>
+                <li><Link href="/podcasts" className="hover:text-primary" data-testid="link-podcasts-footer">Podcasts</Link></li>
+                <li><Link href="/books" className="hover:text-primary" data-testid="link-books-footer">Books</Link></li>
                 <li><Link href="/guides" className="hover:text-primary">Training Guides</Link></li>
               </ul>
             </div>

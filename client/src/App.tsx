@@ -20,6 +20,12 @@ import ToolDetail from "@/pages/tools/detail";
 import GuidesHub from "@/pages/guides/index";
 import CollectionsHub from "@/pages/collections/index";
 import CollectionDetail from "@/pages/collections/detail";
+import InfluencersHub from "@/pages/influencers/index";
+import InfluencerDetail from "@/pages/influencers/detail";
+import PodcastsHub from "@/pages/podcasts/index";
+import PodcastDetail from "@/pages/podcasts/detail";
+import BooksHub from "@/pages/books/index";
+import BookDetail from "@/pages/books/detail";
 
 function AppRouter() {
   return (
@@ -42,6 +48,12 @@ function AppRouter() {
       <Route path="/guides" component={GuidesHub} />
       <Route path="/collections" component={CollectionsHub} />
       <Route path="/collections/:slug" component={CollectionDetail} />
+      <Route path="/influencers" component={InfluencersHub} />
+      <Route path="/influencers/:slug" component={InfluencerDetail} />
+      <Route path="/podcasts" component={PodcastsHub} />
+      <Route path="/podcasts/:slug" component={PodcastDetail} />
+      <Route path="/books" component={BooksHub} />
+      <Route path="/books/:slug" component={BookDetail} />
       <Route component={NotFound} />
     </Switch>
   );

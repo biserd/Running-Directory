@@ -118,6 +118,48 @@ export async function registerRoutes(
     res.json(collection);
   });
 
+  app.get("/api/influencers", async (req, res) => {
+    const { limit } = req.query;
+    const list = await storage.getInfluencers({ limit: limit ? parseInt(limit as string) : undefined });
+    res.json(list);
+  });
+
+  app.get("/api/influencers/:slug", async (req, res) => {
+    const influencer = await storage.getInfluencerBySlug(req.params.slug);
+    if (!influencer) return res.status(404).json({ message: "Influencer not found" });
+    res.json(influencer);
+  });
+
+  app.get("/api/podcasts", async (req, res) => {
+    const { category, limit } = req.query;
+    const list = await storage.getPodcasts({
+      category: category as string | undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+    });
+    res.json(list);
+  });
+
+  app.get("/api/podcasts/:slug", async (req, res) => {
+    const podcast = await storage.getPodcastBySlug(req.params.slug);
+    if (!podcast) return res.status(404).json({ message: "Podcast not found" });
+    res.json(podcast);
+  });
+
+  app.get("/api/books", async (req, res) => {
+    const { category, limit } = req.query;
+    const list = await storage.getBooks({
+      category: category as string | undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+    });
+    res.json(list);
+  });
+
+  app.get("/api/books/:slug", async (req, res) => {
+    const book = await storage.getBookBySlug(req.params.slug);
+    if (!book) return res.status(404).json({ message: "Book not found" });
+    res.json(book);
+  });
+
   const weatherCache = new Map<string, { data: any; expires: number }>();
 
   const geocodeCache = new Map<string, { lat: number; lng: number } | null>();
