@@ -249,6 +249,36 @@ export default function RacesHub() {
               <div className="font-bold text-sm">Running Influencers</div>
               <p className="text-xs text-muted-foreground mt-1">Follow top runners</p>
             </Link>
+            <Link href="/races/usa" className="p-4 border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors text-center" data-testid="link-explore-usa">
+              <div className="font-bold text-sm">All 50 States</div>
+              <p className="text-xs text-muted-foreground mt-1">Full directory</p>
+            </Link>
+            <Link href="/collections" className="p-4 border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors text-center" data-testid="link-explore-collections">
+              <div className="font-bold text-sm">Collections</div>
+              <p className="text-xs text-muted-foreground mt-1">Curated race lists</p>
+            </Link>
+          </div>
+        </div>
+
+        <div className="mt-12 p-8 bg-muted/30 rounded-xl border">
+          <h3 className="font-heading font-bold text-xl mb-4" data-testid="text-browse-calendar">Browse by Month</h3>
+          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {Array.from({ length: 12 }, (_, i) => {
+              const month = String(i + 1).padStart(2, "0");
+              const year = new Date().getFullYear();
+              const monthName = new Date(year, i).toLocaleString("en-US", { month: "long" });
+              return (
+                <Link
+                  key={month}
+                  href={`/races/year/${year}/month/${month}`}
+                  className="p-3 border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors text-center text-sm"
+                  data-testid={`link-month-${month}`}
+                >
+                  <div className="font-semibold">{monthName}</div>
+                  <div className="text-xs text-muted-foreground">{year}</div>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </div>

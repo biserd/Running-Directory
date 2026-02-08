@@ -7,7 +7,7 @@ import { Link, useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
-import { apiGetState, apiGetCity, apiGetRaces, apiGetRoutes } from "@/lib/api";
+import { apiGetState, apiGetCity, apiGetRaces, apiGetRoutes, apiGetCitiesByState } from "@/lib/api";
 import heroImage from "@/assets/images/hero-races.jpg";
 import { MapPin, ArrowRight } from "lucide-react";
 
@@ -38,6 +38,12 @@ export default function CityHub() {
     queryKey: ["/api/routes", { city: cityData?.name, state: stateData?.abbreviation }],
     queryFn: () => apiGetRoutes({ city: cityData?.name, state: stateData?.abbreviation }),
     enabled: !!cityData?.name && !!stateData?.abbreviation,
+  });
+
+  const { data: siblingCities } = useQuery({
+    queryKey: ["/api/states", stateSlug, "cities"],
+    queryFn: () => apiGetCitiesByState(stateSlug!),
+    enabled: !!stateSlug,
   });
 
   const cityName = cityData?.name || citySlug?.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()) || "";
@@ -139,6 +145,27 @@ export default function CityHub() {
             </Link>
           </div>
         </section>
+
+        {siblingCities && siblingCities.length > 1 && (
+          <section className="mt-12">
+            <h2 className="font-heading font-bold text-xl mb-4" data-testid="text-other-cities">Other Cities in {stateName}</h2>
+            <div className="flex flex-wrap gap-2">
+              {siblingCities
+                .filter(c => c.slug !== citySlug)
+                .slice(0, 12)
+                .map(city => (
+                  <Link
+                    key={city.id}
+                    href={`/state/${stateSlug}/city/${city.slug}`}
+                    className="px-3 py-1.5 border rounded-full text-sm hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                    data-testid={`link-sibling-city-${city.slug}`}
+                  >
+                    {city.name}
+                  </Link>
+                ))}
+            </div>
+          </section>
+        )}
 
         <section className="mt-12 mb-4 p-6 border rounded-lg bg-muted/5">
           <h2 className="font-heading font-bold text-xl mb-4" data-testid="text-explore-more">Explore More</h2>

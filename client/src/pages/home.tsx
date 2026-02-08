@@ -255,9 +255,12 @@ export default function Home() {
               ))}
             </div>
           )}
-          <div className="mt-8 text-center">
+          <div className="mt-8 text-center flex justify-center gap-4">
              <Button variant="outline" asChild>
-                <Link href="/races">View Directory</Link>
+                <Link href="/races/usa" data-testid="link-all-50-states">All 50 States Directory</Link>
+             </Button>
+             <Button variant="outline" asChild>
+                <Link href="/collections" data-testid="link-collections-home">Race Collections</Link>
              </Button>
           </div>
         </div>

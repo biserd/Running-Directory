@@ -108,15 +108,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <li><Link href="/podcasts" className="hover:text-primary" data-testid="link-podcasts-footer">Podcasts</Link></li>
                 <li><Link href="/books" className="hover:text-primary" data-testid="link-books-footer">Books</Link></li>
                 <li><Link href="/guides" className="hover:text-primary">Training Guides</Link></li>
+                <li><Link href="/collections" className="hover:text-primary">Collections</Link></li>
+                <li><Link href="/races/usa" className="hover:text-primary">All 50 States</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="font-heading font-semibold mb-4">Top States</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="/races/state/california" className="hover:text-primary">California Races</Link></li>
-                <li><Link href="/races/state/texas" className="hover:text-primary">Texas Races</Link></li>
-                <li><Link href="/races/state/florida" className="hover:text-primary">Florida Races</Link></li>
-                <li><Link href="/races/state/new-york" className="hover:text-primary">New York Races</Link></li>
+                <li><Link href="/state/california" className="hover:text-primary">California</Link></li>
+                <li><Link href="/state/texas" className="hover:text-primary">Texas</Link></li>
+                <li><Link href="/state/florida" className="hover:text-primary">Florida</Link></li>
+                <li><Link href="/state/new-york" className="hover:text-primary">New York</Link></li>
+                <li><Link href="/races/usa" className="hover:text-primary">All 50 States</Link></li>
               </ul>
             </div>
             <div>
@@ -133,7 +136,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="flex gap-4">
               <a href="#" className="hover:text-foreground">Privacy</a>
               <a href="#" className="hover:text-foreground">Terms</a>
-              <a href="#" className="hover:text-foreground">Sitemap</a>
+              <a href="/sitemap.xml" className="hover:text-foreground">Sitemap</a>
             </div>
           </div>
         </div>

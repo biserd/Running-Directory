@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { parseRaceDate } from "@/lib/dates";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import type { Race } from "@shared/schema";
+import { getStateSlug, getStateName } from "@/lib/states";
 
 function getWeatherIcon(code?: number) {
   if (code === undefined) return <Sun className="h-8 w-8 text-amber-500" />;
@@ -336,7 +337,7 @@ export default function RaceDetail() {
         <div className="container mx-auto px-4 py-8">
           <Breadcrumbs items={[
             { label: "Races", href: "/races" },
-            { label: race.state },
+            { label: getStateName(race.state), href: `/state/${getStateSlug(race.state)}` },
             { label: race.name }
           ]} />
           
@@ -468,6 +469,30 @@ export default function RaceDetail() {
             <p className="text-xs text-muted-foreground mt-4">
               Race data sourced from RunSignUp and verified public records.
             </p>
+          </div>
+
+          <div className="bg-card border rounded-xl p-6 shadow-sm">
+            <h3 className="font-heading font-semibold mb-4">Explore {getStateName(race.state)}</h3>
+            <div className="space-y-3">
+              <Link href={`/state/${getStateSlug(race.state)}`} className="block p-3 border rounded-lg hover:border-primary/50 transition-colors text-sm" data-testid="link-state-hub">
+                <div className="font-semibold">{getStateName(race.state)} Running Hub</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Races, routes & more</div>
+              </Link>
+              <Link href={`/races/state/${getStateSlug(race.state)}`} className="block p-3 border rounded-lg hover:border-primary/50 transition-colors text-sm" data-testid="link-state-races">
+                <div className="font-semibold">All {getStateName(race.state)} Races</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Browse the full calendar</div>
+              </Link>
+              {race.date && (
+                <Link href={`/races/year/${race.date.split("-")[0]}/month/${race.date.split("-")[1]}`} className="block p-3 border rounded-lg hover:border-primary/50 transition-colors text-sm" data-testid="link-month-calendar">
+                  <div className="font-semibold">{new Date(race.date + "T12:00:00").toLocaleString("en-US", { month: "long", year: "numeric" })} Races</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">See all races this month</div>
+                </Link>
+              )}
+              <Link href="/collections" className="block p-3 border rounded-lg hover:border-primary/50 transition-colors text-sm" data-testid="link-collections">
+                <div className="font-semibold">Race Collections</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Curated "best of" lists</div>
+              </Link>
+            </div>
           </div>
 
           <div>

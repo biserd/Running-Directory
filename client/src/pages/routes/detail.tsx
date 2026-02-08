@@ -9,6 +9,7 @@ import { ToolsCTA } from "@/components/tools-cta";
 import { RouteMap } from "@/components/route-map";
 import { useQuery } from "@tanstack/react-query";
 import { apiGetRoute, apiGetRaces, apiGetPodcasts, apiGetBooks } from "@/lib/api";
+import { getStateSlug, getStateName } from "@/lib/states";
 
 export default function RouteDetail() {
   const { slug } = useParams();
@@ -66,7 +67,7 @@ export default function RouteDetail() {
         <div className="container mx-auto px-4 py-8">
           <Breadcrumbs items={[
             { label: "Routes", href: "/routes" },
-            { label: route.state },
+            { label: getStateName(route.state), href: `/state/${getStateSlug(route.state)}` },
             { label: route.name }
           ]} />
 
@@ -160,9 +161,27 @@ export default function RouteDetail() {
             </ul>
           </div>
 
+          <div className="bg-card border rounded-xl p-6 shadow-sm">
+            <h3 className="font-heading font-semibold mb-4">Explore {getStateName(route.state)}</h3>
+            <div className="space-y-3">
+              <Link href={`/state/${getStateSlug(route.state)}`} className="block p-3 border rounded-lg hover:border-primary/50 transition-colors text-sm" data-testid="link-state-hub">
+                <div className="font-semibold">{getStateName(route.state)} Running Hub</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Races, routes & more</div>
+              </Link>
+              <Link href={`/routes/state/${getStateSlug(route.state)}`} className="block p-3 border rounded-lg hover:border-primary/50 transition-colors text-sm" data-testid="link-state-routes">
+                <div className="font-semibold">All {getStateName(route.state)} Routes</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Browse all paths & trails</div>
+              </Link>
+              <Link href="/collections" className="block p-3 border rounded-lg hover:border-primary/50 transition-colors text-sm" data-testid="link-collections">
+                <div className="font-semibold">Collections</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Curated "best of" lists</div>
+              </Link>
+            </div>
+          </div>
+
           {nearbyRaces && nearbyRaces.length > 0 && (
             <div>
-              <h3 className="font-heading font-semibold mb-4">Races in {route.state}</h3>
+              <h3 className="font-heading font-semibold mb-4">Races in {getStateName(route.state)}</h3>
               <div className="space-y-4">
                 {nearbyRaces.map(race => (
                   <Link key={race.id} href={`/races/${race.slug}`} className="block p-4 border rounded-lg hover:border-primary/50 transition-colors" data-testid={`link-nearby-race-${race.id}`}>

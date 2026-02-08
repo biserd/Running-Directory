@@ -376,6 +376,16 @@ const prefetchToolDetail: PrefetchFn = async (_qc, params) => {
   };
 };
 
+const prefetchNearby: PrefetchFn = async () => {
+  return {
+    title: "Races Near Me | running.services",
+    description: "Find running races near your location. Discover 5Ks, half marathons, marathons, and more happening nearby.",
+    ogType: "website",
+    canonicalUrl: "https://running.services/races/nearby",
+    noindex: true,
+  };
+};
+
 const prefetchGuides: PrefetchFn = async () => {
   return {
     title: "Running Guides | running.services",
@@ -569,12 +579,14 @@ const prefetchCityHub: PrefetchFn = async (qc, params) => {
   if (cityData) {
     qc.setQueryData(["/api/cities", stateSlug, citySlug], cityData);
     if (stateData) {
-      const [races, routes] = await Promise.all([
+      const [races, routes, siblingCities] = await Promise.all([
         storage.getRaces({ city: cityData.name, state: stateData.abbreviation }),
         storage.getRoutes({ city: cityData.name, state: stateData.abbreviation }),
+        storage.getCitiesByState(stateData.id),
       ]);
       qc.setQueryData(["/api/races", { city: cityData.name, state: stateData.abbreviation }], races);
       qc.setQueryData(["/api/routes", { city: cityData.name, state: stateData.abbreviation }], routes);
+      qc.setQueryData(["/api/states", stateSlug, "cities"], siblingCities);
     }
 
     const stateName = stateData?.name || stateSlug;
@@ -617,6 +629,7 @@ const routeMatches: RouteMatch[] = [
   { pattern: /^\/$/, prefetch: prefetchHome, paramNames: [] },
   { pattern: /^\/races$/, prefetch: prefetchRaces, paramNames: [] },
   { pattern: /^\/races\/usa$/, prefetch: prefetchRacesUSA, paramNames: [] },
+  { pattern: /^\/races\/nearby$/, prefetch: prefetchNearby, paramNames: [] },
   { pattern: /^\/races\/state\/([^/]+)\/city\/([^/]+)$/, prefetch: prefetchRacesCity, paramNames: ["state", "city"] },
   { pattern: /^\/races\/state\/([^/]+)$/, prefetch: prefetchRacesState, paramNames: ["state"] },
   { pattern: /^\/races\/year\/(\d{4})\/month\/(\d{2})$/, prefetch: prefetchRacesYear, paramNames: ["year", "month"] },
