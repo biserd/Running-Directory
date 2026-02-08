@@ -60,9 +60,6 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const { seedDatabase } = await import("./seed");
-  await seedDatabase();
-
   const { registerSEORoutes } = await import("./seo");
   registerSEORoutes(app);
 
@@ -114,10 +111,6 @@ app.use((req, res, next) => {
     setupDevSSR(app, vite);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(
     {
@@ -127,6 +120,12 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+
+      import("./seed").then(({ seedDatabase }) => {
+        seedDatabase().catch((err) => {
+          console.error("Database seeding failed:", err);
+        });
+      });
     },
   );
 })();

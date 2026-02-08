@@ -78,8 +78,9 @@ export function setupDevSSR(app: Express, vite: ViteDevServer) {
     }
 
     try {
+      const currentDir = typeof __dirname !== "undefined" ? __dirname : import.meta.dirname;
       const clientTemplate = path.resolve(
-        import.meta.dirname,
+        currentDir,
         "..",
         "client",
         "index.html",
@@ -129,7 +130,8 @@ export function setupDevSSR(app: Express, vite: ViteDevServer) {
 }
 
 export function setupProdSSR(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "public");
+  const currentDir = typeof __dirname !== "undefined" ? __dirname : import.meta.dirname;
+  const distPath = path.resolve(currentDir, "public");
 
   app.use("/{*path}", async (req: Request, res: Response, next: NextFunction) => {
     const url = req.originalUrl;
@@ -149,7 +151,7 @@ export function setupProdSSR(app: Express) {
         "utf-8"
       );
 
-      const ssrBundlePath = path.resolve(import.meta.dirname, "server", "entry-server.js");
+      const ssrBundlePath = path.resolve(currentDir, "server", "entry-server.js");
       const { render } = await import(ssrBundlePath);
       const prefetchFn = getSSRPrefetch(url);
       const { html: appHtml, dehydratedState, meta } = await render(url, prefetchFn);
