@@ -146,6 +146,50 @@ export const collections = pgTable("collections", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const influencers = pgTable("influencers", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  handle: text("handle").notNull(),
+  platform: text("platform").notNull(),
+  bio: text("bio"),
+  followers: text("followers"),
+  specialty: text("specialty"),
+  website: text("website"),
+  imageUrl: text("image_url"),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+export const podcasts = pgTable("podcasts", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  host: text("host").notNull(),
+  description: text("description"),
+  category: text("category"),
+  episodeCount: text("episode_count"),
+  website: text("website"),
+  spotifyUrl: text("spotify_url"),
+  appleUrl: text("apple_url"),
+  imageUrl: text("image_url"),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+export const books = pgTable("books", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  title: text("title").notNull(),
+  author: text("author").notNull(),
+  description: text("description"),
+  category: text("category"),
+  publishYear: integer("publish_year"),
+  pages: integer("pages"),
+  amazonUrl: text("amazon_url"),
+  website: text("website"),
+  imageUrl: text("image_url"),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
 export const insertStateSchema = createInsertSchema(states).omit({ id: true });
 export const insertCitySchema = createInsertSchema(cities).omit({ id: true });
 export const insertRaceSchema = createInsertSchema(races).omit({ id: true });
@@ -154,6 +198,9 @@ export const insertRouteSchema = createInsertSchema(routes).omit({ id: true });
 export const insertSourceSchema = createInsertSchema(sources).omit({ id: true });
 export const insertSourceRecordSchema = createInsertSchema(sourceRecords).omit({ id: true });
 export const insertCollectionSchema = createInsertSchema(collections).omit({ id: true });
+export const insertInfluencerSchema = createInsertSchema(influencers).omit({ id: true });
+export const insertPodcastSchema = createInsertSchema(podcasts).omit({ id: true });
+export const insertBookSchema = createInsertSchema(books).omit({ id: true });
 
 export type InsertState = z.infer<typeof insertStateSchema>;
 export type InsertCity = z.infer<typeof insertCitySchema>;
@@ -163,6 +210,9 @@ export type InsertRoute = z.infer<typeof insertRouteSchema>;
 export type InsertSource = z.infer<typeof insertSourceSchema>;
 export type InsertSourceRecord = z.infer<typeof insertSourceRecordSchema>;
 export type InsertCollection = z.infer<typeof insertCollectionSchema>;
+export type InsertInfluencer = z.infer<typeof insertInfluencerSchema>;
+export type InsertPodcast = z.infer<typeof insertPodcastSchema>;
+export type InsertBook = z.infer<typeof insertBookSchema>;
 
 export type State = typeof states.$inferSelect;
 export type City = typeof cities.$inferSelect;
@@ -172,3 +222,6 @@ export type Route = typeof routes.$inferSelect;
 export type Source = typeof sources.$inferSelect;
 export type SourceRecord = typeof sourceRecords.$inferSelect;
 export type Collection = typeof collections.$inferSelect;
+export type Influencer = typeof influencers.$inferSelect;
+export type Podcast = typeof podcasts.$inferSelect;
+export type Book = typeof books.$inferSelect;
