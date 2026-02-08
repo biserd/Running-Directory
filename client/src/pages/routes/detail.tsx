@@ -120,7 +120,7 @@ export default function RouteDetail() {
           <section>
             <h2 className="font-heading font-bold text-2xl mb-4">Route Map</h2>
             {route.lat && route.lng ? (
-              <RouteMap lat={route.lat} lng={route.lng} name={route.name} className="h-[400px] border" />
+              <RouteMap lat={route.lat} lng={route.lng} name={route.name} polyline={route.polyline} className="h-[400px] border" />
             ) : (
               <div className="bg-muted h-64 rounded-xl flex items-center justify-center border border-dashed">
                 <p className="text-muted-foreground">Map location not available for this route</p>

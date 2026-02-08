@@ -219,7 +219,11 @@ export class DatabaseStorage implements IStorage {
 
   async seedRoutes(data: InsertRoute[]): Promise<void> {
     for (const r of data) {
-      await db.insert(routes).values(r).onConflictDoNothing();
+      await db.insert(routes).values(r)
+        .onConflictDoUpdate({
+          target: routes.slug,
+          set: { polyline: r.polyline ?? null },
+        });
     }
   }
 

@@ -258,6 +258,64 @@ const SEED_COLLECTIONS: InsertCollection[] = [
   { type: "routes", slug: "best-beginner-running-routes", title: "Best Beginner Running Routes", description: "Flat, scenic, and easy routes perfect for new runners just getting started.", queryJson: { difficulty: "Easy", limit: 20 }, isProgrammatic: false, isActive: true },
 ];
 
+function generateRoutePolyline(lat: number, lng: number, distanceMiles: number, type: string): string {
+  const points: [number, number][] = [];
+  const milesPerDegLat = 69.0;
+  const milesPerDegLng = 69.0 * Math.cos((lat * Math.PI) / 180);
+  const radiusMiles = distanceMiles / (2 * Math.PI);
+  const radiusLat = radiusMiles / milesPerDegLat;
+  const radiusLng = radiusMiles / milesPerDegLng;
+
+  const seed = Math.abs(lat * 1000 + lng * 1000) % 1000;
+  const seededRandom = (i: number) => {
+    const x = Math.sin(seed + i * 127.1) * 43758.5453;
+    return x - Math.floor(x);
+  };
+
+  if (type === "Loop") {
+    const numPoints = Math.max(20, Math.min(60, Math.round(distanceMiles * 4)));
+    for (let i = 0; i <= numPoints; i++) {
+      const angle = (2 * Math.PI * i) / numPoints;
+      const jitter = 1 + (seededRandom(i) - 0.5) * 0.4;
+      const pLat = lat + radiusLat * Math.sin(angle) * jitter;
+      const pLng = lng + radiusLng * Math.cos(angle) * jitter;
+      points.push([pLat, pLng]);
+    }
+    points[points.length - 1] = points[0];
+  } else if (type === "Out-and-Back") {
+    const halfDist = distanceMiles / 2;
+    const bearing = seededRandom(0) * 2 * Math.PI;
+    const numPoints = Math.max(12, Math.min(40, Math.round(halfDist * 3)));
+    for (let i = 0; i <= numPoints; i++) {
+      const fraction = i / numPoints;
+      const perpJitter = (seededRandom(i + 10) - 0.5) * 0.3 * radiusLat;
+      const pLat = lat + (halfDist / milesPerDegLat) * Math.cos(bearing) * fraction + perpJitter * Math.sin(bearing);
+      const pLng = lng + (halfDist / milesPerDegLng) * Math.sin(bearing) * fraction + perpJitter * Math.cos(bearing);
+      points.push([pLat, pLng]);
+    }
+    for (let i = numPoints - 1; i >= 0; i--) {
+      const [oLat, oLng] = points[i];
+      const offset = (seededRandom(i + 50) - 0.5) * 0.0003;
+      points.push([oLat + offset, oLng + offset]);
+    }
+  } else {
+    const bearing = seededRandom(0) * 2 * Math.PI;
+    const numPoints = Math.max(15, Math.min(50, Math.round(distanceMiles * 3)));
+    for (let i = 0; i <= numPoints; i++) {
+      const fraction = i / numPoints;
+      const perpJitter = (seededRandom(i + 20) - 0.5) * 0.4 * radiusLat;
+      const pLat = lat + (distanceMiles / milesPerDegLat) * Math.cos(bearing) * fraction * 0.5 + perpJitter * Math.sin(bearing);
+      const pLng = lng + (distanceMiles / milesPerDegLng) * Math.sin(bearing) * fraction * 0.5 + perpJitter * Math.cos(bearing);
+      points.push([pLat, pLng]);
+    }
+  }
+
+  return JSON.stringify(points.map(([pLat, pLng]) => [
+    Math.round(pLat * 100000) / 100000,
+    Math.round(pLng * 100000) / 100000,
+  ]));
+}
+
 function slugify(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
@@ -400,8 +458,14 @@ export async function seedDatabase() {
   await storage.seedRaces(SEED_RACES);
   console.log(`Seeded ${SEED_RACES.length} races`);
 
-  await storage.seedRoutes(SEED_ROUTES);
-  console.log(`Seeded ${SEED_ROUTES.length} routes`);
+  const routesWithPolylines = SEED_ROUTES.map(route => ({
+    ...route,
+    polyline: route.lat && route.lng
+      ? generateRoutePolyline(route.lat, route.lng, route.distance, route.type)
+      : null,
+  }));
+  await storage.seedRoutes(routesWithPolylines);
+  console.log(`Seeded ${routesWithPolylines.length} routes`);
 
   await seedCitiesFromData();
   await linkRacesToCities();
