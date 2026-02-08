@@ -60,6 +60,15 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const path = req.path;
+    if (path.length > 1 && path.endsWith("/") && !path.startsWith("/api/")) {
+      const query = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
+      return res.redirect(301, path.slice(0, -1) + query);
+    }
+    next();
+  });
+
   const { registerSEORoutes } = await import("./seo");
   registerSEORoutes(app);
 

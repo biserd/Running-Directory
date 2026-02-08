@@ -113,7 +113,7 @@ const prefetchRacesState: PrefetchFn = async (qc, params) => {
     };
   }
 
-  return { title: "State Races | running.services", description: "Browse races by state.", ogType: "website" };
+  return { title: "State Not Found | running.services", description: "The requested state could not be found.", ogType: "website", is404: true, noindex: true };
 };
 
 const prefetchRacesCity: PrefetchFn = async (qc, params) => {
@@ -147,7 +147,7 @@ const prefetchRacesCity: PrefetchFn = async (qc, params) => {
     };
   }
 
-  return { title: "City Races | running.services", description: "Browse races by city.", ogType: "website" };
+  return { title: "City Not Found | running.services", description: "The requested city could not be found.", ogType: "website", is404: true, noindex: true };
 };
 
 const prefetchRacesYear: PrefetchFn = async (qc, params) => {
@@ -220,10 +220,19 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
         url: `https://running.services/races/${slug}`,
         ...(race.website ? { sameAs: race.website } : {}),
       },
+      breadcrumbJsonLd: {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: "https://running.services/" },
+          { "@type": "ListItem", position: 2, name: "Races", item: "https://running.services/races" },
+          { "@type": "ListItem", position: 3, name: race.name, item: `https://running.services/races/${slug}` },
+        ],
+      },
     };
   }
 
-  return { title: "Race Not Found | running.services", description: "The requested race could not be found.", ogType: "website" };
+  return { title: "Race Not Found | running.services", description: "The requested race could not be found.", ogType: "website", is404: true, noindex: true };
 };
 
 const prefetchRoutes: PrefetchFn = async (qc) => {
@@ -268,7 +277,7 @@ const prefetchRoutesState: PrefetchFn = async (qc, params) => {
     };
   }
 
-  return { title: "State Routes | running.services", description: "Browse routes by state.", ogType: "website" };
+  return { title: "State Not Found | running.services", description: "The requested state could not be found.", ogType: "website", is404: true, noindex: true };
 };
 
 const prefetchRoutesCity: PrefetchFn = async (qc, params) => {
@@ -295,7 +304,7 @@ const prefetchRoutesCity: PrefetchFn = async (qc, params) => {
     };
   }
 
-  return { title: "City Routes | running.services", description: "Browse routes by city.", ogType: "website" };
+  return { title: "City Not Found | running.services", description: "The requested city could not be found.", ogType: "website", is404: true, noindex: true };
 };
 
 const prefetchRouteDetail: PrefetchFn = async (qc, params) => {
@@ -327,10 +336,19 @@ const prefetchRouteDetail: PrefetchFn = async (qc, params) => {
         },
         url: `https://running.services/routes/${slug}`,
       },
+      breadcrumbJsonLd: {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: "https://running.services/" },
+          { "@type": "ListItem", position: 2, name: "Routes", item: "https://running.services/routes" },
+          { "@type": "ListItem", position: 3, name: route.name, item: `https://running.services/routes/${slug}` },
+        ],
+      },
     };
   }
 
-  return { title: "Route Not Found | running.services", description: "The requested route could not be found.", ogType: "website" };
+  return { title: "Route Not Found | running.services", description: "The requested route could not be found.", ogType: "website", is404: true, noindex: true };
 };
 
 const prefetchTools: PrefetchFn = async () => {
@@ -364,6 +382,7 @@ const prefetchGuides: PrefetchFn = async () => {
     description: "Expert running guides for all levels. Training tips, gear reviews, nutrition strategies, and race-day advice.",
     ogType: "website",
     canonicalUrl: "https://running.services/guides",
+    noindex: true,
   };
 };
 
@@ -406,7 +425,7 @@ const prefetchCollectionDetail: PrefetchFn = async (qc, params) => {
     };
   }
 
-  return { title: "Collection Not Found | running.services", description: "The requested collection could not be found.", ogType: "website" };
+  return { title: "Collection Not Found | running.services", description: "The requested collection could not be found.", ogType: "website", is404: true, noindex: true };
 };
 
 const prefetchInfluencers: PrefetchFn = async (qc) => {
@@ -435,7 +454,7 @@ const prefetchInfluencerDetail: PrefetchFn = async (qc, params) => {
       canonicalUrl: `https://running.services/influencers/${params.slug}`,
     };
   }
-  return { title: "Influencer Not Found | running.services", description: "The requested influencer could not be found.", ogType: "website" };
+  return { title: "Influencer Not Found | running.services", description: "The requested influencer could not be found.", ogType: "website", is404: true, noindex: true };
 };
 
 const prefetchPodcasts: PrefetchFn = async (qc) => {
@@ -464,7 +483,7 @@ const prefetchPodcastDetail: PrefetchFn = async (qc, params) => {
       canonicalUrl: `https://running.services/podcasts/${params.slug}`,
     };
   }
-  return { title: "Podcast Not Found | running.services", description: "The requested podcast could not be found.", ogType: "website" };
+  return { title: "Podcast Not Found | running.services", description: "The requested podcast could not be found.", ogType: "website", is404: true, noindex: true };
 };
 
 const prefetchBooks: PrefetchFn = async (qc) => {
@@ -493,7 +512,7 @@ const prefetchBookDetail: PrefetchFn = async (qc, params) => {
       canonicalUrl: `https://running.services/books/${params.slug}`,
     };
   }
-  return { title: "Book Not Found | running.services", description: "The requested book could not be found.", ogType: "website" };
+  return { title: "Book Not Found | running.services", description: "The requested book could not be found.", ogType: "website", is404: true, noindex: true };
 };
 
 const prefetchStateHub: PrefetchFn = async (qc, params) => {
@@ -525,10 +544,18 @@ const prefetchStateHub: PrefetchFn = async (qc, params) => {
         description: `Running races, routes, and resources in ${stateData.name}.`,
         url: `https://running.services/state/${stateSlug}`,
       },
+      breadcrumbJsonLd: {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: "https://running.services/" },
+          { "@type": "ListItem", position: 2, name: stateData.name, item: `https://running.services/state/${stateSlug}` },
+        ],
+      },
     };
   }
 
-  return { title: "State Running Hub | running.services", description: "Browse running resources by state.", ogType: "website" };
+  return { title: "State Not Found | running.services", description: "The requested state could not be found.", ogType: "website", is404: true, noindex: true };
 };
 
 const prefetchCityHub: PrefetchFn = async (qc, params) => {
@@ -565,10 +592,19 @@ const prefetchCityHub: PrefetchFn = async (qc, params) => {
         description: `Running races and routes in ${cityData.name}, ${stateName}.`,
         url: `https://running.services/state/${stateSlug}/city/${citySlug}`,
       },
+      breadcrumbJsonLd: {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: "https://running.services/" },
+          { "@type": "ListItem", position: 2, name: stateName, item: `https://running.services/state/${stateSlug}` },
+          { "@type": "ListItem", position: 3, name: cityData.name, item: `https://running.services/state/${stateSlug}/city/${citySlug}` },
+        ],
+      },
     };
   }
 
-  return { title: "City Running Hub | running.services", description: "Browse running resources by city.", ogType: "website" };
+  return { title: "City Not Found | running.services", description: "The requested city could not be found.", ogType: "website", is404: true, noindex: true };
 };
 
 interface RouteMatch {
@@ -606,7 +642,10 @@ const routeMatches: RouteMatch[] = [
 ];
 
 export function getSSRPrefetch(url: string): ((qc: QueryClient) => Promise<PageMeta>) | undefined {
-  const pathname = url.split("?")[0];
+  let pathname = url.split("?")[0];
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    pathname = pathname.slice(0, -1);
+  }
 
   for (const route of routeMatches) {
     const match = pathname.match(route.pattern);

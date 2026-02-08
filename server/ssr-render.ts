@@ -47,6 +47,9 @@ function injectMetaTags(html: string, meta: any): string {
   if (meta.canonicalUrl) {
     html = html.replace("</head>", `<link rel="canonical" href="${escapeAttr(meta.canonicalUrl)}" />\n</head>`);
   }
+  if (meta.noindex) {
+    html = html.replace("</head>", `<meta name="robots" content="noindex, follow" />\n</head>`);
+  }
   return html;
 }
 
@@ -66,7 +69,18 @@ function injectSSRContent(template: string, appHtml: string, dehydratedState: un
     html = html.replace("</head>", `${jsonLdScript}\n</head>`);
   }
 
+  if (meta.breadcrumbJsonLd) {
+    const breadcrumbScript = `<script type="application/ld+json">${JSON.stringify(meta.breadcrumbJsonLd)}</script>`;
+    html = html.replace("</head>", `${breadcrumbScript}\n</head>`);
+  }
+
   return html;
+}
+
+function getStatusCode(meta: any, prefetchFn: any): number {
+  if (meta.is404) return 404;
+  if (!prefetchFn) return 404;
+  return 200;
 }
 
 export function setupDevSSR(app: Express, vite: ViteDevServer) {
@@ -98,7 +112,8 @@ export function setupDevSSR(app: Express, vite: ViteDevServer) {
         const prefetchFn = getSSRPrefetch(url);
         const { html: appHtml, dehydratedState, meta } = await render(url, prefetchFn);
         const finalHtml = injectSSRContent(template, appHtml, dehydratedState, meta);
-        res.status(200).set({ "Content-Type": "text/html" }).end(finalHtml);
+        const statusCode = getStatusCode(meta, prefetchFn);
+        res.status(statusCode).set({ "Content-Type": "text/html" }).end(finalHtml);
       } catch (ssrError) {
         console.error("SSR render failed, falling back to client rendering:", (ssrError as Error).message);
         const prefetchFn = getSSRPrefetch(url);
@@ -107,19 +122,20 @@ export function setupDevSSR(app: Express, vite: ViteDevServer) {
           const qc = new QueryClient();
           try {
             const meta = await prefetchFn(qc);
+            const statusCode = getStatusCode(meta, prefetchFn);
             const htmlWithMeta = injectMetaTags(template, meta);
             if (meta.jsonLd) {
               const jsonLdScript = `<script type="application/ld+json">${JSON.stringify(meta.jsonLd)}</script>`;
               const finalHtml = htmlWithMeta.replace("</head>", `${jsonLdScript}\n</head>`);
-              return res.status(200).set({ "Content-Type": "text/html" }).end(finalHtml);
+              return res.status(statusCode).set({ "Content-Type": "text/html" }).end(finalHtml);
             }
-            return res.status(200).set({ "Content-Type": "text/html" }).end(htmlWithMeta);
+            return res.status(statusCode).set({ "Content-Type": "text/html" }).end(htmlWithMeta);
           } catch {
             // fall through
           }
           qc.clear();
         }
-        res.status(200).set({ "Content-Type": "text/html" }).end(template);
+        res.status(404).set({ "Content-Type": "text/html" }).end(template);
       }
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
@@ -157,9 +173,12 @@ export function setupProdSSR(app: Express) {
       const { html: appHtml, dehydratedState, meta } = await render(url, prefetchFn);
 
       const finalHtml = injectSSRContent(template, appHtml, dehydratedState, meta);
+      const statusCode = getStatusCode(meta, prefetchFn);
 
-      setCachedHTML(url, finalHtml);
-      res.status(200).set({ "Content-Type": "text/html", "Cache-Control": "public, max-age=300, stale-while-revalidate=3600" }).end(finalHtml);
+      if (statusCode === 200) {
+        setCachedHTML(url, finalHtml);
+      }
+      res.status(statusCode).set({ "Content-Type": "text/html", "Cache-Control": statusCode === 200 ? "public, max-age=300, stale-while-revalidate=3600" : "no-cache" }).end(finalHtml);
     } catch (e) {
       console.error("SSR render error:", e);
       next(e);
