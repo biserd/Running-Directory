@@ -4,6 +4,7 @@ import type { Race } from "@shared/schema";
 import { Calendar, MapPin, Mountain, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
+import { parseRaceDate } from "@/lib/dates";
 
 export function RaceCard({ race }: { race: Race }) {
   return (
@@ -18,7 +19,7 @@ export function RaceCard({ race }: { race: Race }) {
           </Badge>
           <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
             <Calendar className="h-3 w-3" />
-            {format(new Date(race.date), "MMM d, yyyy")}
+            {format(parseRaceDate(race.date), "MMM d, yyyy")}
           </span>
         </div>
         

@@ -36,7 +36,24 @@ async function buildAll() {
   await rm("dist", { recursive: true, force: true });
 
   console.log("building client...");
-  await viteBuild();
+  await viteBuild({
+    build: {
+      rollupOptions: {
+        input: {
+          main: "client/index.html",
+        },
+      },
+    },
+  });
+
+  console.log("building SSR bundle...");
+  await viteBuild({
+    build: {
+      ssr: "client/src/entry-server.tsx",
+      outDir: "dist/server",
+      emptyOutDir: true,
+    },
+  });
 
   console.log("building server...");
   const pkg = JSON.parse(await readFile("package.json", "utf-8"));

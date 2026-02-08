@@ -63,6 +63,9 @@ app.use((req, res, next) => {
   const { seedDatabase } = await import("./seed");
   await seedDatabase();
 
+  const { registerSEORoutes } = await import("./seo");
+  registerSEORoutes(app);
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
@@ -78,14 +81,37 @@ app.use((req, res, next) => {
     return res.status(status).json({ message });
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (process.env.NODE_ENV === "production") {
-    serveStatic(app);
+    const expressStatic = (await import("express")).default.static;
+    const distPath = (await import("path")).resolve(__dirname, "public");
+    app.use(expressStatic(distPath));
+    const { setupProdSSR } = await import("./ssr-render");
+    setupProdSSR(app);
   } else {
-    const { setupVite } = await import("./vite");
-    await setupVite(httpServer, app);
+    const { createServer: createViteServer, createLogger } = await import("vite");
+    const viteConfig = (await import("../vite.config")).default;
+    const viteLogger = createLogger();
+    const vite = await createViteServer({
+      ...viteConfig,
+      configFile: false,
+      customLogger: {
+        ...viteLogger,
+        error: (msg: string, options?: any) => {
+          viteLogger.error(msg, options);
+          process.exit(1);
+        },
+      },
+      server: {
+        middlewareMode: true,
+        hmr: { server: httpServer, path: "/vite-hmr" },
+        allowedHosts: true as const,
+      },
+      appType: "custom",
+    });
+    app.use(vite.middlewares);
+
+    const { setupDevSSR } = await import("./ssr-render");
+    setupDevSSR(app, vite);
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT

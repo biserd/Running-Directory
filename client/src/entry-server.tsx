@@ -1,7 +1,6 @@
 import { renderToString } from "react-dom/server";
 import { QueryClient, dehydrate } from "@tanstack/react-query";
 import { Router } from "wouter";
-import { memoryLocation } from "wouter/memory-location";
 import App from "./App";
 
 export interface PageMeta {
@@ -47,15 +46,13 @@ export async function render(
     }
   }
 
-  const { hook } = memoryLocation({ path: url, static: true });
+  const dehydratedState = dehydrate(queryClient);
 
   const html = renderToString(
-    <Router hook={hook}>
-      <App queryClient={queryClient} dehydratedState={dehydrate(queryClient)} />
+    <Router ssrPath={url}>
+      <App queryClient={queryClient} dehydratedState={dehydratedState} />
     </Router>
   );
-
-  const dehydratedState = dehydrate(queryClient);
 
   queryClient.clear();
 

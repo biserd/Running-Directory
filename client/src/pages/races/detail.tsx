@@ -9,6 +9,7 @@ import { ToolsCTA } from "@/components/tools-cta";
 import { useQuery } from "@tanstack/react-query";
 import { apiGetRace, apiGetRoutes } from "@/lib/api";
 import { format } from "date-fns";
+import { parseRaceDate } from "@/lib/dates";
 
 export default function RaceDetail() {
   const { slug } = useParams();
@@ -67,7 +68,7 @@ export default function RaceDetail() {
                <div className="flex flex-wrap gap-6 text-muted-foreground">
                  <div className="flex items-center gap-2">
                    <Calendar className="h-5 w-5" />
-                   <span className="font-medium text-foreground" data-testid="text-race-date">{format(new Date(race.date), "MMMM d, yyyy")}</span>
+                   <span className="font-medium text-foreground" data-testid="text-race-date">{format(parseRaceDate(race.date), "MMMM d, yyyy")}</span>
                  </div>
                  <div className="flex items-center gap-2">
                    <MapPin className="h-5 w-5" />
