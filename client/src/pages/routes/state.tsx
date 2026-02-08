@@ -68,7 +68,7 @@ export default function RoutesStatePage() {
           <h3 className="font-heading font-bold text-xl mb-4">Also in {stateName}</h3>
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" asChild>
-              <Link href={`/races/state/${stateSlug}`} data-testid="link-state-races-cross">See {stateName} Races</Link>
+              <Link href={`/state/${stateSlug}`} data-testid="link-state-hub-cross">See all {stateName} running</Link>
             </Button>
             <Button variant="outline" asChild>
               <Link href="/collections" data-testid="link-collections-cross">Browse Collections</Link>

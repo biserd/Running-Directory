@@ -113,6 +113,7 @@ ${routes.map(r => `  <url>
       const urls: { url: string; priority: string; changefreq: string }[] = [];
 
       for (const s of statesList) {
+        urls.push({ url: `/state/${s.slug}`, priority: "0.9", changefreq: "weekly" });
         urls.push({ url: `/races/state/${s.slug}`, priority: "0.8", changefreq: "weekly" });
         urls.push({ url: `/routes/state/${s.slug}`, priority: "0.7", changefreq: "weekly" });
       }
@@ -139,6 +140,7 @@ ${urls.map(u => `  <url>
       for (const s of statesList) {
         const citiesList = await storage.getCitiesByState(s.id);
         for (const c of citiesList) {
+          urls.push({ url: `/state/${s.slug}/city/${c.slug}`, priority: "0.7", changefreq: "weekly" });
           urls.push({ url: `/races/state/${s.slug}/city/${c.slug}`, priority: "0.6", changefreq: "weekly" });
           urls.push({ url: `/routes/state/${s.slug}/city/${c.slug}`, priority: "0.5", changefreq: "weekly" });
         }

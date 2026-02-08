@@ -29,6 +29,7 @@ Preferred communication style: Simple, everyday language.
 - **SSR Handler**: `server/ssr-render.ts` handles both dev (via Vite ssrLoadModule) and production (via built SSR bundle) rendering
 
 ### SEO Infrastructure
+- **Canonical URLs**: Every page has a `<link rel="canonical">` tag injected server-side via SSR prefetch functions, using absolute URLs (https://running.services/...)
 - **Dynamic Meta Tags**: Per-page title, description, og:title, og:description, og:type, twitter:title, twitter:description injected server-side
 - **JSON-LD Structured Data**: WebSite schema (home), CollectionPage (hubs/collections), SportsEvent (race details), Place (route details) injected into `<head>`
 - **Sitemaps**: Auto-generated split sitemaps: `sitemap.xml` (index), `sitemap-pages.xml`, `sitemap-races.xml`, `sitemap-routes.xml`, `sitemap-states.xml`, `sitemap-cities.xml`, `sitemap-collections.xml`, `sitemap-influencers.xml`, `sitemap-podcasts.xml`, `sitemap-books.xml`
@@ -49,6 +50,9 @@ Preferred communication style: Simple, everyday language.
   - `/routes/state/{state-slug}/` — State routes directory
   - `/routes/state/{state-slug}/city/{city-slug}/` — City routes
   - `/routes/{route-slug}/` — Route detail page
+- **Unified State/City Hubs**:
+  - `/state/{state-slug}/` — Unified state hub showing races, routes, cities, stats, and explore links
+  - `/state/{state-slug}/city/{city-slug}/` — Unified city hub showing races, routes, and cross-links
 - **Tools**: `/tools/`, `/tools/{tool-slug}/` — Each with AITracker CTA
 - **Collections**: `/collections/`, `/collections/{collection-slug}/` — Curated "best of" pages
 - **Influencers**: `/influencers/`, `/influencers/{influencer-slug}/` — Running influencer profiles

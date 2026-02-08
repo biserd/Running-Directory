@@ -42,7 +42,7 @@ export default function RacesUSAPage() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {sortedStates.map(state => (
-                <Link key={state.slug} href={`/races/state/${state.slug}`} className="group block p-4 bg-muted/30 hover:bg-primary/5 border hover:border-primary/30 rounded-lg transition-colors" data-testid={`link-state-${state.slug}`}>
+                <Link key={state.slug} href={`/state/${state.slug}`} className="group block p-4 bg-muted/30 hover:bg-primary/5 border hover:border-primary/30 rounded-lg transition-colors" data-testid={`link-state-${state.slug}`}>
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="font-heading font-bold text-lg mb-1" data-testid={`text-state-abbr-${state.slug}`}>{state.abbreviation}</div>

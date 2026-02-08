@@ -55,6 +55,14 @@ export default function RoutesCityPage() {
         <div className="mt-8">
           <h2 className="font-heading font-bold text-2xl mb-6" data-testid="text-city-routes-title">Routes in {cityName}</h2>
 
+          <div className="mb-4">
+            <Link href={`/state/${stateSlug}/city/${citySlug}`}>
+              <Button variant="outline" size="sm" data-testid="link-city-hub">
+                View all {cityName} running info
+              </Button>
+            </Link>
+          </div>
+
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3].map(i => <Skeleton key={i} className="h-64 rounded-lg" />)}

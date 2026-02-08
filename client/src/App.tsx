@@ -26,6 +26,8 @@ import PodcastsHub from "@/pages/podcasts/index";
 import PodcastDetail from "@/pages/podcasts/detail";
 import BooksHub from "@/pages/books/index";
 import BookDetail from "@/pages/books/detail";
+import StateHub from "@/pages/state/index";
+import CityHub from "@/pages/state/city";
 
 function AppRouter() {
   return (
@@ -54,6 +56,8 @@ function AppRouter() {
       <Route path="/podcasts/:slug" component={PodcastDetail} />
       <Route path="/books" component={BooksHub} />
       <Route path="/books/:slug" component={BookDetail} />
+      <Route path="/state/:state/city/:city" component={CityHub} />
+      <Route path="/state/:state" component={StateHub} />
       <Route component={NotFound} />
     </Switch>
   );

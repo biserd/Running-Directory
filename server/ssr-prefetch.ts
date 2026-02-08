@@ -25,6 +25,7 @@ const prefetchHome: PrefetchFn = async (qc) => {
 
   return {
     ...defaultMeta,
+    canonicalUrl: "https://running.services/",
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "WebSite",
@@ -53,6 +54,7 @@ const prefetchRaces: PrefetchFn = async (qc) => {
     title: "USA Race Calendar | running.services",
     description: "Discover thousands of races from 5Ks to Ultras across all 50 states. Find your next marathon, half marathon, or trail race.",
     ogType: "website",
+    canonicalUrl: "https://running.services/races",
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
@@ -71,6 +73,7 @@ const prefetchRacesUSA: PrefetchFn = async (qc) => {
     title: "USA Race Directory - All 50 States | running.services",
     description: "Browse running races across all 50 US states. Find marathons, half marathons, 5Ks, trail races, and ultras near you.",
     ogType: "website",
+    canonicalUrl: "https://running.services/races/usa",
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
@@ -99,6 +102,7 @@ const prefetchRacesState: PrefetchFn = async (qc, params) => {
       title: `${stateData.name} Race Calendar | running.services`,
       description: `Find the best 5Ks, Half Marathons, and Marathons in ${stateData.name}. Browse ${stateData.raceCount} running events.`,
       ogType: "website",
+      canonicalUrl: `https://running.services/races/state/${stateSlug}`,
       jsonLd: {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
@@ -132,6 +136,7 @@ const prefetchRacesCity: PrefetchFn = async (qc, params) => {
       title: `${cityData.name} Races, ${stateName} | running.services`,
       description: `Find running races in ${cityData.name}, ${stateName}. Browse 5Ks, half marathons, and marathons.`,
       ogType: "website",
+      canonicalUrl: `https://running.services/races/state/${stateSlug}/city/${citySlug}`,
       jsonLd: {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
@@ -163,6 +168,9 @@ const prefetchRacesYear: PrefetchFn = async (qc, params) => {
     title,
     description: desc,
     ogType: "website",
+    canonicalUrl: month
+      ? `https://running.services/races/year/${year}/month/${String(month).padStart(2, "0")}`
+      : `https://running.services/races/year/${year}`,
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
@@ -191,6 +199,7 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
       ogTitle: race.name,
       ogDescription: `${race.distance} race on ${race.date} in ${race.city}, ${race.state}`,
       ogType: "article",
+      canonicalUrl: `https://running.services/races/${slug}`,
       jsonLd: {
         "@context": "https://schema.org",
         "@type": "SportsEvent",
@@ -225,6 +234,7 @@ const prefetchRoutes: PrefetchFn = async (qc) => {
     title: "Running Routes Directory | running.services",
     description: "Explore the best running paths, trails, and track loops across the USA. Find routes near you with distance, elevation, and difficulty info.",
     ogType: "website",
+    canonicalUrl: "https://running.services/routes",
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
@@ -248,6 +258,7 @@ const prefetchRoutesState: PrefetchFn = async (qc, params) => {
       title: `${stateData.name} Running Routes | running.services`,
       description: `Discover the best running paths, trails, and loops in ${stateData.name}. ${stateData.routeCount} routes available.`,
       ogType: "website",
+      canonicalUrl: `https://running.services/routes/state/${stateSlug}`,
       jsonLd: {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
@@ -280,6 +291,7 @@ const prefetchRoutesCity: PrefetchFn = async (qc, params) => {
       title: `${cityData.name} Running Routes, ${stateName} | running.services`,
       description: `Explore running routes in ${cityData.name}, ${stateName}. Find paths, trails, and loops.`,
       ogType: "website",
+      canonicalUrl: `https://running.services/routes/state/${stateSlug}/city/${citySlug}`,
     };
   }
 
@@ -301,6 +313,7 @@ const prefetchRouteDetail: PrefetchFn = async (qc, params) => {
       ogTitle: route.name,
       ogDescription: `${route.distance} mi ${route.type} route in ${route.city}, ${route.state}`,
       ogType: "article",
+      canonicalUrl: `https://running.services/routes/${slug}`,
       jsonLd: {
         "@context": "https://schema.org",
         "@type": "Place",
@@ -325,6 +338,7 @@ const prefetchTools: PrefetchFn = async () => {
     title: "Running Tools | running.services",
     description: "Essential running tools powered by AI. Pace calculators, training plan generators, and race prediction tools.",
     ogType: "website",
+    canonicalUrl: "https://running.services/tools",
   };
 };
 
@@ -340,6 +354,7 @@ const prefetchToolDetail: PrefetchFn = async (_qc, params) => {
     title: `${name} | running.services`,
     description: `Use the ${name} tool powered by AITracker.run. Data-driven insights for runners.`,
     ogType: "website",
+    canonicalUrl: `https://running.services/tools/${params.slug}`,
   };
 };
 
@@ -348,6 +363,7 @@ const prefetchGuides: PrefetchFn = async () => {
     title: "Running Guides | running.services",
     description: "Expert running guides for all levels. Training tips, gear reviews, nutrition strategies, and race-day advice.",
     ogType: "website",
+    canonicalUrl: "https://running.services/guides",
   };
 };
 
@@ -359,6 +375,7 @@ const prefetchCollections: PrefetchFn = async (qc) => {
     title: "Collections | running.services",
     description: "Curated lists of the best races and routes across the USA. Expert picks and community favorites.",
     ogType: "website",
+    canonicalUrl: "https://running.services/collections",
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
@@ -378,6 +395,7 @@ const prefetchCollectionDetail: PrefetchFn = async (qc, params) => {
       title: `${collection.title} | running.services`,
       description: collection.description || `A curated collection of ${collection.type}.`,
       ogType: "article",
+      canonicalUrl: `https://running.services/collections/${slug}`,
       jsonLd: {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
@@ -400,6 +418,7 @@ const prefetchInfluencers: PrefetchFn = async (qc) => {
     description: "Follow the top runners, coaches, and content creators shaping the running community.",
     ogTitle: "Running Influencers",
     ogDescription: "Follow the top runners, coaches, and content creators shaping the running community.",
+    canonicalUrl: "https://running.services/influencers",
   };
 };
 
@@ -413,6 +432,7 @@ const prefetchInfluencerDetail: PrefetchFn = async (qc, params) => {
       ogTitle: influencer.name,
       ogDescription: influencer.bio || `Follow ${influencer.name} on ${influencer.platform}`,
       ogType: "profile",
+      canonicalUrl: `https://running.services/influencers/${params.slug}`,
     };
   }
   return { title: "Influencer Not Found | running.services", description: "The requested influencer could not be found.", ogType: "website" };
@@ -427,6 +447,7 @@ const prefetchPodcasts: PrefetchFn = async (qc) => {
     description: "The best podcasts for runners — from training tips to elite athlete interviews.",
     ogTitle: "Running Podcasts",
     ogDescription: "The best podcasts for runners — from training tips to elite athlete interviews.",
+    canonicalUrl: "https://running.services/podcasts",
   };
 };
 
@@ -440,6 +461,7 @@ const prefetchPodcastDetail: PrefetchFn = async (qc, params) => {
       ogTitle: podcast.name,
       ogDescription: podcast.description || `Listen to ${podcast.name} hosted by ${podcast.host}`,
       ogType: "article",
+      canonicalUrl: `https://running.services/podcasts/${params.slug}`,
     };
   }
   return { title: "Podcast Not Found | running.services", description: "The requested podcast could not be found.", ogType: "website" };
@@ -454,6 +476,7 @@ const prefetchBooks: PrefetchFn = async (qc) => {
     description: "Essential reading for runners — from training science to inspiring memoirs.",
     ogTitle: "Running Books",
     ogDescription: "Essential reading for runners — from training science to inspiring memoirs.",
+    canonicalUrl: "https://running.services/books",
   };
 };
 
@@ -467,9 +490,85 @@ const prefetchBookDetail: PrefetchFn = async (qc, params) => {
       ogTitle: book.title,
       ogDescription: book.description || `${book.title} by ${book.author}`,
       ogType: "book",
+      canonicalUrl: `https://running.services/books/${params.slug}`,
     };
   }
   return { title: "Book Not Found | running.services", description: "The requested book could not be found.", ogType: "website" };
+};
+
+const prefetchStateHub: PrefetchFn = async (qc, params) => {
+  const stateSlug = params.state;
+  const stateData = await storage.getStateBySlug(stateSlug);
+  qc.setQueryData(["/api/states", stateSlug], stateData);
+
+  if (stateData) {
+    const [races, routes, cities] = await Promise.all([
+      storage.getRaces({ state: stateData.abbreviation, limit: 6 }),
+      storage.getRoutes({ state: stateData.abbreviation, limit: 6 }),
+      storage.getCitiesByState(stateData.id),
+    ]);
+    qc.setQueryData(["/api/races", { state: stateData.abbreviation, limit: 6 }], races);
+    qc.setQueryData(["/api/routes", { state: stateData.abbreviation, limit: 6 }], routes);
+    qc.setQueryData(["/api/states", stateSlug, "cities"], cities);
+
+    return {
+      title: `${stateData.name} Running Hub - Races, Routes & More | running.services`,
+      description: `Everything running in ${stateData.name}. Browse ${stateData.raceCount} races, ${stateData.routeCount} routes, and discover running resources.`,
+      ogTitle: `${stateData.name} Running Hub`,
+      ogDescription: `Races, routes, and running resources in ${stateData.name}.`,
+      ogType: "website",
+      canonicalUrl: `https://running.services/state/${stateSlug}`,
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: `${stateData.name} Running Hub`,
+        description: `Running races, routes, and resources in ${stateData.name}.`,
+        url: `https://running.services/state/${stateSlug}`,
+      },
+    };
+  }
+
+  return { title: "State Running Hub | running.services", description: "Browse running resources by state.", ogType: "website" };
+};
+
+const prefetchCityHub: PrefetchFn = async (qc, params) => {
+  const { state: stateSlug, city: citySlug } = params;
+  const [stateData, cityData] = await Promise.all([
+    storage.getStateBySlug(stateSlug),
+    storage.getCityBySlug(stateSlug, citySlug),
+  ]);
+
+  qc.setQueryData(["/api/states", stateSlug], stateData);
+  if (cityData) {
+    qc.setQueryData(["/api/cities", stateSlug, citySlug], cityData);
+    if (stateData) {
+      const [races, routes] = await Promise.all([
+        storage.getRaces({ city: cityData.name, state: stateData.abbreviation }),
+        storage.getRoutes({ city: cityData.name, state: stateData.abbreviation }),
+      ]);
+      qc.setQueryData(["/api/races", { city: cityData.name, state: stateData.abbreviation }], races);
+      qc.setQueryData(["/api/routes", { city: cityData.name, state: stateData.abbreviation }], routes);
+    }
+
+    const stateName = stateData?.name || stateSlug;
+    return {
+      title: `${cityData.name}, ${stateName} Running Hub | running.services`,
+      description: `Races, routes, and running resources in ${cityData.name}, ${stateName}.`,
+      ogTitle: `${cityData.name}, ${stateName} Running Hub`,
+      ogDescription: `Discover races and routes in ${cityData.name}, ${stateName}.`,
+      ogType: "website",
+      canonicalUrl: `https://running.services/state/${stateSlug}/city/${citySlug}`,
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: `${cityData.name}, ${stateName} Running Hub`,
+        description: `Running races and routes in ${cityData.name}, ${stateName}.`,
+        url: `https://running.services/state/${stateSlug}/city/${citySlug}`,
+      },
+    };
+  }
+
+  return { title: "City Running Hub | running.services", description: "Browse running resources by city.", ogType: "website" };
 };
 
 interface RouteMatch {
@@ -502,6 +601,8 @@ const routeMatches: RouteMatch[] = [
   { pattern: /^\/podcasts\/([^/]+)$/, prefetch: prefetchPodcastDetail, paramNames: ["slug"] },
   { pattern: /^\/books$/, prefetch: prefetchBooks, paramNames: [] },
   { pattern: /^\/books\/([^/]+)$/, prefetch: prefetchBookDetail, paramNames: ["slug"] },
+  { pattern: /^\/state\/([^/]+)\/city\/([^/]+)$/, prefetch: prefetchCityHub, paramNames: ["state", "city"] },
+  { pattern: /^\/state\/([^/]+)$/, prefetch: prefetchStateHub, paramNames: ["state"] },
 ];
 
 export function getSSRPrefetch(url: string): ((qc: QueryClient) => Promise<PageMeta>) | undefined {
