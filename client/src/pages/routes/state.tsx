@@ -63,6 +63,21 @@ export default function RoutesStatePage() {
             </div>
           )}
         </div>
+
+        <div className="mt-12 p-6 bg-muted/30 rounded-xl border">
+          <h3 className="font-heading font-bold text-xl mb-4">Also in {stateName}</h3>
+          <div className="flex flex-wrap gap-3">
+            <Button variant="outline" asChild>
+              <Link href={`/races/state/${stateSlug}`} data-testid="link-state-races-cross">See {stateName} Races</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/collections" data-testid="link-collections-cross">Browse Collections</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/races/nearby" data-testid="link-nearby-cross">Races Near Me</Link>
+            </Button>
+          </div>
+        </div>
       </div>
     </Layout>
   );

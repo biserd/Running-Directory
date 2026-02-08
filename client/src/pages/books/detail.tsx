@@ -6,8 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToolsCTA } from "@/components/tools-cta";
 import { useQuery } from "@tanstack/react-query";
-import { apiGetBook } from "@/lib/api";
-import { ExternalLink, BookOpen } from "lucide-react";
+import { apiGetBook, apiGetBooks, apiGetPodcasts } from "@/lib/api";
+import { ExternalLink, BookOpen, Headphones } from "lucide-react";
 
 export default function BookDetail() {
   const { slug } = useParams();
@@ -16,6 +16,16 @@ export default function BookDetail() {
     queryKey: ["/api/books", slug],
     queryFn: () => apiGetBook(slug!),
     enabled: !!slug,
+  });
+
+  const { data: podcasts } = useQuery({
+    queryKey: ["/api/podcasts", { limit: 3 }],
+    queryFn: () => apiGetPodcasts({ limit: 3 }),
+  });
+
+  const { data: allBooks } = useQuery({
+    queryKey: ["/api/books", { limit: 4 }],
+    queryFn: () => apiGetBooks({ limit: 4 }),
   });
 
   if (isLoading) {
@@ -113,6 +123,47 @@ export default function BookDetail() {
                 </li>
               )}
             </ul>
+          </div>
+        </section>
+
+        {podcasts && podcasts.length > 0 && (
+          <section className="mb-12">
+            <h2 className="font-heading font-bold text-2xl mb-4">Running Podcasts</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {podcasts.map(podcast => (
+                <Link key={podcast.id} href={`/podcasts/${podcast.slug}`} className="block p-4 border rounded-lg hover:border-primary/50 transition-colors" data-testid={`link-book-podcast-${podcast.id}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Headphones className="h-4 w-4 text-primary" />
+                    <span className="font-semibold text-sm">{podcast.name}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{podcast.host}</p>
+                  {podcast.category && <Badge variant="secondary" className="mt-2 text-xs">{podcast.category}</Badge>}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {allBooks && allBooks.filter(b => b.id !== book.id).length > 0 && (
+          <section className="mb-12">
+            <h2 className="font-heading font-bold text-2xl mb-4">More Running Books</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {allBooks.filter(b => b.id !== book.id).slice(0, 3).map(b => (
+                <Link key={b.id} href={`/books/${b.slug}`} className="block p-4 border rounded-lg hover:border-primary/50 transition-colors" data-testid={`link-more-book-${b.id}`}>
+                  <span className="font-semibold text-sm">{b.title}</span>
+                  <p className="text-xs text-muted-foreground">by {b.author}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="mb-12">
+          <h2 className="font-heading font-bold text-2xl mb-4">Explore More</h2>
+          <div className="flex flex-wrap gap-3">
+            <Button variant="outline" asChild><Link href="/influencers" data-testid="link-explore-influencers">Running Influencers</Link></Button>
+            <Button variant="outline" asChild><Link href="/podcasts" data-testid="link-explore-podcasts">Running Podcasts</Link></Button>
+            <Button variant="outline" asChild><Link href="/races" data-testid="link-explore-races">Find Races</Link></Button>
           </div>
         </section>
 

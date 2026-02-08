@@ -5,6 +5,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { apiGetRoutes } from "@/lib/api";
+import { Link } from "wouter";
 import heroImage from "@/assets/images/hero-routes.jpg";
 
 export default function RoutesHub() {
@@ -37,6 +38,28 @@ export default function RoutesHub() {
             ))}
           </div>
         )}
+
+        <div className="mt-12 p-8 bg-muted/30 rounded-xl border">
+          <h3 className="font-heading font-bold text-xl mb-4">Explore More</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Link href="/races" className="p-4 border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors text-center bg-background" data-testid="link-explore-races">
+              <div className="font-semibold">Race Calendar</div>
+              <div className="text-xs text-muted-foreground mt-1">17,000+ races across the USA</div>
+            </Link>
+            <Link href="/books" className="p-4 border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors text-center bg-background" data-testid="link-explore-books">
+              <div className="font-semibold">Running Books</div>
+              <div className="text-xs text-muted-foreground mt-1">Essential reads for runners</div>
+            </Link>
+            <Link href="/podcasts" className="p-4 border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors text-center bg-background" data-testid="link-explore-podcasts">
+              <div className="font-semibold">Running Podcasts</div>
+              <div className="text-xs text-muted-foreground mt-1">Top shows for runners</div>
+            </Link>
+            <Link href="/influencers" className="p-4 border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors text-center bg-background" data-testid="link-explore-influencers">
+              <div className="font-semibold">Influencers</div>
+              <div className="text-xs text-muted-foreground mt-1">Runners to follow</div>
+            </Link>
+          </div>
+        </div>
       </div>
     </Layout>
   );

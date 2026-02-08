@@ -6,11 +6,21 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToolsCTA } from "@/components/tools-cta";
 import { useQuery } from "@tanstack/react-query";
-import { apiGetInfluencer } from "@/lib/api";
+import { apiGetInfluencer, apiGetPodcasts, apiGetBooks } from "@/lib/api";
 import { ExternalLink, Users } from "lucide-react";
 
 export default function InfluencerDetail() {
   const { slug } = useParams();
+
+  const { data: relatedPodcasts } = useQuery({
+    queryKey: ["/api/podcasts", { limit: 3 }],
+    queryFn: () => apiGetPodcasts({ limit: 3 }),
+  });
+
+  const { data: relatedBooks } = useQuery({
+    queryKey: ["/api/books", { limit: 3 }],
+    queryFn: () => apiGetBooks({ limit: 3 }),
+  });
 
   const { data: influencer, isLoading } = useQuery({
     queryKey: ["/api/influencers", slug],
@@ -87,6 +97,62 @@ export default function InfluencerDetail() {
             <p className="text-muted-foreground leading-relaxed" data-testid="text-influencer-bio">{influencer.bio}</p>
           </section>
         )}
+
+        {relatedPodcasts && relatedPodcasts.length > 0 && (
+          <section className="mb-12">
+            <h2 className="font-heading font-bold text-2xl mb-4">Running Podcasts to Follow</h2>
+            <div className="space-y-4">
+              {relatedPodcasts.map(podcast => (
+                <Link key={podcast.id} href={`/podcasts/${podcast.slug}`} className="block p-4 border rounded-lg hover:border-primary/50 transition-colors" data-testid={`link-related-podcast-${podcast.id}`}>
+                  <div className="font-semibold">{podcast.name}</div>
+                  <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                    <span>{podcast.host}</span>
+                    {podcast.category && (
+                      <>
+                        <span>·</span>
+                        <span>{podcast.category}</span>
+                      </>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {relatedBooks && relatedBooks.length > 0 && (
+          <section className="mb-12">
+            <h2 className="font-heading font-bold text-2xl mb-4">Recommended Running Books</h2>
+            <div className="space-y-4">
+              {relatedBooks.map(book => (
+                <Link key={book.id} href={`/books/${book.slug}`} className="block p-4 border rounded-lg hover:border-primary/50 transition-colors" data-testid={`link-related-book-${book.id}`}>
+                  <div className="font-semibold">{book.title}</div>
+                  <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                    <span>{book.author}</span>
+                    {book.category && (
+                      <>
+                        <span>·</span>
+                        <span>{book.category}</span>
+                      </>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <div className="flex flex-wrap gap-3 mb-12">
+          <Button variant="outline" asChild>
+            <Link href="/podcasts" data-testid="link-all-podcasts">All Podcasts</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/books" data-testid="link-all-books">All Books</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/races" data-testid="link-find-races">Find Races</Link>
+          </Button>
+        </div>
 
         <div className="mt-12">
           <ToolsCTA />

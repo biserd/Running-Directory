@@ -5,16 +5,21 @@ import { RouteCard } from "@/components/route-card";
 import { ToolsCTA } from "@/components/tools-cta";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowRight, Calendar } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ArrowRight, Calendar, Users, Headphones, BookOpen } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { apiGetRaces, apiGetRoutes, apiGetStates } from "@/lib/api";
+import { apiGetRaces, apiGetRoutes, apiGetStates, apiGetInfluencers, apiGetPodcasts, apiGetBooks } from "@/lib/api";
 import heroImage from "@/assets/images/hero-races.jpg";
 
 export default function Home() {
   const { data: races, isLoading: racesLoading } = useQuery({ queryKey: ["/api/races", { limit: 4 }], queryFn: () => apiGetRaces({ limit: 4 }) });
   const { data: routes, isLoading: routesLoading } = useQuery({ queryKey: ["/api/routes", { limit: 4 }], queryFn: () => apiGetRoutes({ limit: 4 }) });
   const { data: allStates, isLoading: statesLoading } = useQuery({ queryKey: ["/api/states"], queryFn: apiGetStates });
+  const { data: influencers, isLoading: influencersLoading } = useQuery({ queryKey: ["/api/influencers", { limit: 4 }], queryFn: () => apiGetInfluencers(4) });
+  const { data: podcasts, isLoading: podcastsLoading } = useQuery({ queryKey: ["/api/podcasts", { limit: 4 }], queryFn: () => apiGetPodcasts({ limit: 4 }) });
+  const { data: books, isLoading: booksLoading } = useQuery({ queryKey: ["/api/books", { limit: 4 }], queryFn: () => apiGetBooks({ limit: 4 }) });
 
   const topStates = allStates?.sort((a, b) => b.raceCount - a.raceCount).slice(0, 6) ?? [];
 
@@ -92,6 +97,142 @@ export default function Home() {
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <ToolsCTA />
+        </div>
+      </section>
+
+      <section className="py-20 bg-secondary/30">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-3xl font-heading font-bold mb-2" data-testid="text-featured-influencers">
+                <Users className="inline-block mr-2 h-7 w-7" />Featured Influencers
+              </h2>
+              <p className="text-muted-foreground">Top running creators and coaches to follow.</p>
+            </div>
+            <Button variant="ghost" asChild data-testid="link-all-influencers">
+              <Link href="/influencers">View all influencers <ArrowRight className="ml-2 h-4 w-4" /></Link>
+            </Button>
+          </div>
+          {influencersLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[1,2,3,4].map(i => <Skeleton key={i} className="h-64 rounded-lg" />)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {influencers?.map(influencer => (
+                <Link key={influencer.id} href={`/influencers/${influencer.slug}`} data-testid={`link-influencer-${influencer.id}`}>
+                  <Card className="hover:border-primary/50 transition-colors h-full">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+                          {influencer.name.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="font-heading font-bold">{influencer.name}</div>
+                          <div className="text-sm text-muted-foreground">{influencer.handle}</div>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        <Badge variant="secondary">{influencer.platform}</Badge>
+                        <Badge variant="outline">{influencer.specialty}</Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground">{influencer.followers?.toLocaleString()} followers</div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="py-20 bg-background">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-3xl font-heading font-bold mb-2" data-testid="text-popular-podcasts">
+                <Headphones className="inline-block mr-2 h-7 w-7" />Popular Podcasts
+              </h2>
+              <p className="text-muted-foreground">Listen and learn from the best in running.</p>
+            </div>
+            <Button variant="ghost" asChild data-testid="link-all-podcasts">
+              <Link href="/podcasts">View all podcasts <ArrowRight className="ml-2 h-4 w-4" /></Link>
+            </Button>
+          </div>
+          {podcastsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[1,2,3,4].map(i => <Skeleton key={i} className="h-64 rounded-lg" />)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {podcasts?.map(podcast => (
+                <Link key={podcast.id} href={`/podcasts/${podcast.slug}`} data-testid={`link-podcast-${podcast.id}`}>
+                  <Card className="hover:border-primary/50 transition-colors h-full">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                          <Headphones className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <div className="font-heading font-bold">{podcast.name}</div>
+                          <div className="text-sm text-muted-foreground">{podcast.host}</div>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        <Badge variant="secondary">{podcast.category}</Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground">{podcast.episodeCount} episodes</div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="py-20 bg-secondary/30">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-3xl font-heading font-bold mb-2" data-testid="text-recommended-books">
+                <BookOpen className="inline-block mr-2 h-7 w-7" />Recommended Books
+              </h2>
+              <p className="text-muted-foreground">Essential reading for runners of all levels.</p>
+            </div>
+            <Button variant="ghost" asChild data-testid="link-all-books">
+              <Link href="/books">View all books <ArrowRight className="ml-2 h-4 w-4" /></Link>
+            </Button>
+          </div>
+          {booksLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[1,2,3,4].map(i => <Skeleton key={i} className="h-64 rounded-lg" />)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {books?.map(book => (
+                <Link key={book.id} href={`/books/${book.slug}`} data-testid={`link-book-${book.id}`}>
+                  <Card className="hover:border-primary/50 transition-colors h-full">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                          <BookOpen className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <div className="font-heading font-bold">{book.title}</div>
+                          <div className="text-sm text-muted-foreground">{book.author}</div>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        <Badge variant="secondary">{book.category}</Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground">{book.publishYear}</div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

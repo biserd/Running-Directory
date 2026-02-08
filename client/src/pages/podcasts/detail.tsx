@@ -6,11 +6,21 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToolsCTA } from "@/components/tools-cta";
 import { useQuery } from "@tanstack/react-query";
-import { apiGetPodcast } from "@/lib/api";
+import { apiGetPodcast, apiGetPodcasts, apiGetBooks } from "@/lib/api";
 import { ExternalLink, Headphones } from "lucide-react";
 
 export default function PodcastDetail() {
   const { slug } = useParams();
+
+  const { data: morePodcasts } = useQuery({
+    queryKey: ["/api/podcasts", { limit: 4 }],
+    queryFn: () => apiGetPodcasts({ limit: 4 }),
+  });
+
+  const { data: podcastBooks } = useQuery({
+    queryKey: ["/api/books", { limit: 3 }],
+    queryFn: () => apiGetBooks({ limit: 3 }),
+  });
 
   const { data: podcast, isLoading } = useQuery({
     queryKey: ["/api/podcasts", slug],
@@ -102,6 +112,46 @@ export default function PodcastDetail() {
             )}
           </div>
         </section>
+
+        {morePodcasts && morePodcasts.filter(p => p.id !== podcast?.id).length > 0 && (
+          <section className="mb-12">
+            <h2 className="font-heading font-bold text-2xl mb-4">More Running Podcasts</h2>
+            <div className="space-y-4">
+              {morePodcasts.filter(p => p.id !== podcast?.id).slice(0, 3).map(p => (
+                <Link key={p.id} href={`/podcasts/${p.slug}`} className="block p-4 border rounded-lg hover:border-primary/50 transition-colors" data-testid={`link-more-podcast-${p.id}`}>
+                  <div className="font-semibold">{p.name}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{p.host}</div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {podcastBooks && podcastBooks.length > 0 && (
+          <section className="mb-12">
+            <h2 className="font-heading font-bold text-2xl mb-4">Running Books You'll Love</h2>
+            <div className="space-y-4">
+              {podcastBooks.map(book => (
+                <Link key={book.id} href={`/books/${book.slug}`} className="block p-4 border rounded-lg hover:border-primary/50 transition-colors" data-testid={`link-podcast-book-${book.id}`}>
+                  <div className="font-semibold">{book.title}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{book.author}</div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <div className="flex flex-wrap gap-3 mb-12">
+          <Button variant="outline" asChild>
+            <Link href="/influencers" data-testid="link-running-influencers">Running Influencers</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/books" data-testid="link-running-books">Running Books</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/races" data-testid="link-find-races">Find Races</Link>
+          </Button>
+        </div>
 
         <div className="mt-12">
           <ToolsCTA />

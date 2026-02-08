@@ -229,6 +229,28 @@ export default function RacesHub() {
             )}
           </div>
         </div>
+
+        <div className="mt-12 p-8 bg-muted/30 rounded-xl border">
+          <h3 className="font-heading font-bold text-xl mb-4">Explore More</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Link href="/routes" className="p-4 border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors text-center" data-testid="link-explore-routes">
+              <div className="font-bold text-sm">Running Routes</div>
+              <p className="text-xs text-muted-foreground mt-1">Discover paths and trails</p>
+            </Link>
+            <Link href="/books" className="p-4 border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors text-center" data-testid="link-explore-books">
+              <div className="font-bold text-sm">Running Books</div>
+              <p className="text-xs text-muted-foreground mt-1">Top reads for runners</p>
+            </Link>
+            <Link href="/podcasts" className="p-4 border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors text-center" data-testid="link-explore-podcasts">
+              <div className="font-bold text-sm">Running Podcasts</div>
+              <p className="text-xs text-muted-foreground mt-1">Listen and learn</p>
+            </Link>
+            <Link href="/influencers" className="p-4 border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors text-center" data-testid="link-explore-influencers">
+              <div className="font-bold text-sm">Running Influencers</div>
+              <p className="text-xs text-muted-foreground mt-1">Follow top runners</p>
+            </Link>
+          </div>
+        </div>
       </div>
     </Layout>
   );

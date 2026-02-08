@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToolsCTA } from "@/components/tools-cta";
 import { useQuery } from "@tanstack/react-query";
-import { apiGetRoute, apiGetRaces } from "@/lib/api";
+import { apiGetRoute, apiGetRaces, apiGetPodcasts, apiGetBooks } from "@/lib/api";
 
 export default function RouteDetail() {
   const { slug } = useParams();
@@ -16,6 +16,16 @@ export default function RouteDetail() {
     queryKey: ["/api/routes", slug],
     queryFn: () => apiGetRoute(slug!),
     enabled: !!slug,
+  });
+
+  const { data: routePodcasts } = useQuery({
+    queryKey: ["/api/podcasts", { limit: 3 }],
+    queryFn: () => apiGetPodcasts({ limit: 3 }),
+  });
+
+  const { data: routeBooks } = useQuery({
+    queryKey: ["/api/books", { limit: 3 }],
+    queryFn: () => apiGetBooks({ limit: 3 }),
   });
 
   const { data: nearbyRaces } = useQuery({
@@ -157,6 +167,34 @@ export default function RouteDetail() {
                       <span>·</span>
                       <span>{race.city}</span>
                     </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {routePodcasts && routePodcasts.length > 0 && (
+            <div>
+              <h3 className="font-heading font-semibold mb-4">Running Podcasts</h3>
+              <div className="space-y-4">
+                {routePodcasts.map(podcast => (
+                  <Link key={podcast.id} href={`/podcasts/${podcast.slug}`} className="block p-4 border rounded-lg hover:border-primary/50 transition-colors" data-testid={`link-route-podcast-${podcast.id}`}>
+                    <div className="font-semibold">{podcast.name}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{podcast.host}</div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {routeBooks && routeBooks.length > 0 && (
+            <div>
+              <h3 className="font-heading font-semibold mb-4">Running Books</h3>
+              <div className="space-y-4">
+                {routeBooks.map(book => (
+                  <Link key={book.id} href={`/books/${book.slug}`} className="block p-4 border rounded-lg hover:border-primary/50 transition-colors" data-testid={`link-route-book-${book.id}`}>
+                    <div className="font-semibold">{book.title}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{book.author}</div>
                   </Link>
                 ))}
               </div>

@@ -1,13 +1,13 @@
 import { Layout } from "@/components/layout";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useParams, Link } from "wouter";
-import { MapPin, Calendar, Trophy, ExternalLink, CloudRain, Sun, CloudSun, Cloud, Snowflake, CloudFog, Wind, Droplets, Thermometer, Gauge, Mountain } from "lucide-react";
+import { MapPin, Calendar, Trophy, ExternalLink, CloudRain, Sun, CloudSun, Cloud, Snowflake, CloudFog, Wind, Droplets, Thermometer, Gauge, Mountain, BookOpen, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToolsCTA } from "@/components/tools-cta";
 import { useQuery } from "@tanstack/react-query";
-import { apiGetRace, apiGetRoutes, apiGetWeather, apiGetElevationProfile, type WeatherData, type ElevationProfile } from "@/lib/api";
+import { apiGetRace, apiGetRoutes, apiGetWeather, apiGetElevationProfile, apiGetBooks, apiGetPodcasts, type WeatherData, type ElevationProfile } from "@/lib/api";
 import { format } from "date-fns";
 import { parseRaceDate } from "@/lib/dates";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
@@ -272,6 +272,16 @@ export default function RaceDetail() {
     enabled: !!race,
   });
 
+  const { data: recommendedBooks } = useQuery({
+    queryKey: ["/api/books", { limit: 3 }],
+    queryFn: () => apiGetBooks({ limit: 3 }),
+  });
+
+  const { data: recommendedPodcasts } = useQuery({
+    queryKey: ["/api/podcasts", { limit: 3 }],
+    queryFn: () => apiGetPodcasts({ limit: 3 }),
+  });
+
   const { data: weather } = useQuery({
     queryKey: ["/api/weather", race?.city, race?.state, race?.date],
     queryFn: () => apiGetWeather({
@@ -475,6 +485,56 @@ export default function RaceDetail() {
                ))}
              </div>
           </div>
+
+          {recommendedBooks && recommendedBooks.length > 0 && (
+            <div>
+              <h3 className="font-heading font-semibold mb-4 flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                Recommended Reading
+              </h3>
+              <div className="space-y-4">
+                {recommendedBooks.map(book => (
+                  <Link key={book.id} href={`/books/${book.slug}`} className="block p-4 border rounded-lg hover:border-primary/50 transition-colors" data-testid={`link-recommended-book-${book.id}`}>
+                    <div className="font-semibold">{book.title}</div>
+                    <div className="text-xs text-muted-foreground mt-1 flex gap-2">
+                      <span>{book.author}</span>
+                      {book.category && (
+                        <>
+                          <span>·</span>
+                          <span>{book.category}</span>
+                        </>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {recommendedPodcasts && recommendedPodcasts.length > 0 && (
+            <div>
+              <h3 className="font-heading font-semibold mb-4 flex items-center gap-2">
+                <Headphones className="h-4 w-4" />
+                Listen While You Train
+              </h3>
+              <div className="space-y-4">
+                {recommendedPodcasts.map(podcast => (
+                  <Link key={podcast.id} href={`/podcasts/${podcast.slug}`} className="block p-4 border rounded-lg hover:border-primary/50 transition-colors" data-testid={`link-recommended-podcast-${podcast.id}`}>
+                    <div className="font-semibold">{podcast.name}</div>
+                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                      <span>{podcast.host}</span>
+                      {podcast.category && (
+                        <>
+                          <span>·</span>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">{podcast.category}</Badge>
+                        </>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </aside>
       </div>
     </Layout>
