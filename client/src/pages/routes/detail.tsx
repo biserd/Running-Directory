@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToolsCTA } from "@/components/tools-cta";
+import { RouteMap } from "@/components/route-map";
 import { useQuery } from "@tanstack/react-query";
 import { apiGetRoute, apiGetRaces, apiGetPodcasts, apiGetBooks } from "@/lib/api";
 
@@ -118,9 +119,13 @@ export default function RouteDetail() {
 
           <section>
             <h2 className="font-heading font-bold text-2xl mb-4">Route Map</h2>
-            <div className="bg-muted h-64 rounded-xl flex items-center justify-center border border-dashed">
-              <p className="text-muted-foreground">Interactive map coming soon</p>
-            </div>
+            {route.lat && route.lng ? (
+              <RouteMap lat={route.lat} lng={route.lng} name={route.name} className="h-[400px] border" />
+            ) : (
+              <div className="bg-muted h-64 rounded-xl flex items-center justify-center border border-dashed">
+                <p className="text-muted-foreground">Map location not available for this route</p>
+              </div>
+            )}
           </section>
 
           <section>
