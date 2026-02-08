@@ -4,10 +4,34 @@ import type { Route } from "@shared/schema";
 import { Footprints, MapPin, Mountain, Navigation } from "lucide-react";
 import { Link } from "wouter";
 
+function latLngToWorldPixel(lat: number, lng: number, zoom: number) {
+  const scale = 256 * Math.pow(2, zoom);
+  const x = ((lng + 180) / 360) * scale;
+  const latRad = (lat * Math.PI) / 180;
+  const y = ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * scale;
+  return { x, y };
+}
+
+function getZoomForBounds(
+  minLat: number, maxLat: number, minLng: number, maxLng: number,
+  viewW: number, viewH: number
+): number {
+  for (let z = 16; z >= 1; z--) {
+    const topLeft = latLngToWorldPixel(maxLat, minLng, z);
+    const bottomRight = latLngToWorldPixel(minLat, maxLng, z);
+    const w = bottomRight.x - topLeft.x;
+    const h = bottomRight.y - topLeft.y;
+    if (w <= viewW * 0.75 && h <= viewH * 0.75) return z;
+  }
+  return 1;
+}
+
+const TILE_SIZE = 256;
+
 function RoutePreview({ route }: { route: Route }) {
   if (!route.polyline || !route.lat || !route.lng) {
     return (
-      <div className="h-full w-full flex items-center justify-center">
+      <div className="h-full w-full bg-muted flex items-center justify-center">
         <MapPin className="h-8 w-8 text-muted-foreground/30" />
       </div>
     );
@@ -25,37 +49,98 @@ function RoutePreview({ route }: { route: Route }) {
       if (lng > maxLng) maxLng = lng;
     }
 
-    const padding = 0.15;
-    const latRange = maxLat - minLat || 0.001;
-    const lngRange = maxLng - minLng || 0.001;
-    const pMinLat = minLat - latRange * padding;
-    const pMaxLat = maxLat + latRange * padding;
-    const pMinLng = minLng - lngRange * padding;
-    const pMaxLng = maxLng + lngRange * padding;
-    const pLatRange = pMaxLat - pMinLat;
-    const pLngRange = pMaxLng - pMinLng;
+    const viewW = 400;
+    const viewH = 180;
+    const zoom = getZoomForBounds(minLat, maxLat, minLng, maxLng, viewW, viewH);
 
-    const svgWidth = 300;
-    const svgHeight = 128;
+    const centerLat = (minLat + maxLat) / 2;
+    const centerLng = (minLng + maxLng) / 2;
+    const centerPx = latLngToWorldPixel(centerLat, centerLng, zoom);
 
-    const toX = (lng: number) => ((lng - pMinLng) / pLngRange) * svgWidth;
-    const toY = (lat: number) => svgHeight - ((lat - pMinLat) / pLatRange) * svgHeight;
+    const vpLeft = centerPx.x - viewW / 2;
+    const vpTop = centerPx.y - viewH / 2;
 
-    const pathD = coords
-      .map((c, i) => `${i === 0 ? "M" : "L"}${toX(c[1]).toFixed(1)},${toY(c[0]).toFixed(1)}`)
+    const tileMinX = Math.floor(vpLeft / TILE_SIZE);
+    const tileMaxX = Math.floor((vpLeft + viewW) / TILE_SIZE);
+    const tileMinY = Math.floor(vpTop / TILE_SIZE);
+    const tileMaxY = Math.floor((vpTop + viewH) / TILE_SIZE);
+
+    const maxTile = Math.pow(2, zoom) - 1;
+    const tiles: { x: number; y: number; left: number; top: number }[] = [];
+    for (let tx = tileMinX; tx <= tileMaxX; tx++) {
+      for (let ty = tileMinY; ty <= tileMaxY; ty++) {
+        if (ty < 0 || ty > maxTile) continue;
+        const wrappedX = ((tx % (maxTile + 1)) + (maxTile + 1)) % (maxTile + 1);
+        tiles.push({
+          x: wrappedX,
+          y: ty,
+          left: tx * TILE_SIZE - vpLeft,
+          top: ty * TILE_SIZE - vpTop,
+        });
+      }
+    }
+
+    const pathPoints = coords.map(([lat, lng]) => {
+      const wp = latLngToWorldPixel(lat, lng, zoom);
+      return { x: wp.x - vpLeft, y: wp.y - vpTop };
+    });
+
+    const pathD = pathPoints
+      .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
       .join(" ");
 
     return (
-      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="h-full w-full" preserveAspectRatio="xMidYMid meet">
-        <rect width={svgWidth} height={svgHeight} fill="none" />
-        <path d={pathD} fill="none" stroke="hsl(221.2, 83.2%, 53.3%)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
-        <circle cx={toX(coords[0][1])} cy={toY(coords[0][0])} r="4" fill="hsl(142, 76%, 36%)" stroke="white" strokeWidth="1.5" />
-        <circle cx={toX(coords[coords.length - 1][1])} cy={toY(coords[coords.length - 1][0])} r="4" fill="hsl(0, 84%, 60%)" stroke="white" strokeWidth="1.5" />
-      </svg>
+      <div className="h-full w-full relative overflow-hidden">
+        <svg
+          viewBox={`0 0 ${viewW} ${viewH}`}
+          className="absolute inset-0 w-full h-full"
+          preserveAspectRatio="xMidYMid slice"
+        >
+          {tiles.map((t) => (
+            <image
+              key={`${t.x}-${t.y}`}
+              href={`https://tile.openstreetmap.org/${zoom}/${t.x}/${t.y}.png`}
+              x={t.left}
+              y={t.top}
+              width={TILE_SIZE}
+              height={TILE_SIZE}
+            />
+          ))}
+          <path
+            d={pathD}
+            fill="none"
+            stroke="#2563eb"
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.9"
+          />
+          <path
+            d={pathD}
+            fill="none"
+            stroke="white"
+            strokeWidth="5.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.4"
+          />
+          <path
+            d={pathD}
+            fill="none"
+            stroke="#2563eb"
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.9"
+          />
+          <circle cx={pathPoints[0].x} cy={pathPoints[0].y} r="5" fill="#16a34a" stroke="white" strokeWidth="2" />
+          <circle cx={pathPoints[pathPoints.length - 1].x} cy={pathPoints[pathPoints.length - 1].y} r="5" fill="#dc2626" stroke="white" strokeWidth="2" />
+        </svg>
+      </div>
     );
   } catch {
     return (
-      <div className="h-full w-full flex items-center justify-center">
+      <div className="h-full w-full bg-muted flex items-center justify-center">
         <MapPin className="h-8 w-8 text-muted-foreground/30" />
       </div>
     );
@@ -65,9 +150,9 @@ function RoutePreview({ route }: { route: Route }) {
 export function RouteCard({ route }: { route: Route }) {
   return (
     <Card className="overflow-hidden hover:border-primary/50 transition-colors group h-full" data-testid={`card-route-${route.id}`}>
-      <div className="relative h-32 bg-muted flex items-center justify-center">
+      <div className="relative h-36 bg-muted">
         <RoutePreview route={route} />
-        <Badge className="absolute top-2 right-2 bg-background/90 text-foreground hover:bg-background/100">
+        <Badge className="absolute top-2 right-2 bg-background/90 text-foreground hover:bg-background/100 z-10">
           {route.distance} mi
         </Badge>
       </div>
