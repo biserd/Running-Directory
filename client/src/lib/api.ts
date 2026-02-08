@@ -75,3 +75,18 @@ export function apiGetCollections(params?: { type?: string; limit?: number }) {
 export function apiGetCollection(slug: string) {
   return fetchJSON<Collection>(`/api/collections/${slug}`);
 }
+
+export interface WeatherData {
+  type: "forecast" | "historical" | "unavailable";
+  date?: string;
+  tempHigh?: number;
+  tempLow?: number;
+  precipProbability?: number;
+  precipAmount?: number;
+  windSpeed?: number;
+  weatherCode?: number;
+}
+
+export function apiGetWeather(lat: number, lng: number, date: string) {
+  return fetchJSON<WeatherData>(`/api/weather?lat=${lat}&lng=${lng}&date=${date}`);
+}

@@ -1,15 +1,96 @@
 import { Layout } from "@/components/layout";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useParams, Link } from "wouter";
-import { MapPin, Calendar, Trophy, Share2, ExternalLink, Clock } from "lucide-react";
+import { MapPin, Calendar, Trophy, Share2, ExternalLink, Clock, CloudRain, Sun, CloudSun, Cloud, Snowflake, CloudFog, Wind, Droplets, Thermometer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToolsCTA } from "@/components/tools-cta";
 import { useQuery } from "@tanstack/react-query";
-import { apiGetRace, apiGetRoutes } from "@/lib/api";
+import { apiGetRace, apiGetRoutes, apiGetWeather, type WeatherData } from "@/lib/api";
 import { format } from "date-fns";
 import { parseRaceDate } from "@/lib/dates";
+
+function getWeatherIcon(code?: number) {
+  if (code === undefined) return <Sun className="h-8 w-8 text-amber-500" />;
+  if (code <= 1) return <Sun className="h-8 w-8 text-amber-500" />;
+  if (code <= 3) return <CloudSun className="h-8 w-8 text-blue-400" />;
+  if (code <= 48) return <CloudFog className="h-8 w-8 text-gray-400" />;
+  if (code <= 67) return <CloudRain className="h-8 w-8 text-blue-500" />;
+  if (code <= 77) return <Snowflake className="h-8 w-8 text-blue-300" />;
+  if (code <= 82) return <CloudRain className="h-8 w-8 text-blue-600" />;
+  if (code <= 86) return <Snowflake className="h-8 w-8 text-blue-200" />;
+  return <Cloud className="h-8 w-8 text-gray-500" />;
+}
+
+function getWeatherLabel(code?: number) {
+  if (code === undefined) return "";
+  if (code === 0) return "Clear skies";
+  if (code <= 1) return "Mostly clear";
+  if (code <= 3) return "Partly cloudy";
+  if (code <= 48) return "Foggy";
+  if (code <= 55) return "Light rain";
+  if (code <= 57) return "Freezing drizzle";
+  if (code <= 65) return "Rain";
+  if (code <= 67) return "Freezing rain";
+  if (code <= 75) return "Snow";
+  if (code <= 77) return "Snow grains";
+  if (code <= 82) return "Rain showers";
+  if (code <= 86) return "Snow showers";
+  if (code <= 99) return "Thunderstorm";
+  return "Mixed conditions";
+}
+
+function WeatherCard({ weather }: { weather: WeatherData }) {
+  if (weather.type === "unavailable") return null;
+
+  const isForecast = weather.type === "forecast";
+
+  return (
+    <div className="bg-card border rounded-xl p-6 shadow-sm" data-testid="card-weather">
+      <h3 className="font-heading font-semibold mb-1">Race Day Weather</h3>
+      <p className="text-xs text-muted-foreground mb-4">
+        {isForecast ? "Live forecast" : "Historical average for this date"}
+      </p>
+      <div className="flex items-center gap-4 mb-4">
+        {isForecast ? getWeatherIcon(weather.weatherCode) : <Thermometer className="h-8 w-8 text-orange-500" />}
+        <div>
+          <div className="text-2xl font-bold" data-testid="text-weather-temp">
+            {weather.tempHigh}° / {weather.tempLow}°F
+          </div>
+          {isForecast && weather.weatherCode !== undefined && (
+            <div className="text-sm text-muted-foreground" data-testid="text-weather-condition">
+              {getWeatherLabel(weather.weatherCode)}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        {weather.precipProbability !== undefined && (
+          <div className="flex items-center gap-2">
+            <Droplets className="h-4 w-4 text-blue-500" />
+            <span className="text-muted-foreground">{weather.precipProbability}% rain</span>
+          </div>
+        )}
+        {weather.precipAmount !== undefined && weather.precipAmount > 0 && (
+          <div className="flex items-center gap-2">
+            <CloudRain className="h-4 w-4 text-blue-500" />
+            <span className="text-muted-foreground">{weather.precipAmount}" precip</span>
+          </div>
+        )}
+        {weather.windSpeed !== undefined && (
+          <div className="flex items-center gap-2">
+            <Wind className="h-4 w-4 text-gray-500" />
+            <span className="text-muted-foreground">{weather.windSpeed} mph wind</span>
+          </div>
+        )}
+      </div>
+      <p className="text-[10px] text-muted-foreground/60 mt-3">
+        Data from Open-Meteo.com
+      </p>
+    </div>
+  );
+}
 
 export default function RaceDetail() {
   const { slug } = useParams();
@@ -24,6 +105,13 @@ export default function RaceDetail() {
     queryKey: ["/api/routes", { state: race?.state, limit: 3 }],
     queryFn: () => apiGetRoutes({ state: race?.state, limit: 3 }),
     enabled: !!race,
+  });
+
+  const { data: weather } = useQuery({
+    queryKey: ["/api/weather", race?.lat, race?.lng, race?.date],
+    queryFn: () => apiGetWeather(race!.lat!, race!.lng!, race!.date),
+    enabled: !!race?.lat && !!race?.lng && !!race?.date,
+    staleTime: 1000 * 60 * 30,
   });
 
   if (isLoading) {
@@ -150,6 +238,10 @@ export default function RaceDetail() {
             </ul>
           </div>
           
+          {weather && weather.type !== "unavailable" && (
+            <WeatherCard weather={weather} />
+          )}
+
           <div className="bg-card border rounded-xl p-6 shadow-sm">
             <h3 className="font-heading font-semibold mb-4">Data Source</h3>
             <ul className="space-y-3 text-sm">

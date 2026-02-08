@@ -97,6 +97,109 @@ export async function registerRoutes(
     res.json(collection);
   });
 
+  const weatherCache = new Map<string, { data: any; expires: number }>();
+
+  app.get("/api/weather", async (req, res) => {
+    const { lat, lng, date } = req.query;
+    if (!lat || !lng || !date) {
+      return res.status(400).json({ error: "lat, lng, and date are required" });
+    }
+
+    const cacheKey = `${lat},${lng},${date}`;
+    const cached = weatherCache.get(cacheKey);
+    if (cached && cached.expires > Date.now()) {
+      return res.json(cached.data);
+    }
+
+    try {
+      const raceDate = new Date(date as string);
+      const now = new Date();
+      const daysUntil = Math.ceil((raceDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+      let result: any;
+
+      if (daysUntil >= 0 && daysUntil <= 15) {
+        const forecastRes = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,weather_code&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=auto&forecast_days=16`
+        );
+        const forecast = await forecastRes.json();
+
+        const dateStr = (date as string).substring(0, 10);
+        const idx = forecast.daily?.time?.indexOf(dateStr);
+
+        if (idx !== undefined && idx >= 0) {
+          result = {
+            type: "forecast",
+            date: dateStr,
+            tempHigh: Math.round(forecast.daily.temperature_2m_max[idx]),
+            tempLow: Math.round(forecast.daily.temperature_2m_min[idx]),
+            precipProbability: forecast.daily.precipitation_probability_max[idx],
+            precipAmount: forecast.daily.precipitation_sum[idx],
+            windSpeed: Math.round(forecast.daily.wind_speed_10m_max[idx]),
+            weatherCode: forecast.daily.weather_code[idx],
+          };
+        }
+      }
+
+      if (!result) {
+        const month = raceDate.getMonth() + 1;
+        const day = raceDate.getDate();
+        const startDate = `${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+        const endDay = new Date(raceDate);
+        endDay.setDate(endDay.getDate() + 1);
+        const endDate = `${(endDay.getMonth() + 1).toString().padStart(2, "0")}-${endDay.getDate().toString().padStart(2, "0")}`;
+
+        const climateRes = await fetch(
+          `https://climate-api.open-meteo.com/v1/climate?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&start_date=2020-01-01&end_date=2024-12-31&models=EC_Earth3P_HR`
+        );
+        const climate = await climateRes.json();
+
+        if (climate.daily?.time) {
+          const targetMonth = raceDate.getMonth();
+          const targetDay = raceDate.getDate();
+          let tempHighSum = 0, tempLowSum = 0, precipSum = 0, windSum = 0, count = 0;
+
+          climate.daily.time.forEach((t: string, i: number) => {
+            const d = new Date(t);
+            if (d.getMonth() === targetMonth && Math.abs(d.getDate() - targetDay) <= 7) {
+              tempHighSum += climate.daily.temperature_2m_max[i] || 0;
+              tempLowSum += climate.daily.temperature_2m_min[i] || 0;
+              precipSum += climate.daily.precipitation_sum[i] || 0;
+              windSum += climate.daily.wind_speed_10m_max[i] || 0;
+              count++;
+            }
+          });
+
+          if (count > 0) {
+            result = {
+              type: "historical",
+              date: (date as string).substring(0, 10),
+              tempHigh: Math.round(tempHighSum / count),
+              tempLow: Math.round(tempLowSum / count),
+              precipAmount: Math.round((precipSum / count) * 100) / 100,
+              windSpeed: Math.round(windSum / count),
+            };
+          }
+        }
+      }
+
+      if (!result) {
+        return res.json({ type: "unavailable" });
+      }
+
+      weatherCache.set(cacheKey, { data: result, expires: Date.now() + 1000 * 60 * 30 });
+      if (weatherCache.size > 500) {
+        const firstKey = weatherCache.keys().next().value;
+        if (firstKey) weatherCache.delete(firstKey);
+      }
+
+      res.json(result);
+    } catch (err) {
+      console.error("Weather API error:", err);
+      res.json({ type: "unavailable" });
+    }
+  });
+
   const adminAuth = (req: any, res: any, next: any) => {
     const adminKey = process.env.ADMIN_API_KEY;
     if (adminKey && req.headers["x-admin-key"] !== adminKey) {
