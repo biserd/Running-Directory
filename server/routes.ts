@@ -18,12 +18,28 @@ export async function registerRoutes(
     res.json(state);
   });
 
+  app.get("/api/states/:stateSlug/cities", async (req, res) => {
+    const state = await storage.getStateBySlug(req.params.stateSlug);
+    if (!state) return res.status(404).json({ message: "State not found" });
+    const citiesList = await storage.getCitiesByState(state.id);
+    res.json(citiesList);
+  });
+
+  app.get("/api/cities/:stateSlug/:citySlug", async (req, res) => {
+    const result = await storage.getCityBySlug(req.params.stateSlug, req.params.citySlug);
+    if (!result) return res.status(404).json({ message: "City not found" });
+    res.json(result);
+  });
+
   app.get("/api/races", async (req, res) => {
-    const { state, distance, surface, limit } = req.query;
+    const { state, distance, surface, city, year, month, limit } = req.query;
     const races = await storage.getRaces({
       state: state as string | undefined,
       distance: distance as string | undefined,
       surface: surface as string | undefined,
+      city: city as string | undefined,
+      year: year ? parseInt(year as string) : undefined,
+      month: month ? parseInt(month as string) : undefined,
       limit: limit ? parseInt(limit as string) : undefined,
     });
     res.json(races);
@@ -35,12 +51,24 @@ export async function registerRoutes(
     res.json(race);
   });
 
+  app.get("/api/race-occurrences", async (req, res) => {
+    const { raceId, year, month, limit } = req.query;
+    const occurrences = await storage.getRaceOccurrences({
+      raceId: raceId ? parseInt(raceId as string) : undefined,
+      year: year ? parseInt(year as string) : undefined,
+      month: month ? parseInt(month as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+    });
+    res.json(occurrences);
+  });
+
   app.get("/api/routes", async (req, res) => {
-    const { state, surface, type, limit } = req.query;
+    const { state, surface, type, city, limit } = req.query;
     const routes = await storage.getRoutes({
       state: state as string | undefined,
       surface: surface as string | undefined,
       type: type as string | undefined,
+      city: city as string | undefined,
       limit: limit ? parseInt(limit as string) : undefined,
     });
     res.json(routes);
@@ -50,6 +78,21 @@ export async function registerRoutes(
     const route = await storage.getRouteBySlug(req.params.slug);
     if (!route) return res.status(404).json({ message: "Route not found" });
     res.json(route);
+  });
+
+  app.get("/api/collections", async (req, res) => {
+    const { type, limit } = req.query;
+    const collectionsList = await storage.getCollections({
+      type: type as string | undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+    });
+    res.json(collectionsList);
+  });
+
+  app.get("/api/collections/:slug", async (req, res) => {
+    const collection = await storage.getCollectionBySlug(req.params.slug);
+    if (!collection) return res.status(404).json({ message: "Collection not found" });
+    res.json(collection);
   });
 
   return httpServer;

@@ -42,7 +42,7 @@ export default function RaceDetail() {
         <div className="container mx-auto px-4 py-16 text-center">
           <h1 className="font-heading text-3xl font-bold mb-4">Race Not Found</h1>
           <p className="text-muted-foreground mb-6">We couldn't find a race with that URL.</p>
-          <Button asChild><Link href="/races">Browse All Races</Link></Button>
+          <Button asChild><Link href="/races" data-testid="link-browse-races">Browse All Races</Link></Button>
         </div>
       </Layout>
     );
@@ -76,7 +76,7 @@ export default function RaceDetail() {
                  </div>
                  <div className="flex items-center gap-2">
                    <Trophy className="h-5 w-5" />
-                   <span className="font-medium text-foreground">{race.elevation} Course</span>
+                   <span className="font-medium text-foreground" data-testid="text-race-elevation">{race.elevation} Course</span>
                  </div>
                </div>
             </div>
@@ -96,7 +96,7 @@ export default function RaceDetail() {
           <section>
             <h2 className="font-heading font-bold text-2xl mb-4">About the Race</h2>
             <div className="prose max-w-none text-muted-foreground">
-              <p>{race.description || `Experience one of the premier ${race.distance} events in ${race.state}. The ${race.name} offers a ${race.elevation.toLowerCase()} course through the scenic streets of ${race.city}.`}</p>
+              <p data-testid="text-race-description">{race.description || `Experience one of the premier ${race.distance} events in ${race.state}. The ${race.name} offers a ${race.elevation.toLowerCase()} course through the scenic streets of ${race.city}.`}</p>
             </div>
           </section>
           

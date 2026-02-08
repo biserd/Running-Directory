@@ -104,8 +104,8 @@ export default function RacesHub() {
                 </div>
               ) : (
                 <div className="text-center py-12 border rounded-lg bg-muted/10">
-                  <p className="text-muted-foreground">No races found for this selection.</p>
-                  <Button variant="link" asChild><Link href="/races">View all races</Link></Button>
+                  <p className="text-muted-foreground" data-testid="text-no-races">No races found for this selection.</p>
+                  <Button variant="link" asChild><Link href="/races" data-testid="link-view-all-races">View all races</Link></Button>
                 </div>
               )}
             </div>

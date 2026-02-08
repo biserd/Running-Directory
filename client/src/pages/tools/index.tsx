@@ -12,8 +12,8 @@ export default function ToolsHub() {
     <Layout>
       <div className="bg-slate-900 text-white py-20 text-center">
         <div className="container mx-auto px-4">
-          <h1 className="font-heading font-extrabold text-4xl md:text-5xl mb-6">Runner's Toolkit</h1>
-          <p className="text-xl text-slate-300 max-w-2xl mx-auto mb-10">
+          <h1 className="font-heading font-extrabold text-4xl md:text-5xl mb-6" data-testid="text-tools-title">Runner's Toolkit</h1>
+          <p className="text-xl text-slate-300 max-w-2xl mx-auto mb-10" data-testid="text-tools-subtitle">
             Advanced calculators and training utilities powered by AITracker.
           </p>
         </div>
@@ -22,16 +22,16 @@ export default function ToolsHub() {
       <div className="container mx-auto px-4 py-8 -mt-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {TOOLS.map(tool => (
-            <Card key={tool.slug} className="hover:border-primary/50 transition-all hover:-translate-y-1 shadow-lg">
+            <Card key={tool.slug} className="hover:border-primary/50 transition-all hover:-translate-y-1 shadow-lg" data-testid={`card-tool-${tool.slug}`}>
               <CardContent className="p-6 flex flex-col h-full text-center">
                 <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
                   <tool.icon className="h-6 w-6" />
                 </div>
-                <h3 className="font-heading font-bold text-xl mb-2">{tool.name}</h3>
-                <p className="text-sm text-muted-foreground mb-6 flex-1">
+                <h3 className="font-heading font-bold text-xl mb-2" data-testid={`text-tool-name-${tool.slug}`}>{tool.name}</h3>
+                <p className="text-sm text-muted-foreground mb-6 flex-1" data-testid={`text-tool-description-${tool.slug}`}>
                   {tool.description}
                 </p>
-                <Button className="w-full" asChild>
+                <Button className="w-full" asChild data-testid={`link-open-tool-${tool.slug}`}>
                   <a href={tool.href}>Open Tool <ArrowRight className="ml-2 h-4 w-4" /></a>
                 </Button>
               </CardContent>
@@ -41,8 +41,8 @@ export default function ToolsHub() {
         
         <div className="mt-20 max-w-4xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="font-heading font-bold text-3xl mb-4">Why use AITracker tools?</h2>
-            <p className="text-muted-foreground text-lg">Data-driven insights to help you hit your next PR.</p>
+            <h2 className="font-heading font-bold text-3xl mb-4" data-testid="text-tools-why-title">Why use AITracker tools?</h2>
+            <p className="text-muted-foreground text-lg" data-testid="text-tools-why-subtitle">Data-driven insights to help you hit your next PR.</p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

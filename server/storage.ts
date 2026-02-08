@@ -1,23 +1,41 @@
 import { db } from "./db";
-import { states, races, routes } from "@shared/schema";
-import type { State, Race, Route, InsertState, InsertRace, InsertRoute } from "@shared/schema";
-import { eq, ilike, and, sql } from "drizzle-orm";
+import { states, cities, races, raceOccurrences, routes, sources, sourceRecords, collections } from "@shared/schema";
+import type {
+  State, City, Race, RaceOccurrence, Route, Source, SourceRecord, Collection,
+  InsertState, InsertCity, InsertRace, InsertRaceOccurrence, InsertRoute, InsertSource, InsertSourceRecord, InsertCollection
+} from "@shared/schema";
+import { eq, and, sql, desc, asc, ilike, inArray } from "drizzle-orm";
 
 export interface IStorage {
   getStates(): Promise<State[]>;
   getStateBySlug(slug: string): Promise<State | undefined>;
 
-  getRaces(filters?: { state?: string; distance?: string; surface?: string; limit?: number }): Promise<Race[]>;
+  getCities(filters?: { stateId?: number; limit?: number }): Promise<City[]>;
+  getCityBySlug(stateSlug: string, citySlug: string): Promise<(City & { state: State }) | undefined>;
+  getCitiesByState(stateId: number): Promise<City[]>;
+
+  getRaces(filters?: { state?: string; distance?: string; surface?: string; city?: string; cityId?: number; year?: number; month?: number; limit?: number }): Promise<Race[]>;
   getRaceBySlug(slug: string): Promise<Race | undefined>;
   getRacesByState(stateAbbr: string): Promise<Race[]>;
 
-  getRoutes(filters?: { state?: string; surface?: string; type?: string; limit?: number }): Promise<Route[]>;
+  getRaceOccurrences(filters?: { raceId?: number; year?: number; month?: number; limit?: number }): Promise<RaceOccurrence[]>;
+
+  getRoutes(filters?: { state?: string; surface?: string; type?: string; city?: string; cityId?: number; limit?: number }): Promise<Route[]>;
   getRouteBySlug(slug: string): Promise<Route | undefined>;
   getRoutesByState(stateAbbr: string): Promise<Route[]>;
 
+  getCollections(filters?: { type?: string; limit?: number }): Promise<Collection[]>;
+  getCollectionBySlug(slug: string): Promise<Collection | undefined>;
+
+  getSources(): Promise<Source[]>;
+
   seedStates(data: InsertState[]): Promise<void>;
+  seedCities(data: InsertCity[]): Promise<void>;
   seedRaces(data: InsertRace[]): Promise<void>;
+  seedRaceOccurrences(data: InsertRaceOccurrence[]): Promise<void>;
   seedRoutes(data: InsertRoute[]): Promise<void>;
+  seedSources(data: InsertSource[]): Promise<void>;
+  seedCollections(data: InsertCollection[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -30,16 +48,49 @@ export class DatabaseStorage implements IStorage {
     return state;
   }
 
-  async getRaces(filters?: { state?: string; distance?: string; surface?: string; limit?: number }): Promise<Race[]> {
+  async getCities(filters?: { stateId?: number; limit?: number }): Promise<City[]> {
+    const conditions = [];
+    if (filters?.stateId) conditions.push(eq(cities.stateId, filters.stateId));
+
+    const query = db.select().from(cities);
+    if (conditions.length > 0) {
+      return query.where(and(...conditions)).orderBy(cities.name).limit(filters?.limit || 500);
+    }
+    return query.orderBy(cities.name).limit(filters?.limit || 500);
+  }
+
+  async getCityBySlug(stateSlug: string, citySlug: string): Promise<(City & { state: State }) | undefined> {
+    const stateData = await this.getStateBySlug(stateSlug);
+    if (!stateData) return undefined;
+
+    const [city] = await db.select().from(cities)
+      .where(and(eq(cities.slug, citySlug), eq(cities.stateId, stateData.id)));
+
+    if (!city) return undefined;
+    return { ...city, state: stateData };
+  }
+
+  async getCitiesByState(stateId: number): Promise<City[]> {
+    return db.select().from(cities).where(eq(cities.stateId, stateId)).orderBy(cities.name);
+  }
+
+  async getRaces(filters?: { state?: string; distance?: string; surface?: string; city?: string; cityId?: number; year?: number; month?: number; limit?: number }): Promise<Race[]> {
     const conditions = [];
     if (filters?.state) conditions.push(eq(races.state, filters.state));
     if (filters?.distance) conditions.push(eq(races.distance, filters.distance));
     if (filters?.surface) conditions.push(eq(races.surface, filters.surface));
+    if (filters?.city) conditions.push(eq(races.city, filters.city));
+    if (filters?.cityId) conditions.push(eq(races.cityId, filters.cityId));
+    if (filters?.year) {
+      conditions.push(sql`EXTRACT(YEAR FROM ${races.date}::date) = ${filters.year}`);
+    }
+    if (filters?.month) {
+      conditions.push(sql`EXTRACT(MONTH FROM ${races.date}::date) = ${filters.month}`);
+    }
 
     const query = db.select().from(races);
     if (conditions.length > 0) {
-      const result = await query.where(and(...conditions)).orderBy(races.date).limit(filters?.limit || 100);
-      return result;
+      return query.where(and(...conditions)).orderBy(races.date).limit(filters?.limit || 100);
     }
     return query.orderBy(races.date).limit(filters?.limit || 100);
   }
@@ -53,16 +104,30 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(races).where(eq(races.state, stateAbbr)).orderBy(races.date);
   }
 
-  async getRoutes(filters?: { state?: string; surface?: string; type?: string; limit?: number }): Promise<Route[]> {
+  async getRaceOccurrences(filters?: { raceId?: number; year?: number; month?: number; limit?: number }): Promise<RaceOccurrence[]> {
+    const conditions = [];
+    if (filters?.raceId) conditions.push(eq(raceOccurrences.raceId, filters.raceId));
+    if (filters?.year) conditions.push(eq(raceOccurrences.year, filters.year));
+    if (filters?.month) conditions.push(eq(raceOccurrences.month, filters.month));
+
+    const query = db.select().from(raceOccurrences);
+    if (conditions.length > 0) {
+      return query.where(and(...conditions)).orderBy(raceOccurrences.startDate).limit(filters?.limit || 100);
+    }
+    return query.orderBy(raceOccurrences.startDate).limit(filters?.limit || 100);
+  }
+
+  async getRoutes(filters?: { state?: string; surface?: string; type?: string; city?: string; cityId?: number; limit?: number }): Promise<Route[]> {
     const conditions = [];
     if (filters?.state) conditions.push(eq(routes.state, filters.state));
     if (filters?.surface) conditions.push(eq(routes.surface, filters.surface));
     if (filters?.type) conditions.push(eq(routes.type, filters.type));
+    if (filters?.city) conditions.push(eq(routes.city, filters.city));
+    if (filters?.cityId) conditions.push(eq(routes.cityId, filters.cityId));
 
     const query = db.select().from(routes);
     if (conditions.length > 0) {
-      const result = await query.where(and(...conditions)).orderBy(routes.name).limit(filters?.limit || 100);
-      return result;
+      return query.where(and(...conditions)).orderBy(routes.name).limit(filters?.limit || 100);
     }
     return query.orderBy(routes.name).limit(filters?.limit || 100);
   }
@@ -76,9 +141,35 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(routes).where(eq(routes.state, stateAbbr)).orderBy(routes.name);
   }
 
+  async getCollections(filters?: { type?: string; limit?: number }): Promise<Collection[]> {
+    const conditions = [];
+    conditions.push(eq(collections.isActive, true));
+    if (filters?.type) conditions.push(eq(collections.type, filters.type));
+
+    return db.select().from(collections)
+      .where(and(...conditions))
+      .orderBy(collections.title)
+      .limit(filters?.limit || 100);
+  }
+
+  async getCollectionBySlug(slug: string): Promise<Collection | undefined> {
+    const [collection] = await db.select().from(collections).where(eq(collections.slug, slug));
+    return collection;
+  }
+
+  async getSources(): Promise<Source[]> {
+    return db.select().from(sources).orderBy(sources.priority);
+  }
+
   async seedStates(data: InsertState[]): Promise<void> {
     for (const s of data) {
       await db.insert(states).values(s).onConflictDoNothing();
+    }
+  }
+
+  async seedCities(data: InsertCity[]): Promise<void> {
+    for (const c of data) {
+      await db.insert(cities).values(c).onConflictDoNothing();
     }
   }
 
@@ -88,9 +179,27 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async seedRaceOccurrences(data: InsertRaceOccurrence[]): Promise<void> {
+    for (const r of data) {
+      await db.insert(raceOccurrences).values(r).onConflictDoNothing();
+    }
+  }
+
   async seedRoutes(data: InsertRoute[]): Promise<void> {
     for (const r of data) {
       await db.insert(routes).values(r).onConflictDoNothing();
+    }
+  }
+
+  async seedSources(data: InsertSource[]): Promise<void> {
+    for (const s of data) {
+      await db.insert(sources).values(s).onConflictDoNothing();
+    }
+  }
+
+  async seedCollections(data: InsertCollection[]): Promise<void> {
+    for (const c of data) {
+      await db.insert(collections).values(c).onConflictDoNothing();
     }
   }
 }

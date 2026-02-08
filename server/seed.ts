@@ -1,5 +1,8 @@
-import type { InsertState, InsertRace, InsertRoute } from "@shared/schema";
+import type { InsertState, InsertCity, InsertRace, InsertRaceOccurrence, InsertRoute, InsertSource, InsertCollection } from "@shared/schema";
 import { storage } from "./storage";
+import { db } from "./db";
+import { states, races, cities } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 const SEED_STATES: InsertState[] = [
   { name: "Alabama", slug: "alabama", abbreviation: "AL", raceCount: 65, routeCount: 120, popularCities: ["Birmingham", "Huntsville", "Mobile"] },
@@ -55,40 +58,141 @@ const SEED_STATES: InsertState[] = [
 ];
 
 const SEED_RACES: InsertRace[] = [
-  { slug: "sf-marathon", name: "The San Francisco Marathon", date: "2025-07-27", city: "San Francisco", state: "CA", distance: "Marathon", surface: "Road", elevation: "Hilly", description: "Run through the iconic streets of San Francisco, crossing the Golden Gate Bridge and winding through diverse neighborhoods.", startTime: "5:30 AM", timeLimit: "6 hours", bostonQualifier: true },
-  { slug: "nyc-marathon", name: "TCS New York City Marathon", date: "2025-11-02", city: "New York City", state: "NY", distance: "Marathon", surface: "Road", elevation: "Rolling", description: "The world's largest marathon, traversing all five boroughs of New York City with an electric finish in Central Park.", startTime: "9:10 AM", timeLimit: "8.5 hours", bostonQualifier: true },
-  { slug: "boston-marathon", name: "Boston Marathon", date: "2025-04-21", city: "Boston", state: "MA", distance: "Marathon", surface: "Road", elevation: "Rolling", description: "The world's oldest annual marathon. From Hopkinton to Boylston Street, this iconic point-to-point course tests the best.", startTime: "10:00 AM", timeLimit: "6 hours", bostonQualifier: false },
-  { slug: "chicago-marathon", name: "Bank of America Chicago Marathon", date: "2025-10-12", city: "Chicago", state: "IL", distance: "Marathon", surface: "Road", elevation: "Flat", description: "One of the World Marathon Majors, this flat and fast course winds through 29 Chicago neighborhoods.", startTime: "7:30 AM", timeLimit: "6.5 hours", bostonQualifier: true },
-  { slug: "austin-marathon", name: "Austin Marathon", date: "2025-02-16", city: "Austin", state: "TX", distance: "Marathon", surface: "Road", elevation: "Hilly", description: "Experience Austin's vibrant culture and live music along this challenging course through the Texas capital.", startTime: "7:00 AM", timeLimit: "6 hours", bostonQualifier: true },
-  { slug: "dipsea", name: "Dipsea Race", date: "2025-06-08", city: "Mill Valley", state: "CA", distance: "Other", surface: "Trail", elevation: "Mountainous", description: "The oldest trail race in America. A 7.4-mile single-track adventure from Mill Valley to Stinson Beach through Muir Woods.", startTime: "8:30 AM", timeLimit: "3 hours", bostonQualifier: false },
-  { slug: "bolder-boulder", name: "BOLDERBoulder", date: "2025-05-26", city: "Boulder", state: "CO", distance: "10K", surface: "Road", elevation: "Rolling", description: "One of the largest 10K races in the US, featuring live music, entertainment, and a finish inside Folsom Field.", startTime: "7:00 AM", timeLimit: "None", bostonQualifier: false },
-  { slug: "marine-corps-marathon", name: "Marine Corps Marathon", date: "2025-10-26", city: "Arlington", state: "VA", distance: "Marathon", surface: "Road", elevation: "Rolling", description: "Known as 'The People's Marathon,' this race passes DC's most iconic monuments and memorials.", startTime: "7:55 AM", timeLimit: "6 hours", bostonQualifier: true },
-  { slug: "western-states", name: "Western States 100", date: "2025-06-28", city: "Auburn", state: "CA", distance: "Ultra", surface: "Trail", elevation: "Mountainous", description: "The world's oldest 100-mile trail race, from Squaw Valley to Auburn through the Sierra Nevada mountains.", startTime: "5:00 AM", timeLimit: "30 hours", bostonQualifier: false },
-  { slug: "brooklyn-half", name: "RBC Brooklyn Half", date: "2025-05-17", city: "New York City", state: "NY", distance: "Half Marathon", surface: "Road", elevation: "Flat", description: "America's largest half marathon, running from Prospect Park through the streets of Brooklyn to the Coney Island boardwalk.", startTime: "7:00 AM", timeLimit: "4 hours", bostonQualifier: false },
-  { slug: "rock-n-roll-las-vegas", name: "Rock 'n' Roll Las Vegas", date: "2025-02-23", city: "Las Vegas", state: "NV", distance: "Half Marathon", surface: "Road", elevation: "Flat", description: "The only race on the Las Vegas Strip at night. Run under the neon lights with live entertainment at every mile.", startTime: "4:30 PM", timeLimit: "4 hours", bostonQualifier: false },
-  { slug: "miami-marathon", name: "Life Time Miami Marathon", date: "2025-02-02", city: "Miami", state: "FL", distance: "Marathon", surface: "Road", elevation: "Flat", description: "A flat, fast course through Miami's most scenic neighborhoods with ocean views along the Venetian Causeway.", startTime: "6:00 AM", timeLimit: "6.5 hours", bostonQualifier: true },
-  { slug: "big-sur-marathon", name: "Big Sur International Marathon", date: "2025-04-27", city: "Big Sur", state: "CA", distance: "Marathon", surface: "Road", elevation: "Hilly", description: "Consistently rated the most scenic marathon in the world, running along Highway 1 with stunning Pacific Ocean views.", startTime: "6:45 AM", timeLimit: "6 hours", bostonQualifier: false },
-  { slug: "peachtree-road-race", name: "AJC Peachtree Road Race", date: "2025-07-04", city: "Atlanta", state: "GA", distance: "10K", surface: "Road", elevation: "Rolling", description: "The world's largest 10K, held every Fourth of July. A beloved Atlanta tradition since 1970.", startTime: "6:25 AM", timeLimit: "None", bostonQualifier: false },
-  { slug: "honolulu-marathon", name: "Honolulu Marathon", date: "2025-12-14", city: "Honolulu", state: "HI", distance: "Marathon", surface: "Road", elevation: "Flat", description: "One of the largest marathons in the world with no time limit. Run from Ala Moana to Hawaii Kai and back with Diamond Head views.", startTime: "5:00 AM", timeLimit: "None", bostonQualifier: true },
-  { slug: "houston-marathon", name: "Chevron Houston Marathon", date: "2025-01-19", city: "Houston", state: "TX", distance: "Marathon", surface: "Road", elevation: "Flat", description: "A fast, flat course through Houston that regularly produces qualifying times and personal records.", startTime: "7:00 AM", timeLimit: "6 hours", bostonQualifier: true },
-  { slug: "twin-cities-marathon", name: "Medtronic Twin Cities Marathon", date: "2025-10-05", city: "Minneapolis", state: "MN", distance: "Marathon", surface: "Road", elevation: "Rolling", description: "Known as 'The Most Beautiful Urban Marathon in America,' connecting Minneapolis and St. Paul along tree-lined lakes.", startTime: "8:00 AM", timeLimit: "6 hours", bostonQualifier: true },
-  { slug: "cherry-blossom-10-miler", name: "Credit Union Cherry Blossom", date: "2025-04-06", city: "Washington", state: "DC", distance: "10K", surface: "Road", elevation: "Flat", description: "Run alongside the Tidal Basin's iconic cherry blossoms during peak bloom in the nation's capital.", startTime: "7:30 AM", timeLimit: "None", bostonQualifier: false },
+  { slug: "sf-marathon", name: "The San Francisco Marathon", date: "2025-07-27", city: "San Francisco", state: "CA", distance: "Marathon", surface: "Road", elevation: "Hilly", description: "Run through the iconic streets of San Francisco, crossing the Golden Gate Bridge and winding through diverse neighborhoods.", startTime: "5:30 AM", timeLimit: "6 hours", bostonQualifier: true, distanceLabel: "Marathon", distanceMeters: 42195 },
+  { slug: "nyc-marathon", name: "TCS New York City Marathon", date: "2025-11-02", city: "New York City", state: "NY", distance: "Marathon", surface: "Road", elevation: "Rolling", description: "The world's largest marathon, traversing all five boroughs of New York City with an electric finish in Central Park.", startTime: "9:10 AM", timeLimit: "8.5 hours", bostonQualifier: true, distanceLabel: "Marathon", distanceMeters: 42195 },
+  { slug: "boston-marathon", name: "Boston Marathon", date: "2025-04-21", city: "Boston", state: "MA", distance: "Marathon", surface: "Road", elevation: "Rolling", description: "The world's oldest annual marathon. From Hopkinton to Boylston Street, this iconic point-to-point course tests the best.", startTime: "10:00 AM", timeLimit: "6 hours", bostonQualifier: false, distanceLabel: "Marathon", distanceMeters: 42195 },
+  { slug: "chicago-marathon", name: "Bank of America Chicago Marathon", date: "2025-10-12", city: "Chicago", state: "IL", distance: "Marathon", surface: "Road", elevation: "Flat", description: "One of the World Marathon Majors, this flat and fast course winds through 29 Chicago neighborhoods.", startTime: "7:30 AM", timeLimit: "6.5 hours", bostonQualifier: true, distanceLabel: "Marathon", distanceMeters: 42195 },
+  { slug: "austin-marathon", name: "Austin Marathon", date: "2025-02-16", city: "Austin", state: "TX", distance: "Marathon", surface: "Road", elevation: "Hilly", description: "Experience Austin's vibrant culture and live music along this challenging course through the Texas capital.", startTime: "7:00 AM", timeLimit: "6 hours", bostonQualifier: true, distanceLabel: "Marathon", distanceMeters: 42195 },
+  { slug: "dipsea", name: "Dipsea Race", date: "2025-06-08", city: "Mill Valley", state: "CA", distance: "Other", surface: "Trail", elevation: "Mountainous", description: "The oldest trail race in America. A 7.4-mile single-track adventure from Mill Valley to Stinson Beach through Muir Woods.", startTime: "8:30 AM", timeLimit: "3 hours", bostonQualifier: false, distanceLabel: "Other", distanceMeters: 11909 },
+  { slug: "bolder-boulder", name: "BOLDERBoulder", date: "2025-05-26", city: "Boulder", state: "CO", distance: "10K", surface: "Road", elevation: "Rolling", description: "One of the largest 10K races in the US, featuring live music, entertainment, and a finish inside Folsom Field.", startTime: "7:00 AM", timeLimit: "None", bostonQualifier: false, distanceLabel: "10K", distanceMeters: 10000 },
+  { slug: "marine-corps-marathon", name: "Marine Corps Marathon", date: "2025-10-26", city: "Arlington", state: "VA", distance: "Marathon", surface: "Road", elevation: "Rolling", description: "Known as 'The People's Marathon,' this race passes DC's most iconic monuments and memorials.", startTime: "7:55 AM", timeLimit: "6 hours", bostonQualifier: true, distanceLabel: "Marathon", distanceMeters: 42195 },
+  { slug: "western-states", name: "Western States 100", date: "2025-06-28", city: "Auburn", state: "CA", distance: "Ultra", surface: "Trail", elevation: "Mountainous", description: "The world's oldest 100-mile trail race, from Squaw Valley to Auburn through the Sierra Nevada mountains.", startTime: "5:00 AM", timeLimit: "30 hours", bostonQualifier: false, distanceLabel: "Ultra", distanceMeters: 160934 },
+  { slug: "brooklyn-half", name: "RBC Brooklyn Half", date: "2025-05-17", city: "New York City", state: "NY", distance: "Half Marathon", surface: "Road", elevation: "Flat", description: "America's largest half marathon, running from Prospect Park through the streets of Brooklyn to the Coney Island boardwalk.", startTime: "7:00 AM", timeLimit: "4 hours", bostonQualifier: false, distanceLabel: "Half Marathon", distanceMeters: 21097 },
+  { slug: "rock-n-roll-las-vegas", name: "Rock 'n' Roll Las Vegas", date: "2025-02-23", city: "Las Vegas", state: "NV", distance: "Half Marathon", surface: "Road", elevation: "Flat", description: "The only race on the Las Vegas Strip at night. Run under the neon lights with live entertainment at every mile.", startTime: "4:30 PM", timeLimit: "4 hours", bostonQualifier: false, distanceLabel: "Half Marathon", distanceMeters: 21097 },
+  { slug: "miami-marathon", name: "Life Time Miami Marathon", date: "2025-02-02", city: "Miami", state: "FL", distance: "Marathon", surface: "Road", elevation: "Flat", description: "A flat, fast course through Miami's most scenic neighborhoods with ocean views along the Venetian Causeway.", startTime: "6:00 AM", timeLimit: "6.5 hours", bostonQualifier: true, distanceLabel: "Marathon", distanceMeters: 42195 },
+  { slug: "big-sur-marathon", name: "Big Sur International Marathon", date: "2025-04-27", city: "Big Sur", state: "CA", distance: "Marathon", surface: "Road", elevation: "Hilly", description: "Consistently rated the most scenic marathon in the world, running along Highway 1 with stunning Pacific Ocean views.", startTime: "6:45 AM", timeLimit: "6 hours", bostonQualifier: false, distanceLabel: "Marathon", distanceMeters: 42195 },
+  { slug: "peachtree-road-race", name: "AJC Peachtree Road Race", date: "2025-07-04", city: "Atlanta", state: "GA", distance: "10K", surface: "Road", elevation: "Rolling", description: "The world's largest 10K, held every Fourth of July. A beloved Atlanta tradition since 1970.", startTime: "6:25 AM", timeLimit: "None", bostonQualifier: false, distanceLabel: "10K", distanceMeters: 10000 },
+  { slug: "honolulu-marathon", name: "Honolulu Marathon", date: "2025-12-14", city: "Honolulu", state: "HI", distance: "Marathon", surface: "Road", elevation: "Flat", description: "One of the largest marathons in the world with no time limit. Run from Ala Moana to Hawaii Kai and back with Diamond Head views.", startTime: "5:00 AM", timeLimit: "None", bostonQualifier: true, distanceLabel: "Marathon", distanceMeters: 42195 },
+  { slug: "houston-marathon", name: "Chevron Houston Marathon", date: "2025-01-19", city: "Houston", state: "TX", distance: "Marathon", surface: "Road", elevation: "Flat", description: "A fast, flat course through Houston that regularly produces qualifying times and personal records.", startTime: "7:00 AM", timeLimit: "6 hours", bostonQualifier: true, distanceLabel: "Marathon", distanceMeters: 42195 },
+  { slug: "twin-cities-marathon", name: "Medtronic Twin Cities Marathon", date: "2025-10-05", city: "Minneapolis", state: "MN", distance: "Marathon", surface: "Road", elevation: "Rolling", description: "Known as 'The Most Beautiful Urban Marathon in America,' connecting Minneapolis and St. Paul along tree-lined lakes.", startTime: "8:00 AM", timeLimit: "6 hours", bostonQualifier: true, distanceLabel: "Marathon", distanceMeters: 42195 },
+  { slug: "cherry-blossom-10-miler", name: "Credit Union Cherry Blossom", date: "2025-04-06", city: "Washington", state: "DC", distance: "10K", surface: "Road", elevation: "Flat", description: "Run alongside the Tidal Basin's iconic cherry blossoms during peak bloom in the nation's capital.", startTime: "7:30 AM", timeLimit: "None", bostonQualifier: false, distanceLabel: "10K", distanceMeters: 16093 },
 ];
 
 const SEED_ROUTES: InsertRoute[] = [
-  { slug: "central-park-loop", name: "Central Park Full Loop", city: "New York City", state: "NY", distance: 6.1, elevationGain: 280, surface: "Road", type: "Loop", difficulty: "Moderate", description: "The classic NYC running loop through Central Park. Paved paths with rolling hills, water fountains, and restrooms." },
-  { slug: "crissy-field", name: "Crissy Field to Golden Gate Bridge", city: "San Francisco", state: "CA", distance: 4.5, elevationGain: 120, surface: "Path", type: "Out-and-Back", difficulty: "Easy", description: "A flat waterfront path with stunning views of the Golden Gate Bridge. Popular with joggers and walkers alike." },
-  { slug: "lakefront-trail", name: "Chicago Lakefront Trail", city: "Chicago", state: "IL", distance: 18.0, elevationGain: 50, surface: "Path", type: "Point-to-Point", difficulty: "Easy", description: "An 18-mile paved trail along Lake Michigan, one of the most popular running paths in the Midwest." },
-  { slug: "lady-bird-lake", name: "Lady Bird Lake Loop", city: "Austin", state: "TX", distance: 10.1, elevationGain: 100, surface: "Path", type: "Loop", difficulty: "Easy", description: "A scenic loop around Lady Bird Lake in downtown Austin. Crushed granite trail with shade and water views." },
-  { slug: "boulder-creek-path", name: "Boulder Creek Path", city: "Boulder", state: "CO", distance: 5.5, elevationGain: 200, surface: "Path", type: "Out-and-Back", difficulty: "Moderate", description: "A popular multi-use path following Boulder Creek from Eben G. Fine Park to the eastern plains." },
-  { slug: "charles-river-esplanade", name: "Charles River Esplanade", city: "Boston", state: "MA", distance: 3.0, elevationGain: 20, surface: "Path", type: "Loop", difficulty: "Easy", description: "A flat, scenic loop along the Charles River with views of the Boston skyline and MIT campus." },
-  { slug: "forest-park-wildwood", name: "Wildwood Trail (End-to-End)", city: "Portland", state: "OR", distance: 30.2, elevationGain: 2500, surface: "Trail", type: "Point-to-Point", difficulty: "Hard", description: "The longest continuous trail in Portland's Forest Park. A challenging end-to-end run through old-growth forest." },
-  { slug: "runyon-canyon", name: "Runyon Canyon Loop", city: "Los Angeles", state: "CA", distance: 3.5, elevationGain: 800, surface: "Trail", type: "Loop", difficulty: "Hard", description: "A popular LA trail with steep climbs and panoramic views of the Hollywood Sign and downtown skyline." },
-  { slug: "town-lake-boardwalk", name: "Town Lake Boardwalk", city: "Austin", state: "TX", distance: 1.3, elevationGain: 10, surface: "Path", type: "Out-and-Back", difficulty: "Easy", description: "A flat, accessible boardwalk section along Lady Bird Lake. Perfect for easy recovery runs." },
-  { slug: "schuylkill-river-trail", name: "Schuylkill River Trail", city: "Philadelphia", state: "PA", distance: 8.5, elevationGain: 80, surface: "Path", type: "Out-and-Back", difficulty: "Easy", description: "A scenic paved trail along the Schuylkill River passing Boathouse Row and the Philadelphia Museum of Art." },
-  { slug: "burke-gilman-trail", name: "Burke-Gilman Trail", city: "Seattle", state: "WA", distance: 27.0, elevationGain: 300, surface: "Path", type: "Point-to-Point", difficulty: "Moderate", description: "A paved multi-use trail running from the Ballard Locks to the Sammamish River Trail near Bothell." },
-  { slug: "mission-bay-loop", name: "Mission Bay Loop", city: "San Diego", state: "CA", distance: 12.0, elevationGain: 30, surface: "Path", type: "Loop", difficulty: "Easy", description: "A flat waterfront loop around Mission Bay with stunning Pacific views and consistent sea breezes." },
+  { slug: "central-park-loop", name: "Central Park Full Loop", city: "New York City", state: "NY", distance: 6.1, elevationGain: 280, surface: "Road", type: "Loop", difficulty: "Moderate", description: "The classic NYC running loop through Central Park. Paved paths with rolling hills, water fountains, and restrooms.", distanceMeters: 9817 },
+  { slug: "crissy-field", name: "Crissy Field to Golden Gate Bridge", city: "San Francisco", state: "CA", distance: 4.5, elevationGain: 120, surface: "Path", type: "Out-and-Back", difficulty: "Easy", description: "A flat waterfront path with stunning views of the Golden Gate Bridge. Popular with joggers and walkers alike.", distanceMeters: 7242 },
+  { slug: "lakefront-trail", name: "Chicago Lakefront Trail", city: "Chicago", state: "IL", distance: 18.0, elevationGain: 50, surface: "Path", type: "Point-to-Point", difficulty: "Easy", description: "An 18-mile paved trail along Lake Michigan, one of the most popular running paths in the Midwest.", distanceMeters: 28968 },
+  { slug: "lady-bird-lake", name: "Lady Bird Lake Loop", city: "Austin", state: "TX", distance: 10.1, elevationGain: 100, surface: "Path", type: "Loop", difficulty: "Easy", description: "A scenic loop around Lady Bird Lake in downtown Austin. Crushed granite trail with shade and water views.", distanceMeters: 16255 },
+  { slug: "boulder-creek-path", name: "Boulder Creek Path", city: "Boulder", state: "CO", distance: 5.5, elevationGain: 200, surface: "Path", type: "Out-and-Back", difficulty: "Moderate", description: "A popular multi-use path following Boulder Creek from Eben G. Fine Park to the eastern plains.", distanceMeters: 8851 },
+  { slug: "charles-river-esplanade", name: "Charles River Esplanade", city: "Boston", state: "MA", distance: 3.0, elevationGain: 20, surface: "Path", type: "Loop", difficulty: "Easy", description: "A flat, scenic loop along the Charles River with views of the Boston skyline and MIT campus.", distanceMeters: 4828 },
+  { slug: "forest-park-wildwood", name: "Wildwood Trail (End-to-End)", city: "Portland", state: "OR", distance: 30.2, elevationGain: 2500, surface: "Trail", type: "Point-to-Point", difficulty: "Hard", description: "The longest continuous trail in Portland's Forest Park. A challenging end-to-end run through old-growth forest.", distanceMeters: 48603 },
+  { slug: "runyon-canyon", name: "Runyon Canyon Loop", city: "Los Angeles", state: "CA", distance: 3.5, elevationGain: 800, surface: "Trail", type: "Loop", difficulty: "Hard", description: "A popular LA trail with steep climbs and panoramic views of the Hollywood Sign and downtown skyline.", distanceMeters: 5633 },
+  { slug: "town-lake-boardwalk", name: "Town Lake Boardwalk", city: "Austin", state: "TX", distance: 1.3, elevationGain: 10, surface: "Path", type: "Out-and-Back", difficulty: "Easy", description: "A flat, accessible boardwalk section along Lady Bird Lake. Perfect for easy recovery runs.", distanceMeters: 2092 },
+  { slug: "schuylkill-river-trail", name: "Schuylkill River Trail", city: "Philadelphia", state: "PA", distance: 8.5, elevationGain: 80, surface: "Path", type: "Out-and-Back", difficulty: "Easy", description: "A scenic paved trail along the Schuylkill River passing Boathouse Row and the Philadelphia Museum of Art.", distanceMeters: 13679 },
+  { slug: "burke-gilman-trail", name: "Burke-Gilman Trail", city: "Seattle", state: "WA", distance: 27.0, elevationGain: 300, surface: "Path", type: "Point-to-Point", difficulty: "Moderate", description: "A paved multi-use trail running from the Ballard Locks to the Sammamish River Trail near Bothell.", distanceMeters: 43452 },
+  { slug: "mission-bay-loop", name: "Mission Bay Loop", city: "San Diego", state: "CA", distance: 12.0, elevationGain: 30, surface: "Path", type: "Loop", difficulty: "Easy", description: "A flat waterfront loop around Mission Bay with stunning Pacific views and consistent sea breezes.", distanceMeters: 19312 },
 ];
+
+const SEED_SOURCES: InsertSource[] = [
+  { name: "manual", type: "manual", priority: 0 },
+  { name: "runsignup", type: "api", baseUrl: "https://runsignup.com", priority: 10 },
+  { name: "active", type: "api", baseUrl: "https://www.active.com", priority: 5 },
+];
+
+const SEED_COLLECTIONS: InsertCollection[] = [
+  { type: "races", slug: "best-marathons-usa", title: "Best Marathons in the USA", description: "The top-rated marathon races across all 50 states, from world majors to hidden gems.", queryJson: { distance: "Marathon", limit: 20 }, isProgrammatic: false, isActive: true },
+  { type: "races", slug: "boston-qualifying-marathons", title: "Boston Qualifying Marathons", description: "Marathons known for fast courses and high BQ rates. Find your next qualifying race.", queryJson: { distance: "Marathon", bostonQualifier: true }, isProgrammatic: false, isActive: true },
+  { type: "races", slug: "best-trail-races", title: "Best Trail Races in the USA", description: "Premier trail running events from technical mountain ultras to scenic forest races.", queryJson: { surface: "Trail", limit: 20 }, isProgrammatic: false, isActive: true },
+  { type: "races", slug: "best-half-marathons", title: "Best Half Marathons in the USA", description: "Top-rated half marathon events perfect for your next 13.1-mile challenge.", queryJson: { distance: "Half Marathon", limit: 20 }, isProgrammatic: false, isActive: true },
+  { type: "routes", slug: "best-urban-running-routes", title: "Best Urban Running Routes", description: "The most popular and scenic running routes in major US cities.", queryJson: { surface: "Path", limit: 20 }, isProgrammatic: false, isActive: true },
+  { type: "routes", slug: "best-trail-running-routes", title: "Best Trail Running Routes", description: "Top-rated trail running routes for every difficulty level.", queryJson: { surface: "Trail", limit: 20 }, isProgrammatic: false, isActive: true },
+];
+
+function slugify(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+async function seedCitiesFromData() {
+  const allStates = await storage.getStates();
+  const stateMap = new Map(allStates.map(s => [s.abbreviation, s]));
+
+  const citySet = new Set<string>();
+  const cityInserts: InsertCity[] = [];
+
+  const allRaces = await storage.getRaces({ limit: 10000 });
+  const allRoutes = await storage.getRoutes({ limit: 10000 });
+
+  for (const race of allRaces) {
+    const key = `${race.city}|${race.state}`;
+    if (!citySet.has(key)) {
+      citySet.add(key);
+      const stateData = stateMap.get(race.state);
+      if (stateData) {
+        cityInserts.push({
+          name: race.city,
+          slug: slugify(race.city),
+          stateId: stateData.id,
+        });
+      }
+    }
+  }
+
+  for (const route of allRoutes) {
+    const key = `${route.city}|${route.state}`;
+    if (!citySet.has(key)) {
+      citySet.add(key);
+      const stateData = stateMap.get(route.state);
+      if (stateData) {
+        cityInserts.push({
+          name: route.city,
+          slug: slugify(route.city),
+          stateId: stateData.id,
+        });
+      }
+    }
+  }
+
+  await storage.seedCities(cityInserts);
+  console.log(`Seeded ${cityInserts.length} cities`);
+}
+
+async function linkRacesToCities() {
+  const allCities = await storage.getCities({ limit: 10000 });
+  const allStates = await storage.getStates();
+  const stateMap = new Map(allStates.map(s => [s.abbreviation, s.id]));
+
+  for (const city of allCities) {
+    const stateEntry = allStates.find(s => s.id === city.stateId);
+    if (!stateEntry) continue;
+
+    await db.update(races)
+      .set({ cityId: city.id, stateId: city.stateId })
+      .where(eq(races.city, city.name));
+  }
+}
+
+async function seedRaceOccurrences() {
+  const allRaces = await storage.getRaces({ limit: 10000 });
+  const occurrences: InsertRaceOccurrence[] = [];
+
+  for (const race of allRaces) {
+    const dateParts = race.date.split("-");
+    const year = parseInt(dateParts[0]);
+    const month = parseInt(dateParts[1]);
+
+    occurrences.push({
+      raceId: race.id,
+      startDate: race.date,
+      startTime: race.startTime,
+      year,
+      month,
+      status: "scheduled",
+    });
+  }
+
+  await storage.seedRaceOccurrences(occurrences);
+  console.log(`Seeded ${occurrences.length} race occurrences`);
+}
 
 export async function seedDatabase() {
   console.log("Seeding database...");
@@ -101,6 +205,16 @@ export async function seedDatabase() {
 
   await storage.seedRoutes(SEED_ROUTES);
   console.log(`Seeded ${SEED_ROUTES.length} routes`);
+
+  await seedCitiesFromData();
+  await linkRacesToCities();
+  await seedRaceOccurrences();
+
+  await storage.seedSources(SEED_SOURCES);
+  console.log(`Seeded ${SEED_SOURCES.length} sources`);
+
+  await storage.seedCollections(SEED_COLLECTIONS);
+  console.log(`Seeded ${SEED_COLLECTIONS.length} collections`);
 
   console.log("Database seeding complete.");
 }

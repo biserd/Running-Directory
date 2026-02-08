@@ -4,6 +4,8 @@ import type { PageMeta } from "../client/src/entry-server";
 
 type PrefetchFn = (queryClient: QueryClient, params: Record<string, string>) => Promise<PageMeta>;
 
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
 const defaultMeta: PageMeta = {
   title: "running.services | USA Race Calendar & Route Directory",
   description: "The comprehensive data-driven running hub for the USA. Find races, discover routes, and access essential training tools.",
@@ -11,7 +13,7 @@ const defaultMeta: PageMeta = {
 };
 
 const prefetchHome: PrefetchFn = async (qc) => {
-  const [races, routes, states] = await Promise.all([
+  const [races, routes, statesList] = await Promise.all([
     storage.getRaces({ limit: 4 }),
     storage.getRoutes({ limit: 4 }),
     storage.getStates(),
@@ -19,7 +21,7 @@ const prefetchHome: PrefetchFn = async (qc) => {
 
   qc.setQueryData(["/api/races", { limit: 4 }], races);
   qc.setQueryData(["/api/routes", { limit: 4 }], routes);
-  qc.setQueryData(["/api/states"], states);
+  qc.setQueryData(["/api/states"], statesList);
 
   return {
     ...defaultMeta,
@@ -39,13 +41,13 @@ const prefetchHome: PrefetchFn = async (qc) => {
 };
 
 const prefetchRaces: PrefetchFn = async (qc) => {
-  const [races, states] = await Promise.all([
+  const [races, statesList] = await Promise.all([
     storage.getRaces(),
     storage.getStates(),
   ]);
 
   qc.setQueryData(["/api/races", {}], races);
-  qc.setQueryData(["/api/states"], states);
+  qc.setQueryData(["/api/states"], statesList);
 
   return {
     title: "USA Race Calendar | running.services",
@@ -57,6 +59,24 @@ const prefetchRaces: PrefetchFn = async (qc) => {
       name: "USA Race Calendar",
       description: "Comprehensive race calendar with thousands of running events across the United States.",
       url: "https://running.services/races",
+    },
+  };
+};
+
+const prefetchRacesUSA: PrefetchFn = async (qc) => {
+  const statesList = await storage.getStates();
+  qc.setQueryData(["/api/states"], statesList);
+
+  return {
+    title: "USA Race Directory - All 50 States | running.services",
+    description: "Browse running races across all 50 US states. Find marathons, half marathons, 5Ks, trail races, and ultras near you.",
+    ogType: "website",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: "USA Race Directory",
+      description: "Complete directory of running races in all 50 US states.",
+      url: "https://running.services/races/usa",
     },
   };
 };
@@ -89,10 +109,68 @@ const prefetchRacesState: PrefetchFn = async (qc, params) => {
     };
   }
 
+  return { title: "State Races | running.services", description: "Browse races by state.", ogType: "website" };
+};
+
+const prefetchRacesCity: PrefetchFn = async (qc, params) => {
+  const { state: stateSlug, city: citySlug } = params;
+  const [stateData, cityData] = await Promise.all([
+    storage.getStateBySlug(stateSlug),
+    storage.getCityBySlug(stateSlug, citySlug),
+  ]);
+
+  qc.setQueryData(["/api/states", stateSlug], stateData);
+  if (cityData) {
+    qc.setQueryData(["/api/cities", stateSlug, citySlug], cityData);
+    if (stateData) {
+      const races = await storage.getRaces({ city: cityData.name, state: stateData.abbreviation });
+      qc.setQueryData(["/api/races", { city: cityData.name, state: stateData.abbreviation }], races);
+    }
+
+    const stateName = stateData?.name || stateSlug;
+    return {
+      title: `${cityData.name} Races, ${stateName} | running.services`,
+      description: `Find running races in ${cityData.name}, ${stateName}. Browse 5Ks, half marathons, and marathons.`,
+      ogType: "website",
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: `${cityData.name} Races`,
+        description: `Running races in ${cityData.name}, ${stateName}.`,
+        url: `https://running.services/races/state/${stateSlug}/city/${citySlug}`,
+      },
+    };
+  }
+
+  return { title: "City Races | running.services", description: "Browse races by city.", ogType: "website" };
+};
+
+const prefetchRacesYear: PrefetchFn = async (qc, params) => {
+  const year = parseInt(params.year);
+  const month = params.month ? parseInt(params.month) : undefined;
+  const races = await storage.getRaces({ year, month });
+  qc.setQueryData(["/api/races", { year, month }], races);
+
+  const title = month && month >= 1 && month <= 12
+    ? `${MONTH_NAMES[month - 1]} ${year} Races | running.services`
+    : `${year} Race Calendar | running.services`;
+
+  const desc = month && month >= 1 && month <= 12
+    ? `Running races happening in ${MONTH_NAMES[month - 1]} ${year}. Browse marathons, 5Ks, and more.`
+    : `Browse all running races scheduled for ${year}. Find marathons, half marathons, and trail races.`;
+
   return {
-    title: "State Races | running.services",
-    description: "Browse races by state.",
+    title,
+    description: desc,
     ogType: "website",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: title.replace(" | running.services", ""),
+      url: month
+        ? `https://running.services/races/year/${year}/month/${String(month).padStart(2, "0")}`
+        : `https://running.services/races/year/${year}`,
+    },
   };
 };
 
@@ -136,16 +214,12 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
     };
   }
 
-  return {
-    title: "Race Not Found | running.services",
-    description: "The requested race could not be found.",
-    ogType: "website",
-  };
+  return { title: "Race Not Found | running.services", description: "The requested race could not be found.", ogType: "website" };
 };
 
 const prefetchRoutes: PrefetchFn = async (qc) => {
-  const routes = await storage.getRoutes();
-  qc.setQueryData(["/api/routes"], routes);
+  const routesList = await storage.getRoutes();
+  qc.setQueryData(["/api/routes"], routesList);
 
   return {
     title: "Running Routes Directory | running.services",
@@ -161,12 +235,160 @@ const prefetchRoutes: PrefetchFn = async (qc) => {
   };
 };
 
+const prefetchRoutesState: PrefetchFn = async (qc, params) => {
+  const stateSlug = params.state;
+  const stateData = await storage.getStateBySlug(stateSlug);
+  qc.setQueryData(["/api/states", stateSlug], stateData);
+
+  if (stateData) {
+    const routesList = await storage.getRoutes({ state: stateData.abbreviation });
+    qc.setQueryData(["/api/routes", { state: stateData.abbreviation }], routesList);
+
+    return {
+      title: `${stateData.name} Running Routes | running.services`,
+      description: `Discover the best running paths, trails, and loops in ${stateData.name}. ${stateData.routeCount} routes available.`,
+      ogType: "website",
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: `${stateData.name} Running Routes`,
+        url: `https://running.services/routes/state/${stateSlug}`,
+      },
+    };
+  }
+
+  return { title: "State Routes | running.services", description: "Browse routes by state.", ogType: "website" };
+};
+
+const prefetchRoutesCity: PrefetchFn = async (qc, params) => {
+  const { state: stateSlug, city: citySlug } = params;
+  const [stateData, cityData] = await Promise.all([
+    storage.getStateBySlug(stateSlug),
+    storage.getCityBySlug(stateSlug, citySlug),
+  ]);
+
+  qc.setQueryData(["/api/states", stateSlug], stateData);
+  if (cityData) {
+    qc.setQueryData(["/api/cities", stateSlug, citySlug], cityData);
+    if (stateData) {
+      const routesList = await storage.getRoutes({ city: cityData.name, state: stateData.abbreviation });
+      qc.setQueryData(["/api/routes", { city: cityData.name, state: stateData.abbreviation }], routesList);
+    }
+
+    const stateName = stateData?.name || stateSlug;
+    return {
+      title: `${cityData.name} Running Routes, ${stateName} | running.services`,
+      description: `Explore running routes in ${cityData.name}, ${stateName}. Find paths, trails, and loops.`,
+      ogType: "website",
+    };
+  }
+
+  return { title: "City Routes | running.services", description: "Browse routes by city.", ogType: "website" };
+};
+
+const prefetchRouteDetail: PrefetchFn = async (qc, params) => {
+  const slug = params.slug;
+  const route = await storage.getRouteBySlug(slug);
+  qc.setQueryData(["/api/routes", slug], route);
+
+  if (route) {
+    const nearbyRaces = await storage.getRaces({ state: route.state, limit: 3 });
+    qc.setQueryData(["/api/races", { state: route.state, limit: 3 }], nearbyRaces);
+
+    return {
+      title: `${route.name} - ${route.city}, ${route.state} | running.services`,
+      description: route.description || `${route.name} is a ${route.distance}-mile ${route.type.toLowerCase()} route in ${route.city}, ${route.state}. ${route.surface} surface, ${route.difficulty} difficulty.`,
+      ogTitle: route.name,
+      ogDescription: `${route.distance} mi ${route.type} route in ${route.city}, ${route.state}`,
+      ogType: "article",
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@type": "Place",
+        name: route.name,
+        description: route.description || `A ${route.distance}-mile ${route.type.toLowerCase()} running route.`,
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: route.city,
+          addressRegion: route.state,
+          addressCountry: "US",
+        },
+        url: `https://running.services/routes/${slug}`,
+      },
+    };
+  }
+
+  return { title: "Route Not Found | running.services", description: "The requested route could not be found.", ogType: "website" };
+};
+
 const prefetchTools: PrefetchFn = async () => {
   return {
     title: "Running Tools | running.services",
     description: "Essential running tools powered by AI. Pace calculators, training plan generators, and race prediction tools.",
     ogType: "website",
   };
+};
+
+const prefetchToolDetail: PrefetchFn = async (_qc, params) => {
+  const toolNames: Record<string, string> = {
+    "race-predictor": "Race Predictor",
+    "pace-calculator": "Pace Calculator",
+    "training-plan": "Training Plans",
+    "vo2-estimator": "VO2 Max Estimator",
+  };
+  const name = toolNames[params.slug] || "Running Tool";
+  return {
+    title: `${name} | running.services`,
+    description: `Use the ${name} tool powered by AITracker.run. Data-driven insights for runners.`,
+    ogType: "website",
+  };
+};
+
+const prefetchGuides: PrefetchFn = async () => {
+  return {
+    title: "Running Guides | running.services",
+    description: "Expert running guides for all levels. Training tips, gear reviews, nutrition strategies, and race-day advice.",
+    ogType: "website",
+  };
+};
+
+const prefetchCollections: PrefetchFn = async (qc) => {
+  const collectionsList = await storage.getCollections();
+  qc.setQueryData(["/api/collections"], collectionsList);
+
+  return {
+    title: "Collections | running.services",
+    description: "Curated lists of the best races and routes across the USA. Expert picks and community favorites.",
+    ogType: "website",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: "Running Collections",
+      url: "https://running.services/collections",
+    },
+  };
+};
+
+const prefetchCollectionDetail: PrefetchFn = async (qc, params) => {
+  const slug = params.slug;
+  const collection = await storage.getCollectionBySlug(slug);
+  qc.setQueryData(["/api/collections", slug], collection);
+
+  if (collection) {
+    return {
+      title: `${collection.title} | running.services`,
+      description: collection.description || `A curated collection of ${collection.type}.`,
+      ogType: "article",
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: collection.title,
+        description: collection.description,
+        url: `https://running.services/collections/${slug}`,
+      },
+    };
+  }
+
+  return { title: "Collection Not Found | running.services", description: "The requested collection could not be found.", ogType: "website" };
 };
 
 interface RouteMatch {
@@ -178,10 +400,21 @@ interface RouteMatch {
 const routeMatches: RouteMatch[] = [
   { pattern: /^\/$/, prefetch: prefetchHome, paramNames: [] },
   { pattern: /^\/races$/, prefetch: prefetchRaces, paramNames: [] },
+  { pattern: /^\/races\/usa$/, prefetch: prefetchRacesUSA, paramNames: [] },
+  { pattern: /^\/races\/state\/([^/]+)\/city\/([^/]+)$/, prefetch: prefetchRacesCity, paramNames: ["state", "city"] },
   { pattern: /^\/races\/state\/([^/]+)$/, prefetch: prefetchRacesState, paramNames: ["state"] },
+  { pattern: /^\/races\/year\/(\d{4})\/month\/(\d{2})$/, prefetch: prefetchRacesYear, paramNames: ["year", "month"] },
+  { pattern: /^\/races\/year\/(\d{4})$/, prefetch: prefetchRacesYear, paramNames: ["year"] },
   { pattern: /^\/races\/([^/]+)$/, prefetch: prefetchRaceDetail, paramNames: ["slug"] },
   { pattern: /^\/routes$/, prefetch: prefetchRoutes, paramNames: [] },
-  { pattern: /^\/tools/, prefetch: prefetchTools, paramNames: [] },
+  { pattern: /^\/routes\/state\/([^/]+)\/city\/([^/]+)$/, prefetch: prefetchRoutesCity, paramNames: ["state", "city"] },
+  { pattern: /^\/routes\/state\/([^/]+)$/, prefetch: prefetchRoutesState, paramNames: ["state"] },
+  { pattern: /^\/routes\/([^/]+)$/, prefetch: prefetchRouteDetail, paramNames: ["slug"] },
+  { pattern: /^\/tools$/, prefetch: prefetchTools, paramNames: [] },
+  { pattern: /^\/tools\/([^/]+)$/, prefetch: prefetchToolDetail, paramNames: ["slug"] },
+  { pattern: /^\/guides/, prefetch: prefetchGuides, paramNames: [] },
+  { pattern: /^\/collections$/, prefetch: prefetchCollections, paramNames: [] },
+  { pattern: /^\/collections\/([^/]+)$/, prefetch: prefetchCollectionDetail, paramNames: ["slug"] },
 ];
 
 export function getSSRPrefetch(url: string): ((qc: QueryClient) => Promise<PageMeta>) | undefined {
