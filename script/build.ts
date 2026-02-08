@@ -49,7 +49,7 @@ async function buildAll() {
   console.log("building SSR bundle...");
   await viteBuild({
     build: {
-      ssr: "client/src/entry-server.tsx",
+      ssr: "src/entry-server.tsx",
       outDir: "dist/server",
       emptyOutDir: true,
     },
