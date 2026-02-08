@@ -11,6 +11,7 @@ import { apiGetRaces, apiGetStates, apiGetState, apiGetPopularRaces, apiGetTrend
 import { format } from "date-fns";
 import { parseRaceDate } from "@/lib/dates";
 import { Flame, Star, TrendingUp, Calendar, MapPin, MessageCircle, ThumbsUp, Share2 } from "lucide-react";
+import { getStateName } from "@/lib/states";
 import heroImage from "@/assets/images/hero-races.jpg";
 
 function SocialBuzzWidget() {
@@ -64,7 +65,7 @@ function TrendingRaceRow({ race, rank }: { race: any; rank: number }) {
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-sm group-hover:text-primary transition-colors truncate">{race.name}</div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-          <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {race.city}, {race.state}</span>
+          <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {race.city}, {getStateName(race.state)}</span>
           <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {format(parseRaceDate(race.date), "MMM d")}</span>
         </div>
       </div>

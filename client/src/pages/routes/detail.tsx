@@ -90,7 +90,7 @@ export default function RouteDetail() {
                 </div>
                 <div className="flex items-center gap-2">
                   <MapPin className="h-5 w-5" />
-                  <span className="font-medium text-foreground" data-testid="text-route-location">{route.city}, {route.state}</span>
+                  <span className="font-medium text-foreground" data-testid="text-route-location">{route.city}, {getStateName(route.state)}</span>
                 </div>
               </div>
             </div>
@@ -114,7 +114,7 @@ export default function RouteDetail() {
           <section>
             <h2 className="font-heading font-bold text-2xl mb-4">About This Route</h2>
             <div className="prose max-w-none text-muted-foreground">
-              <p data-testid="text-route-description">{route.description || `A ${route.difficulty.toLowerCase()} ${route.distance}-mile ${route.type.toLowerCase()} route on ${route.surface.toLowerCase()} in ${route.city}, ${route.state}.`}</p>
+              <p data-testid="text-route-description">{route.description || `A ${route.difficulty.toLowerCase()} ${route.distance}-mile ${route.type.toLowerCase()} route on ${route.surface.toLowerCase()} in ${route.city}, ${getStateName(route.state)}.`}</p>
             </div>
           </section>
 

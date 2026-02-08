@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import type { Route } from "@shared/schema";
 import { Footprints, MapPin, Mountain, Navigation } from "lucide-react";
 import { Link } from "wouter";
+import { getStateName } from "@/lib/states";
 
 function latLngToWorldPixel(lat: number, lng: number, zoom: number) {
   const scale = 256 * Math.pow(2, zoom);
@@ -165,7 +166,7 @@ export function RouteCard({ route }: { route: Route }) {
         
         <div className="flex items-center gap-1 text-sm text-muted-foreground mb-4">
           <MapPin className="h-3 w-3" />
-          <span>{route.city}, {route.state}</span>
+          <span>{route.city}, {getStateName(route.state)}</span>
         </div>
 
         <div className="flex flex-wrap gap-2 text-xs">

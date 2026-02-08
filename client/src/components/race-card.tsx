@@ -5,6 +5,7 @@ import { Calendar, MapPin, Mountain, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { parseRaceDate } from "@/lib/dates";
+import { getStateName } from "@/lib/states";
 
 export function RaceCard({ race }: { race: Race }) {
   return (
@@ -31,7 +32,7 @@ export function RaceCard({ race }: { race: Race }) {
         
         <div className="flex items-center gap-1 text-sm text-muted-foreground mb-4">
           <MapPin className="h-3 w-3" />
-          <span>{race.city}, {race.state}</span>
+          <span>{race.city}, {getStateName(race.state)}</span>
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">

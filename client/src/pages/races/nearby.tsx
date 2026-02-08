@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { apiGetRacesNearby } from "@/lib/api";
 import { Link } from "wouter";
+import { getStateName } from "@/lib/states";
 import { Calendar, MapPin, Mountain, TrendingUp, Navigation, AlertCircle, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { parseRaceDate } from "@/lib/dates";
@@ -52,7 +53,7 @@ function NearbyRaceCard({ race, distanceMiles }: { race: Race; distanceMiles: nu
 
         <div className="flex items-center gap-1 text-sm text-muted-foreground mb-4">
           <MapPin className="h-3 w-3" />
-          <span>{race.city}, {race.state}</span>
+          <span>{race.city}, {getStateName(race.state)}</span>
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">

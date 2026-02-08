@@ -355,7 +355,7 @@ export default function RaceDetail() {
                  </div>
                  <div className="flex items-center gap-2">
                    <MapPin className="h-5 w-5" />
-                   <span className="font-medium text-foreground" data-testid="text-race-location">{race.city}, {race.state}</span>
+                   <span className="font-medium text-foreground" data-testid="text-race-location">{race.city}, {getStateName(race.state)}</span>
                  </div>
                  <div className="flex items-center gap-2">
                    <Trophy className="h-5 w-5" />
@@ -389,7 +389,7 @@ export default function RaceDetail() {
           <section>
             <h2 className="font-heading font-bold text-2xl mb-4">About the Race</h2>
             <div className="prose max-w-none text-muted-foreground">
-              <p data-testid="text-race-description">{race.description || `Experience one of the premier ${race.distance} events in ${race.state}. The ${race.name} offers a ${race.elevation.toLowerCase()} course through the scenic streets of ${race.city}.`}</p>
+              <p data-testid="text-race-description">{race.description || `Experience one of the premier ${race.distance} events in ${getStateName(race.state)}. The ${race.name} offers a ${race.elevation.toLowerCase()} course through the scenic streets of ${race.city}.`}</p>
             </div>
           </section>
           

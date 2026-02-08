@@ -1,6 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { storage } from "./storage";
 import type { PageMeta } from "../client/src/entry-server";
+import { getStateName } from "@shared/states";
 
 type PrefetchFn = (queryClient: QueryClient, params: Record<string, string>) => Promise<PageMeta>;
 
@@ -194,10 +195,10 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
 
   if (race) {
     return {
-      title: `${race.name} - ${race.city}, ${race.state} | running.services`,
-      description: race.description || `${race.name} is a ${race.distance} race in ${race.city}, ${race.state}. ${race.surface} course with ${race.elevation.toLowerCase()} elevation.`,
+      title: `${race.name} - ${race.city}, ${getStateName(race.state)} | running.services`,
+      description: race.description || `${race.name} is a ${race.distance} race in ${race.city}, ${getStateName(race.state)}. ${race.surface} course with ${race.elevation.toLowerCase()} elevation.`,
       ogTitle: race.name,
-      ogDescription: `${race.distance} race on ${race.date} in ${race.city}, ${race.state}`,
+      ogDescription: `${race.distance} race on ${race.date} in ${race.city}, ${getStateName(race.state)}`,
       ogType: "article",
       canonicalUrl: `https://running.services/races/${slug}`,
       jsonLd: {
@@ -207,7 +208,7 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
         startDate: race.date,
         location: {
           "@type": "Place",
-          name: `${race.city}, ${race.state}`,
+          name: `${race.city}, ${getStateName(race.state)}`,
           address: {
             "@type": "PostalAddress",
             addressLocality: race.city,
@@ -215,7 +216,7 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
             addressCountry: "US",
           },
         },
-        description: race.description || `A ${race.distance} race in ${race.city}, ${race.state}.`,
+        description: race.description || `A ${race.distance} race in ${race.city}, ${getStateName(race.state)}.`,
         sport: "Running",
         url: `https://running.services/races/${slug}`,
         ...(race.website ? { sameAs: race.website } : {}),
@@ -317,10 +318,10 @@ const prefetchRouteDetail: PrefetchFn = async (qc, params) => {
     qc.setQueryData(["/api/races", { state: route.state, limit: 3 }], nearbyRaces);
 
     return {
-      title: `${route.name} - ${route.city}, ${route.state} | running.services`,
-      description: route.description || `${route.name} is a ${route.distance}-mile ${route.type.toLowerCase()} route in ${route.city}, ${route.state}. ${route.surface} surface, ${route.difficulty} difficulty.`,
+      title: `${route.name} - ${route.city}, ${getStateName(route.state)} | running.services`,
+      description: route.description || `${route.name} is a ${route.distance}-mile ${route.type.toLowerCase()} route in ${route.city}, ${getStateName(route.state)}. ${route.surface} surface, ${route.difficulty} difficulty.`,
       ogTitle: route.name,
-      ogDescription: `${route.distance} mi ${route.type} route in ${route.city}, ${route.state}`,
+      ogDescription: `${route.distance} mi ${route.type} route in ${route.city}, ${getStateName(route.state)}`,
       ogType: "article",
       canonicalUrl: `https://running.services/routes/${slug}`,
       jsonLd: {
