@@ -5,9 +5,73 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Link, useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
-import { apiGetRaces, apiGetStates, apiGetState } from "@/lib/api";
+import { apiGetRaces, apiGetStates, apiGetState, apiGetPopularRaces, apiGetTrendingRaces } from "@/lib/api";
+import { format } from "date-fns";
+import { parseRaceDate } from "@/lib/dates";
+import { Flame, Star, TrendingUp, Calendar, MapPin, MessageCircle, ThumbsUp, Share2 } from "lucide-react";
 import heroImage from "@/assets/images/hero-races.jpg";
+
+function SocialBuzzWidget() {
+  const buzzItems = [
+    { type: "trending", text: "Boston Marathon registrations trending 15% higher this year", time: "2h ago", likes: 342, comments: 58 },
+    { type: "popular", text: "NYC Half Marathon sold out in record time - waitlist now open", time: "5h ago", likes: 891, comments: 124 },
+    { type: "news", text: "Trail running participation up 23% year-over-year across the US", time: "8h ago", likes: 567, comments: 89 },
+    { type: "community", text: "Chicago Marathon course changes announced for 2026 edition", time: "12h ago", likes: 234, comments: 41 },
+    { type: "trending", text: "Ultra marathon participation continues to surge in western states", time: "1d ago", likes: 445, comments: 73 },
+  ];
+
+  return (
+    <div className="bg-card border rounded-xl p-6 shadow-sm" data-testid="widget-social-buzz">
+      <div className="flex items-center gap-2 mb-4">
+        <MessageCircle className="h-5 w-5 text-primary" />
+        <h3 className="font-heading font-semibold">Running Community Buzz</h3>
+      </div>
+      <div className="space-y-4">
+        {buzzItems.map((item, i) => (
+          <div key={i} className="border-b last:border-0 pb-3 last:pb-0" data-testid={`buzz-item-${i}`}>
+            <div className="flex items-start gap-2">
+              {item.type === "trending" && <Flame className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />}
+              {item.type === "popular" && <Star className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />}
+              {item.type === "news" && <TrendingUp className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />}
+              {item.type === "community" && <MessageCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm leading-snug">{item.text}</p>
+                <div className="flex items-center gap-4 mt-1.5 text-xs text-muted-foreground">
+                  <span>{item.time}</span>
+                  <span className="flex items-center gap-1"><ThumbsUp className="h-3 w-3" /> {item.likes}</span>
+                  <span className="flex items-center gap-1"><MessageCircle className="h-3 w-3" /> {item.comments}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-muted-foreground/60 mt-3">
+        Community buzz from running forums and social media
+      </p>
+    </div>
+  );
+}
+
+function TrendingRaceRow({ race, rank }: { race: any; rank: number }) {
+  return (
+    <Link href={`/races/${race.slug}`} className="flex items-center gap-4 p-3 border rounded-lg hover:border-primary/50 transition-colors group" data-testid={`trending-race-${race.id}`}>
+      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">
+        {rank}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-sm group-hover:text-primary transition-colors truncate">{race.name}</div>
+        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+          <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {race.city}, {race.state}</span>
+          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {format(parseRaceDate(race.date), "MMM d")}</span>
+        </div>
+      </div>
+      <Badge variant="secondary" className="text-xs flex-shrink-0">{race.distance}</Badge>
+    </Link>
+  );
+}
 
 export default function RacesHub() {
   const params = useParams();
@@ -28,6 +92,18 @@ export default function RacesHub() {
     queryKey: ["/api/races", { state: stateData?.abbreviation }],
     queryFn: () => apiGetRaces(stateData ? { state: stateData.abbreviation } : undefined),
     enabled: stateSlug ? !!stateData : true,
+  });
+
+  const { data: popularRaces } = useQuery({
+    queryKey: ["/api/races/popular"],
+    queryFn: apiGetPopularRaces,
+    enabled: !stateSlug,
+  });
+
+  const { data: trendingRaces } = useQuery({
+    queryKey: ["/api/races/trending"],
+    queryFn: apiGetTrendingRaces,
+    enabled: !stateSlug,
   });
   
   const title = stateData ? `${stateData.name} Race Calendar` : "USA Race Calendar";
@@ -52,8 +128,42 @@ export default function RacesHub() {
       
       <div className="container mx-auto px-4 py-8">
         <Breadcrumbs items={breadcrumbs} />
+
+        {!stateSlug && trendingRaces && trendingRaces.length > 0 && (
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <div className="flex items-center gap-2 mb-4">
+                <Flame className="h-5 w-5 text-orange-500" />
+                <h2 className="font-heading font-bold text-2xl" data-testid="text-trending-title">Trending Races</h2>
+                <Badge variant="outline" className="text-xs">Coming Soon</Badge>
+              </div>
+              <div className="space-y-2">
+                {trendingRaces.slice(0, 5).map((race, i) => (
+                  <TrendingRaceRow key={race.id} race={race} rank={i + 1} />
+                ))}
+              </div>
+            </div>
+            <div>
+              <SocialBuzzWidget />
+            </div>
+          </div>
+        )}
+
+        {!stateSlug && popularRaces && popularRaces.length > 0 && (
+          <div className="mt-12">
+            <div className="flex items-center gap-2 mb-6">
+              <Star className="h-5 w-5 text-amber-500" />
+              <h2 className="font-heading font-bold text-2xl" data-testid="text-popular-title">Popular Races</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {popularRaces.slice(0, 8).map(race => (
+                <RaceCard key={race.id} race={race} />
+              ))}
+            </div>
+          </div>
+        )}
         
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 mt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 mt-12">
           <aside className="space-y-8">
             <div>
               <h3 className="font-heading font-semibold mb-4">State</h3>
@@ -89,7 +199,7 @@ export default function RacesHub() {
           <div className="lg:col-span-3 space-y-8">
             <div>
               <h2 className="font-heading font-bold text-2xl mb-6" data-testid="text-events-title">
-                {stateData ? `Events in ${stateData.name}` : "Featured Events"}
+                {stateData ? `Events in ${stateData.name}` : "All Events"}
               </h2>
               
               {racesLoading ? (

@@ -47,6 +47,27 @@ export async function registerRoutes(
     res.json(races);
   });
 
+  app.get("/api/races/popular", async (_req, res) => {
+    const popular = await storage.getPopularRaces(12);
+    res.json(popular);
+  });
+
+  app.get("/api/races/trending", async (_req, res) => {
+    const trending = await storage.getTrendingRaces(12);
+    res.json(trending);
+  });
+
+  app.get("/api/races/nearby", async (req, res) => {
+    const { lat, lng, limit } = req.query;
+    if (!lat || !lng) return res.status(400).json({ error: "lat and lng are required" });
+    const races = await storage.getRacesNearby(
+      parseFloat(lat as string),
+      parseFloat(lng as string),
+      limit ? parseInt(limit as string) : 20
+    );
+    res.json(races);
+  });
+
   app.get("/api/races/:slug", async (req, res) => {
     const race = await storage.getRaceBySlug(req.params.slug);
     if (!race) return res.status(404).json({ message: "Race not found" });
@@ -234,6 +255,68 @@ export async function registerRoutes(
       res.json(result);
     } catch (err) {
       console.error("Weather API error:", err);
+      res.json({ type: "unavailable" });
+    }
+  });
+
+  app.get("/api/elevation-profile", async (req, res) => {
+    const { lat, lng, city, state } = req.query;
+    if (!lat && !city) {
+      return res.status(400).json({ error: "lat/lng or city/state required" });
+    }
+
+    let latitude = lat ? parseFloat(lat as string) : undefined;
+    let longitude = lng ? parseFloat(lng as string) : undefined;
+
+    if ((!latitude || !longitude) && city && state) {
+      const coords = await geocodeCity(city as string, state as string);
+      if (coords) {
+        latitude = coords.lat;
+        longitude = coords.lng;
+      }
+    }
+
+    if (!latitude || !longitude) {
+      return res.json({ type: "unavailable" });
+    }
+
+    const cacheKey = `elev_${latitude.toFixed(2)}_${longitude.toFixed(2)}`;
+    const cached = weatherCache.get(cacheKey);
+    if (cached && cached.expires > Date.now()) {
+      return res.json(cached.data);
+    }
+
+    try {
+      const points = 20;
+      const spread = 0.05;
+      const lats: number[] = [];
+      const lngs: number[] = [];
+      for (let i = 0; i < points; i++) {
+        const t = i / (points - 1);
+        const angle = t * Math.PI * 2;
+        lats.push(latitude + Math.sin(angle) * spread * (0.5 + t * 0.5));
+        lngs.push(longitude + Math.cos(angle) * spread * (0.5 + t * 0.5));
+      }
+
+      const elevRes = await fetch(
+        `https://api.open-meteo.com/v1/elevation?latitude=${lats.join(",")}&longitude=${lngs.join(",")}`
+      );
+      const elevData = await elevRes.json();
+
+      if (elevData.elevation) {
+        const profile = elevData.elevation.map((elev: number, i: number) => ({
+          mile: Math.round((i / (points - 1)) * 100) / 10,
+          elevation: Math.round(elev * 3.281),
+        }));
+
+        const result = { type: "available", profile };
+        weatherCache.set(cacheKey, { data: result, expires: Date.now() + 1000 * 60 * 60 });
+        res.json(result);
+      } else {
+        res.json({ type: "unavailable" });
+      }
+    } catch (err) {
+      console.error("Elevation API error:", err);
       res.json({ type: "unavailable" });
     }
   });

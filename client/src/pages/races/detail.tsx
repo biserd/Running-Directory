@@ -1,15 +1,17 @@
 import { Layout } from "@/components/layout";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useParams, Link } from "wouter";
-import { MapPin, Calendar, Trophy, Share2, ExternalLink, Clock, CloudRain, Sun, CloudSun, Cloud, Snowflake, CloudFog, Wind, Droplets, Thermometer } from "lucide-react";
+import { MapPin, Calendar, Trophy, ExternalLink, CloudRain, Sun, CloudSun, Cloud, Snowflake, CloudFog, Wind, Droplets, Thermometer, Gauge, Mountain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToolsCTA } from "@/components/tools-cta";
 import { useQuery } from "@tanstack/react-query";
-import { apiGetRace, apiGetRoutes, apiGetWeather, type WeatherData } from "@/lib/api";
+import { apiGetRace, apiGetRoutes, apiGetWeather, apiGetElevationProfile, type WeatherData, type ElevationProfile } from "@/lib/api";
 import { format } from "date-fns";
 import { parseRaceDate } from "@/lib/dates";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import type { Race } from "@shared/schema";
 
 function getWeatherIcon(code?: number) {
   if (code === undefined) return <Sun className="h-8 w-8 text-amber-500" />;
@@ -92,6 +94,169 @@ function WeatherCard({ weather }: { weather: WeatherData }) {
   );
 }
 
+function computeDifficulty(race: Race, weather?: WeatherData | null): { score: number; label: string; factors: string[] } {
+  let score = 0;
+  const factors: string[] = [];
+
+  const dist = race.distance?.toLowerCase() || "";
+  if (dist.includes("ultra") || dist.includes("100")) { score += 2; factors.push("Ultra distance"); }
+  else if (dist.includes("marathon") && !dist.includes("half")) { score += 1.5; factors.push("Marathon distance"); }
+  else if (dist.includes("half")) { score += 1; factors.push("Half marathon distance"); }
+  else if (dist.includes("10k")) { score += 0.5; factors.push("10K distance"); }
+  else if (dist.includes("5k")) { score += 0.3; }
+  else {
+    const meters = race.distanceMeters || 0;
+    if (meters > 42195) { score += 2; factors.push("Ultra distance"); }
+    else if (meters > 21097) { score += 1.5; factors.push("Marathon distance"); }
+    else if (meters > 10000) { score += 1; }
+    else { score += 0.5; }
+  }
+
+  const elev = race.elevation?.toLowerCase() || "";
+  if (elev.includes("hilly") || elev.includes("mountainous")) { score += 1.5; factors.push("Hilly terrain"); }
+  else if (elev.includes("rolling")) { score += 0.8; factors.push("Rolling hills"); }
+  else { score += 0.2; }
+
+  const surface = race.surface?.toLowerCase() || "";
+  if (surface.includes("trail")) { score += 1; factors.push("Trail surface"); }
+  else if (surface.includes("mixed")) { score += 0.5; factors.push("Mixed surface"); }
+  else { score += 0.1; }
+
+  if (weather && weather.type !== "unavailable") {
+    const high = weather.tempHigh || 70;
+    if (high > 85) { score += 0.5; factors.push("Hot conditions expected"); }
+    else if (high < 35) { score += 0.3; factors.push("Cold conditions expected"); }
+    if ((weather.windSpeed || 0) > 15) { score += 0.3; factors.push("Windy conditions"); }
+    if ((weather.precipProbability || 0) > 50) { score += 0.2; factors.push("Rain likely"); }
+  }
+
+  const normalized = Math.min(5, Math.max(1, Math.round(score)));
+  const labels: Record<number, string> = { 1: "Easy", 2: "Moderate", 3: "Challenging", 4: "Hard", 5: "Extreme" };
+
+  return { score: normalized, label: labels[normalized] || "Moderate", factors };
+}
+
+const difficultyColors: Record<number, string> = {
+  1: "text-green-600 bg-green-50 border-green-200",
+  2: "text-blue-600 bg-blue-50 border-blue-200",
+  3: "text-amber-600 bg-amber-50 border-amber-200",
+  4: "text-orange-600 bg-orange-50 border-orange-200",
+  5: "text-red-600 bg-red-50 border-red-200",
+};
+
+function DifficultyCard({ race, weather }: { race: Race; weather?: WeatherData | null }) {
+  const { score, label, factors } = computeDifficulty(race, weather);
+  const color = difficultyColors[score] || difficultyColors[3];
+
+  return (
+    <div className="bg-card border rounded-xl p-6 shadow-sm" data-testid="card-difficulty">
+      <h3 className="font-heading font-semibold mb-4 flex items-center gap-2">
+        <Gauge className="h-4 w-4" />
+        Difficulty Rating
+      </h3>
+      <div className="flex items-center gap-3 mb-4">
+        <div className={`text-3xl font-bold w-12 h-12 rounded-lg border flex items-center justify-center ${color}`} data-testid="text-difficulty-score">
+          {score}
+        </div>
+        <div>
+          <div className="font-semibold" data-testid="text-difficulty-label">{label}</div>
+          <div className="text-xs text-muted-foreground">out of 5</div>
+        </div>
+        <div className="flex gap-1 ml-auto">
+          {[1, 2, 3, 4, 5].map(i => (
+            <div
+              key={i}
+              className={`w-2 h-6 rounded-full ${i <= score ? "bg-primary" : "bg-muted"}`}
+            />
+          ))}
+        </div>
+      </div>
+      {factors.length > 0 && (
+        <div className="space-y-1">
+          {factors.slice(0, 4).map(f => (
+            <div key={f} className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <div className="w-1 h-1 rounded-full bg-muted-foreground/50" />
+              {f}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ElevationProfileChart({ elevation }: { elevation: ElevationProfile }) {
+  if (elevation.type === "unavailable" || !elevation.profile) return null;
+
+  const data = elevation.profile;
+  const minElev = Math.min(...data.map(d => d.elevation));
+  const maxElev = Math.max(...data.map(d => d.elevation));
+  const gain = maxElev - minElev;
+
+  return (
+    <section data-testid="section-elevation-profile">
+      <h2 className="font-heading font-bold text-2xl mb-4 flex items-center gap-2">
+        <Mountain className="h-5 w-5" />
+        Area Elevation Profile
+      </h2>
+      <div className="bg-card border rounded-xl p-6 shadow-sm">
+        <div className="flex gap-6 mb-4 text-sm">
+          <div>
+            <span className="text-muted-foreground">Min</span>
+            <span className="font-semibold ml-1" data-testid="text-elev-min">{minElev.toLocaleString()} ft</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Max</span>
+            <span className="font-semibold ml-1" data-testid="text-elev-max">{maxElev.toLocaleString()} ft</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Gain</span>
+            <span className="font-semibold ml-1" data-testid="text-elev-gain">{gain.toLocaleString()} ft</span>
+          </div>
+        </div>
+        <div className="h-56">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <defs>
+                <linearGradient id="elevGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.05} />
+                </linearGradient>
+              </defs>
+              <XAxis
+                dataKey="mile"
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v: number) => `${v}`}
+                label={{ value: "Distance", position: "insideBottom", offset: -2, fontSize: 11 }}
+              />
+              <YAxis
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v: number) => `${v} ft`}
+                domain={[minElev - 20, maxElev + 20]}
+                width={65}
+              />
+              <Tooltip
+                formatter={(value: number) => [`${value.toLocaleString()} ft`, "Elevation"]}
+                labelFormatter={(label: number) => `Point ${label}`}
+              />
+              <Area
+                type="monotone"
+                dataKey="elevation"
+                stroke="hsl(var(--primary))"
+                strokeWidth={2}
+                fill="url(#elevGradient)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+        <p className="text-[10px] text-muted-foreground/60 mt-2">
+          Elevation data from area surrounding race location. Actual course may vary.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 export default function RaceDetail() {
   const { slug } = useParams();
   
@@ -118,6 +283,18 @@ export default function RaceDetail() {
     }),
     enabled: !!race?.date,
     staleTime: 1000 * 60 * 30,
+  });
+
+  const { data: elevation } = useQuery({
+    queryKey: ["/api/elevation-profile", race?.city, race?.state],
+    queryFn: () => apiGetElevationProfile({
+      lat: race!.lat,
+      lng: race!.lng,
+      city: race!.city,
+      state: race!.state,
+    }),
+    enabled: !!race,
+    staleTime: 1000 * 60 * 60,
   });
 
   if (isLoading) {
@@ -205,12 +382,16 @@ export default function RaceDetail() {
             </div>
           </section>
           
-          <section>
-             <h2 className="font-heading font-bold text-2xl mb-4">Course Profile</h2>
-             <div className="bg-muted h-64 rounded-xl flex items-center justify-center border border-dashed">
-               <p className="text-muted-foreground">Course map & elevation profile coming soon</p>
-             </div>
-          </section>
+          {elevation && elevation.type === "available" ? (
+            <ElevationProfileChart elevation={elevation} />
+          ) : (
+            <section>
+              <h2 className="font-heading font-bold text-2xl mb-4">Course Profile</h2>
+              <div className="bg-muted h-64 rounded-xl flex items-center justify-center border border-dashed animate-pulse">
+                <p className="text-muted-foreground">Loading elevation data...</p>
+              </div>
+            </section>
+          )}
 
           <section>
             <ToolsCTA />
@@ -243,6 +424,8 @@ export default function RaceDetail() {
               )}
             </ul>
           </div>
+
+          <DifficultyCard race={race} weather={weather} />
           
           {weather && weather.type !== "unavailable" && (
             <WeatherCard weather={weather} />

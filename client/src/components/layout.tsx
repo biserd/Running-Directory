@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Search, Menu, X, ChevronRight, ArrowRight } from "lucide-react";
+import { Search, Menu, X, ChevronRight, ArrowRight, MapPin } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
@@ -18,8 +18,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <Link href="/races" className={cn("transition-colors hover:text-primary", location.startsWith("/races") ? "text-primary" : "text-foreground/80")}>
+            <Link href="/races" className={cn("transition-colors hover:text-primary", location.startsWith("/races") && !location.startsWith("/races/nearby") ? "text-primary" : "text-foreground/80")}>
                 Races
+            </Link>
+            <Link href="/races/nearby" className={cn("transition-colors hover:text-primary flex items-center gap-1", location.startsWith("/races/nearby") ? "text-primary" : "text-foreground/80")} data-testid="link-near-me">
+                <MapPin className="h-3.5 w-3.5" /> Near Me
             </Link>
             <Link href="/routes" className={cn("transition-colors hover:text-primary", location.startsWith("/routes") ? "text-primary" : "text-foreground/80")}>
                 Routes
@@ -54,6 +57,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <SheetTitle className="sr-only">Menu</SheetTitle>
                 <div className="flex flex-col gap-4 mt-8">
                   <Link href="/races" className="text-lg font-medium py-2 border-b">Races</Link>
+                  <Link href="/races/nearby" className="text-lg font-medium py-2 border-b flex items-center gap-2" data-testid="link-near-me-mobile">
+                    <MapPin className="h-4 w-4" /> Races Near Me
+                  </Link>
                   <Link href="/routes" className="text-lg font-medium py-2 border-b">Routes</Link>
                   <Link href="/tools" className="text-lg font-medium py-2 border-b">Tools</Link>
                   <Link href="/guides" className="text-lg font-medium py-2 border-b">Guides</Link>
@@ -83,6 +89,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <h4 className="font-heading font-semibold mb-4">Discover</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="/races" className="hover:text-primary">Race Calendar</Link></li>
+                <li><Link href="/races/nearby" className="hover:text-primary">Races Near Me</Link></li>
                 <li><Link href="/routes" className="hover:text-primary">Running Routes</Link></li>
                 <li><Link href="/tools" className="hover:text-primary">Runner Tools</Link></li>
                 <li><Link href="/guides" className="hover:text-primary">Training Guides</Link></li>

@@ -9,6 +9,7 @@ import RacesHub from "@/pages/races/index";
 import RacesUSAPage from "@/pages/races/usa";
 import RacesCityPage from "@/pages/races/city";
 import RacesYearPage from "@/pages/races/year";
+import RacesNearbyPage from "@/pages/races/nearby";
 import RaceDetail from "@/pages/races/detail";
 import RoutesHub from "@/pages/routes/index";
 import RoutesStatePage from "@/pages/routes/state";
@@ -30,6 +31,7 @@ function AppRouter() {
       <Route path="/races/state/:state" component={RacesHub} />
       <Route path="/races/year/:year/month/:month" component={RacesYearPage} />
       <Route path="/races/year/:year" component={RacesYearPage} />
+      <Route path="/races/nearby" component={RacesNearbyPage} />
       <Route path="/races/:slug" component={RaceDetail} />
       <Route path="/routes" component={RoutesHub} />
       <Route path="/routes/state/:state/city/:city" component={RoutesCityPage} />

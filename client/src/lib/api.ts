@@ -87,6 +87,36 @@ export interface WeatherData {
   weatherCode?: number;
 }
 
+export function apiGetPopularRaces() {
+  return fetchJSON<Race[]>("/api/races/popular");
+}
+
+export function apiGetTrendingRaces() {
+  return fetchJSON<Race[]>("/api/races/trending");
+}
+
+export function apiGetRacesNearby(lat: number, lng: number, limit?: number) {
+  const params = new URLSearchParams();
+  params.set("lat", lat.toString());
+  params.set("lng", lng.toString());
+  if (limit) params.set("limit", limit.toString());
+  return fetchJSON<(Race & { distanceMiles: number })[]>(`/api/races/nearby?${params.toString()}`);
+}
+
+export interface ElevationProfile {
+  type: "available" | "unavailable";
+  profile?: { mile: number; elevation: number }[];
+}
+
+export function apiGetElevationProfile(params: { lat?: number | null; lng?: number | null; city?: string; state?: string }) {
+  const searchParams = new URLSearchParams();
+  if (params.lat) searchParams.set("lat", params.lat.toString());
+  if (params.lng) searchParams.set("lng", params.lng.toString());
+  if (params.city) searchParams.set("city", params.city);
+  if (params.state) searchParams.set("state", params.state);
+  return fetchJSON<ElevationProfile>(`/api/elevation-profile?${searchParams.toString()}`);
+}
+
 export function apiGetWeather(params: { lat?: number | null; lng?: number | null; date: string; city?: string; state?: string }) {
   const searchParams = new URLSearchParams();
   if (params.lat) searchParams.set("lat", params.lat.toString());

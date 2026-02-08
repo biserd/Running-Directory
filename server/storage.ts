@@ -45,6 +45,9 @@ export interface IStorage {
   markRacesInactive(olderThan: Date): Promise<number>;
   getRaceCount(): Promise<number>;
   getRouteCount(): Promise<number>;
+  getRacesNearby(lat: number, lng: number, limit?: number): Promise<(Race & { distanceMiles: number })[]>;
+  getPopularRaces(limit?: number): Promise<Race[]>;
+  getTrendingRaces(limit?: number): Promise<Race[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -309,6 +312,84 @@ export class DatabaseStorage implements IStorage {
   async getRouteCount(): Promise<number> {
     const [result] = await db.select({ count: sql<number>`count(*)` }).from(routes);
     return Number(result.count);
+  }
+
+  async getRacesNearby(lat: number, lng: number, limit: number = 20): Promise<(Race & { distanceMiles: number })[]> {
+    const cosLat = Math.cos(lat * Math.PI / 180);
+    const results = await db.execute(sql`
+      SELECT r.*,
+        CASE
+          WHEN r.lat IS NOT NULL AND r.lng IS NOT NULL THEN
+            SQRT(POWER((r.lat - ${lat}), 2) + POWER((${cosLat} * (r.lng - ${lng})), 2)) * 69.0
+          WHEN c.lat IS NOT NULL AND c.lng IS NOT NULL THEN
+            SQRT(POWER((c.lat - ${lat}), 2) + POWER((${cosLat} * (c.lng - ${lng})), 2)) * 69.0
+          ELSE NULL
+        END AS distance_miles
+      FROM races r
+      LEFT JOIN cities c ON r.city_id = c.id
+      WHERE r.is_active = true
+        AND r.date >= CURRENT_DATE::text
+        AND (
+          (r.lat IS NOT NULL AND r.lng IS NOT NULL)
+          OR (c.lat IS NOT NULL AND c.lng IS NOT NULL)
+        )
+      ORDER BY distance_miles ASC NULLS LAST
+      LIMIT ${limit}
+    `);
+
+    return (results.rows as any[]).map(row => ({
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      date: row.date,
+      city: row.city,
+      state: row.state,
+      distance: row.distance,
+      surface: row.surface,
+      elevation: row.elevation,
+      description: row.description,
+      website: row.website,
+      registrationUrl: row.registration_url,
+      startTime: row.start_time,
+      timeLimit: row.time_limit,
+      bostonQualifier: row.boston_qualifier,
+      cityId: row.city_id,
+      stateId: row.state_id,
+      distanceMeters: row.distance_meters,
+      distanceLabel: row.distance_label,
+      lat: row.lat,
+      lng: row.lng,
+      isActive: row.is_active,
+      qualityScore: row.quality_score,
+      firstSeenAt: row.first_seen_at,
+      lastSeenAt: row.last_seen_at,
+      distanceMiles: row.distance_miles ? Math.round(parseFloat(row.distance_miles) * 10) / 10 : 0,
+    }));
+  }
+  async getPopularRaces(limit: number = 12): Promise<Race[]> {
+    const today = new Date().toISOString().split("T")[0];
+    return db.select().from(races)
+      .where(and(
+        eq(races.isActive, true),
+        sql`${races.date} >= ${today}`
+      ))
+      .orderBy(desc(races.qualityScore), asc(races.date))
+      .limit(limit);
+  }
+
+  async getTrendingRaces(limit: number = 12): Promise<Race[]> {
+    const today = new Date().toISOString().split("T")[0];
+    const twoWeeks = new Date();
+    twoWeeks.setDate(twoWeeks.getDate() + 30);
+    const futureDate = twoWeeks.toISOString().split("T")[0];
+    return db.select().from(races)
+      .where(and(
+        eq(races.isActive, true),
+        sql`${races.date} >= ${today}`,
+        sql`${races.date} <= ${futureDate}`
+      ))
+      .orderBy(desc(races.qualityScore), asc(races.date))
+      .limit(limit);
   }
 }
 
