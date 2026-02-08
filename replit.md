@@ -80,7 +80,9 @@ Preferred communication style: Simple, everyday language.
   - `GET /api/collections/:slug` — Get a single collection
 - **Storage layer**: `server/storage.ts` implements `IStorage` interface using `DatabaseStorage` class that wraps Drizzle ORM queries
 - **Seeding**: `server/seed.ts` seeds 50 states, 18 races, 12 routes, auto-generates cities, race occurrences, sources, and 6 collections
-- **Ingestion pipeline**: `server/ingestion/` contains normalization utils, dedupe matching (exact + fuzzy via trigram similarity), quality scoring, and pipeline skeleton for race/route data import
+- **Ingestion pipeline**: `server/ingestion/` contains RunSignUp API client, normalization utils, dedupe matching via source_records lookup, quality scoring, and full race import pipeline
+- **Admin endpoints**: Protected by ADMIN_API_KEY env var via X-ADMIN-KEY header middleware. POST /api/admin/ingest/races (full), POST /api/admin/ingest/races/state/:state (single), GET /api/admin/stats
+- **Data**: 17,150+ real races ingested from RunSignUp API across all 50 states + DC
 - **Dev mode**: Vite dev server created inline in `server/index.ts` with SSR rendering via `ssrLoadModule`
 - **Production**: Client built to `dist/public/`, SSR bundle to `dist/server/`, server bundled to `dist/index.cjs` via esbuild
 
@@ -116,10 +118,14 @@ Preferred communication style: Simple, everyday language.
   - `findExactMatch()` — same name + location + date (±1 day tolerance)
   - `findFuzzyMatch()` — trigram similarity > 0.6 + same location + date ±1 day
   - `trigramSimilarity()` — Jaccard similarity on character trigrams
+- **RunSignUp client** (`runsignup.ts`):
+  - `fetchRacesByState()` — fetches races from RunSignUp API with pagination, date range, and modified_since support
+  - `fetchAllStates()` — iterates all 50 states + DC with configurable concurrency
+  - Filters virtual/draft/private races, classifies distances, strips HTML descriptions
 - **Pipeline** (`pipeline.ts`):
-  - `processRaceImport()` — processes raw race records through normalize → dedupe → upsert flow
+  - `processRaceImport()` — checks source_records by (sourceId, externalId) for dedupe before upsert; updates lastSeenAt on known races
   - `markInactiveRaces()` — marks races not seen in 45 days as inactive
-  - `refreshRaceData()` / `refreshRouteData()` — scheduled refresh job outlines
+  - `refreshRaceData()` — full state-by-state refresh from RunSignUp API
 
 ## External Dependencies
 
