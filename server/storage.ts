@@ -1,8 +1,8 @@
 import { db } from "./db";
-import { states, cities, races, raceOccurrences, routes, sources, sourceRecords, collections } from "@shared/schema";
+import { states, cities, races, raceOccurrences, routes, sources, sourceRecords, collections, influencers, podcasts, books } from "@shared/schema";
 import type {
-  State, City, Race, RaceOccurrence, Route, Source, SourceRecord, Collection,
-  InsertState, InsertCity, InsertRace, InsertRaceOccurrence, InsertRoute, InsertSource, InsertSourceRecord, InsertCollection
+  State, City, Race, RaceOccurrence, Route, Source, SourceRecord, Collection, Influencer, Podcast, Book,
+  InsertState, InsertCity, InsertRace, InsertRaceOccurrence, InsertRoute, InsertSource, InsertSourceRecord, InsertCollection, InsertInfluencer, InsertPodcast, InsertBook
 } from "@shared/schema";
 import { eq, and, sql, desc, asc, ilike, inArray } from "drizzle-orm";
 
@@ -48,6 +48,16 @@ export interface IStorage {
   getRacesNearby(lat: number, lng: number, limit?: number): Promise<(Race & { distanceMiles: number })[]>;
   getPopularRaces(limit?: number): Promise<Race[]>;
   getTrendingRaces(limit?: number): Promise<Race[]>;
+
+  getInfluencers(filters?: { limit?: number }): Promise<Influencer[]>;
+  getInfluencerBySlug(slug: string): Promise<Influencer | undefined>;
+  seedInfluencers(data: InsertInfluencer[]): Promise<void>;
+  getPodcasts(filters?: { category?: string; limit?: number }): Promise<Podcast[]>;
+  getPodcastBySlug(slug: string): Promise<Podcast | undefined>;
+  seedPodcasts(data: InsertPodcast[]): Promise<void>;
+  getBooks(filters?: { category?: string; limit?: number }): Promise<Book[]>;
+  getBookBySlug(slug: string): Promise<Book | undefined>;
+  seedBooks(data: InsertBook[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -390,6 +400,70 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(desc(races.qualityScore), asc(races.date))
       .limit(limit);
+  }
+  async getInfluencers(filters?: { limit?: number }): Promise<Influencer[]> {
+    return db.select().from(influencers)
+      .where(eq(influencers.isActive, true))
+      .orderBy(influencers.name)
+      .limit(filters?.limit || 100);
+  }
+
+  async getInfluencerBySlug(slug: string): Promise<Influencer | undefined> {
+    const [influencer] = await db.select().from(influencers)
+      .where(and(eq(influencers.slug, slug), eq(influencers.isActive, true)));
+    return influencer;
+  }
+
+  async seedInfluencers(data: InsertInfluencer[]): Promise<void> {
+    for (const i of data) {
+      await db.insert(influencers).values(i).onConflictDoNothing();
+    }
+  }
+
+  async getPodcasts(filters?: { category?: string; limit?: number }): Promise<Podcast[]> {
+    const conditions = [];
+    conditions.push(eq(podcasts.isActive, true));
+    if (filters?.category) conditions.push(eq(podcasts.category, filters.category));
+
+    return db.select().from(podcasts)
+      .where(and(...conditions))
+      .orderBy(podcasts.name)
+      .limit(filters?.limit || 100);
+  }
+
+  async getPodcastBySlug(slug: string): Promise<Podcast | undefined> {
+    const [podcast] = await db.select().from(podcasts)
+      .where(and(eq(podcasts.slug, slug), eq(podcasts.isActive, true)));
+    return podcast;
+  }
+
+  async seedPodcasts(data: InsertPodcast[]): Promise<void> {
+    for (const p of data) {
+      await db.insert(podcasts).values(p).onConflictDoNothing();
+    }
+  }
+
+  async getBooks(filters?: { category?: string; limit?: number }): Promise<Book[]> {
+    const conditions = [];
+    conditions.push(eq(books.isActive, true));
+    if (filters?.category) conditions.push(eq(books.category, filters.category));
+
+    return db.select().from(books)
+      .where(and(...conditions))
+      .orderBy(books.title)
+      .limit(filters?.limit || 100);
+  }
+
+  async getBookBySlug(slug: string): Promise<Book | undefined> {
+    const [book] = await db.select().from(books)
+      .where(and(eq(books.slug, slug), eq(books.isActive, true)));
+    return book;
+  }
+
+  async seedBooks(data: InsertBook[]): Promise<void> {
+    for (const b of data) {
+      await db.insert(books).values(b).onConflictDoNothing();
+    }
   }
 }
 
