@@ -269,8 +269,8 @@ async function seedCitiesFromData() {
   const citySet = new Set<string>();
   const cityInserts: InsertCity[] = [];
 
-  const allRaces = await storage.getRaces({ limit: 10000 });
-  const allRoutes = await storage.getRoutes({ limit: 10000 });
+  const allRaces = SEED_RACES as Array<{ city: string; state: string; lat?: number; lng?: number }>;
+  const allRoutes = SEED_ROUTES as Array<{ city: string; state: string; lat?: number; lng?: number }>;
 
   for (const race of allRaces) {
     const key = `${race.city}|${race.state}`;
@@ -282,6 +282,8 @@ async function seedCitiesFromData() {
           name: race.city,
           slug: slugify(race.city),
           stateId: stateData.id,
+          lat: race.lat,
+          lng: race.lng,
         });
       }
     }
@@ -297,6 +299,8 @@ async function seedCitiesFromData() {
           name: route.city,
           slug: slugify(route.city),
           stateId: stateData.id,
+          lat: route.lat,
+          lng: route.lng,
         });
       }
     }
@@ -322,7 +326,7 @@ async function linkRacesToCities() {
 }
 
 async function seedRaceOccurrences() {
-  const allRaces = await storage.getRaces({ limit: 10000 });
+  const allRaces = await storage.getRaces({ limit: 200, includeAll: true });
   const occurrences: InsertRaceOccurrence[] = [];
 
   for (const race of allRaces) {

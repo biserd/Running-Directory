@@ -1,6 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { refreshRaceData } from "./ingestion/pipeline";
+import { fetchRacesByState } from "./ingestion/runsignup";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -93,6 +95,64 @@ export async function registerRoutes(
     const collection = await storage.getCollectionBySlug(req.params.slug);
     if (!collection) return res.status(404).json({ message: "Collection not found" });
     res.json(collection);
+  });
+
+  const adminAuth = (req: any, res: any, next: any) => {
+    const adminKey = process.env.ADMIN_API_KEY;
+    if (adminKey && req.headers["x-admin-key"] !== adminKey) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    next();
+  };
+
+  app.get("/api/admin/stats", adminAuth, async (_req, res) => {
+    const raceCount = await storage.getRaceCount();
+    const routeCount = await storage.getRouteCount();
+    const sourcesList = await storage.getSources();
+    res.json({ raceCount, routeCount, sources: sourcesList });
+  });
+
+  app.post("/api/admin/ingest/races", adminAuth, async (req, res) => {
+    const { states: stateFilter, startDate, endDate } = req.body || {};
+
+    res.json({ status: "started", message: "Race ingestion started in background" });
+
+    setImmediate(async () => {
+      try {
+        const result = await refreshRaceData({
+          states: stateFilter,
+          startDate,
+          endDate,
+        });
+        console.log("Ingestion complete:", JSON.stringify(result));
+      } catch (err) {
+        console.error("Ingestion failed:", err);
+      }
+    });
+  });
+
+  app.post("/api/admin/ingest/races/state/:state", adminAuth, async (req, res) => {
+    const stateAbbr = req.params.state.toUpperCase();
+    const { startDate, endDate } = req.body || {};
+
+    try {
+      const records = await fetchRacesByState(stateAbbr, {
+        startDate,
+        endDate,
+      });
+
+      const { processRaceImport } = await import("./ingestion/pipeline");
+      const result = await processRaceImport(records);
+
+      res.json({
+        state: stateAbbr,
+        totalFetched: records.length,
+        ...result,
+      });
+    } catch (err) {
+      console.error(`Ingestion error for ${stateAbbr}:`, err);
+      res.status(500).json({ error: "Ingestion failed", details: String(err) });
+    }
   });
 
   return httpServer;

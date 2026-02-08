@@ -36,6 +36,15 @@ export interface IStorage {
   seedRoutes(data: InsertRoute[]): Promise<void>;
   seedSources(data: InsertSource[]): Promise<void>;
   seedCollections(data: InsertCollection[]): Promise<void>;
+
+  upsertRace(data: InsertRace): Promise<{ id: number; created: boolean }>;
+  upsertSourceRecord(data: InsertSourceRecord): Promise<{ id: number }>;
+  getSourceByName(name: string): Promise<Source | undefined>;
+  findSourceRecord(sourceId: number, externalId: string): Promise<SourceRecord | undefined>;
+  updateRaceLastSeen(raceId: number): Promise<void>;
+  markRacesInactive(olderThan: Date): Promise<number>;
+  getRaceCount(): Promise<number>;
+  getRouteCount(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -74,8 +83,12 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(cities).where(eq(cities.stateId, stateId)).orderBy(cities.name);
   }
 
-  async getRaces(filters?: { state?: string; distance?: string; surface?: string; city?: string; cityId?: number; year?: number; month?: number; limit?: number }): Promise<Race[]> {
+  async getRaces(filters?: { state?: string; distance?: string; surface?: string; city?: string; cityId?: number; year?: number; month?: number; limit?: number; includeAll?: boolean }): Promise<Race[]> {
     const conditions = [];
+    conditions.push(eq(races.isActive, true));
+    if (!filters?.includeAll && !filters?.year && !filters?.month) {
+      conditions.push(sql`${races.date} >= '2025-01-01'`);
+    }
     if (filters?.state) conditions.push(eq(races.state, filters.state));
     if (filters?.distance) conditions.push(eq(races.distance, filters.distance));
     if (filters?.surface) conditions.push(eq(races.surface, filters.surface));
@@ -88,11 +101,10 @@ export class DatabaseStorage implements IStorage {
       conditions.push(sql`EXTRACT(MONTH FROM ${races.date}::date) = ${filters.month}`);
     }
 
-    const query = db.select().from(races);
-    if (conditions.length > 0) {
-      return query.where(and(...conditions)).orderBy(races.date).limit(filters?.limit || 100);
-    }
-    return query.orderBy(races.date).limit(filters?.limit || 100);
+    return db.select().from(races)
+      .where(and(...conditions))
+      .orderBy(races.date)
+      .limit(filters?.limit || 100);
   }
 
   async getRaceBySlug(slug: string): Promise<Race | undefined> {
@@ -101,7 +113,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRacesByState(stateAbbr: string): Promise<Race[]> {
-    return db.select().from(races).where(eq(races.state, stateAbbr)).orderBy(races.date);
+    return db.select().from(races)
+      .where(and(
+        eq(races.state, stateAbbr),
+        eq(races.isActive, true),
+        sql`${races.date} >= '2025-01-01'`
+      ))
+      .orderBy(races.date)
+      .limit(500);
   }
 
   async getRaceOccurrences(filters?: { raceId?: number; year?: number; month?: number; limit?: number }): Promise<RaceOccurrence[]> {
@@ -201,6 +220,95 @@ export class DatabaseStorage implements IStorage {
     for (const c of data) {
       await db.insert(collections).values(c).onConflictDoNothing();
     }
+  }
+
+  async upsertRace(data: InsertRace): Promise<{ id: number; created: boolean }> {
+    const existing = await db.select().from(races).where(eq(races.slug, data.slug));
+    if (existing.length > 0) {
+      await db.update(races)
+        .set({
+          ...data,
+          lastSeenAt: new Date(),
+        })
+        .where(eq(races.slug, data.slug));
+      return { id: existing[0].id, created: false };
+    }
+
+    const [inserted] = await db.insert(races).values({
+      ...data,
+      firstSeenAt: new Date(),
+      lastSeenAt: new Date(),
+    }).returning({ id: races.id });
+    return { id: inserted.id, created: true };
+  }
+
+  async upsertSourceRecord(data: InsertSourceRecord): Promise<{ id: number }> {
+    const conditions = [eq(sourceRecords.sourceId, data.sourceId)];
+    if (data.externalId) {
+      conditions.push(sql`${sourceRecords.externalId} = ${data.externalId}`);
+    } else if (data.hashKey) {
+      conditions.push(sql`${sourceRecords.hashKey} = ${data.hashKey}`);
+    }
+    const existing = await db.select().from(sourceRecords)
+      .where(and(...conditions));
+
+    if (existing.length > 0) {
+      await db.update(sourceRecords)
+        .set({
+          ...data,
+          lastModifiedAt: new Date(),
+        })
+        .where(eq(sourceRecords.id, existing[0].id));
+      return { id: existing[0].id };
+    }
+
+    const [inserted] = await db.insert(sourceRecords).values({
+      ...data,
+      fetchedAt: new Date(),
+      lastModifiedAt: new Date(),
+    }).returning({ id: sourceRecords.id });
+    return { id: inserted.id };
+  }
+
+  async getSourceByName(name: string): Promise<Source | undefined> {
+    const [source] = await db.select().from(sources).where(eq(sources.name, name));
+    return source;
+  }
+
+  async findSourceRecord(sourceId: number, externalId: string): Promise<SourceRecord | undefined> {
+    const [record] = await db.select().from(sourceRecords)
+      .where(and(
+        eq(sourceRecords.sourceId, sourceId),
+        sql`${sourceRecords.externalId} = ${externalId}`
+      ));
+    return record;
+  }
+
+  async updateRaceLastSeen(raceId: number): Promise<void> {
+    await db.update(races)
+      .set({ lastSeenAt: new Date() })
+      .where(eq(races.id, raceId));
+  }
+
+  async markRacesInactive(olderThan: Date): Promise<number> {
+    const result = await db.update(races)
+      .set({ isActive: false })
+      .where(and(
+        eq(races.isActive, true),
+        sql`${races.lastSeenAt} < ${olderThan}`
+      ))
+      .returning({ id: races.id });
+    return result.length;
+  }
+
+  async getRaceCount(): Promise<number> {
+    const [result] = await db.select({ count: sql<number>`count(*)` }).from(races);
+    return Number(result.count);
+  }
+
+  async getRouteCount(): Promise<number> {
+    const [result] = await db.select({ count: sql<number>`count(*)` }).from(routes);
+    return Number(result.count);
   }
 }
 

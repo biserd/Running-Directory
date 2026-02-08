@@ -1,7 +1,7 @@
 import { Layout } from "@/components/layout";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useParams, Link } from "wouter";
-import { MapPin, Calendar, Trophy, Share2 } from "lucide-react";
+import { MapPin, Calendar, Trophy, Share2, ExternalLink, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,8 +21,9 @@ export default function RaceDetail() {
   });
 
   const { data: nearbyRoutes } = useQuery({
-    queryKey: ["/api/routes", { limit: 3 }],
-    queryFn: () => apiGetRoutes({ limit: 3 }),
+    queryKey: ["/api/routes", { state: race?.state, limit: 3 }],
+    queryFn: () => apiGetRoutes({ state: race?.state, limit: 3 }),
+    enabled: !!race,
   });
 
   if (isLoading) {
@@ -82,10 +83,20 @@ export default function RaceDetail() {
             </div>
             
             <div className="flex flex-col gap-3 min-w-[200px]">
-              <Button size="lg" className="w-full font-semibold" data-testid="button-register">Register Now</Button>
-              <Button variant="outline" className="w-full" data-testid="button-share">
-                <Share2 className="mr-2 h-4 w-4" /> Share
-              </Button>
+              {(race.registrationUrl || race.website) && (
+                <Button size="lg" className="w-full font-semibold" asChild data-testid="button-register">
+                  <a href={race.registrationUrl || race.website!} target="_blank" rel="noopener noreferrer">
+                    Register Now <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+              )}
+              {race.website && (
+                <Button variant="outline" className="w-full" asChild data-testid="button-website">
+                  <a href={race.website} target="_blank" rel="noopener noreferrer">
+                    Visit Website <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -139,6 +150,35 @@ export default function RaceDetail() {
             </ul>
           </div>
           
+          <div className="bg-card border rounded-xl p-6 shadow-sm">
+            <h3 className="font-heading font-semibold mb-4">Data Source</h3>
+            <ul className="space-y-3 text-sm">
+              {race.lastSeenAt && (
+                <li className="flex justify-between">
+                  <span className="text-muted-foreground">Last Updated</span>
+                  <span className="font-medium" data-testid="text-last-updated">{format(new Date(race.lastSeenAt), "MMM d, yyyy")}</span>
+                </li>
+              )}
+              {race.qualityScore != null && (
+                <li className="flex justify-between">
+                  <span className="text-muted-foreground">Data Quality</span>
+                  <span className="font-medium" data-testid="text-quality-score">
+                    {race.qualityScore >= 80 ? "High" : race.qualityScore >= 50 ? "Good" : "Basic"}
+                  </span>
+                </li>
+              )}
+              {race.distanceLabel && race.distanceLabel !== race.distance && (
+                <li className="flex justify-between">
+                  <span className="text-muted-foreground">Distance</span>
+                  <span className="font-medium" data-testid="text-distance-label">{race.distanceLabel}</span>
+                </li>
+              )}
+            </ul>
+            <p className="text-xs text-muted-foreground mt-4">
+              Race data sourced from RunSignUp and verified public records.
+            </p>
+          </div>
+
           <div>
             <h3 className="font-heading font-semibold mb-4">Nearby Routes</h3>
              <div className="space-y-4">

@@ -1,0 +1,64 @@
+1) Races calendar (USA-wide) — legit sources
+
+Primary: RunSignUp API
+
+GET https://api.runsignup.com/rest/races supports state/city/zip+radius and modified_since for delta updates.
+
+RunSignUp also states that without authentication you can pull all public races (public data).
+
+Secondary: ACTIVE Network Activity APIs
+
+Built specifically so third parties can distribute event/activity listings from ACTIVE.com; it’s read-only public data with documented limits.
+
+Optional / partner-only: Let’s Do This
+
+They have an API, but “list events” requires special marketplace credentials (so this is partnership-based, not open).
+
+✅ Result: you can cover a huge portion of US races with RunSignUp + ACTIVE, and add more partners later.
+
+2) Routes directory (USA-wide) — you generate it (no providers)
+
+OpenStreetMap (OSM) data
+
+Use OSM under ODbL; you must provide proper attribution.
+
+For scalable ingestion, use Geofabrik US extracts (updated daily; machine-downloadable .osm.pbf).
+
+Routing engine (to generate loops + GPX)
+
+Self-host Valhalla (OSM routing engine) to generate route geometry + variants.
+(You can also use OSRM, but don’t rely on public demo servers for heavy usage.)
+
+✅ Result: “Best 5-mile routes in X city” becomes a repeatable data product you own.
+
+3) Elevation + “flatness/difficulty” scoring (legit)
+
+USGS 3DEP elevation
+
+USGS elevation datasets are generally public domain / usable without restriction (attribution requested).
+
+4) Running conditions pages (optional, but great)
+
+Weather: NOAA/NWS API
+
+National Weather Service API is free open data (with reasonable rate limits) and requires a User-Agent string.
+
+Air quality: EPA AirNow API
+
+Public AQI forecasts/observations with an API key (free to request).
+
+The “legit data” implementation pattern
+
+For every record you publish, store:
+
+source + external_id + external_url
+
+fetched_at, last_modified_at, last_seen_at
+
+and show “Last updated” on page
+
+Then refresh:
+
+Races: daily delta (modified_since) where available
+
+Routes: monthly regeneration / validation from OSM extracts
