@@ -87,6 +87,12 @@ export interface WeatherData {
   weatherCode?: number;
 }
 
-export function apiGetWeather(lat: number, lng: number, date: string) {
-  return fetchJSON<WeatherData>(`/api/weather?lat=${lat}&lng=${lng}&date=${date}`);
+export function apiGetWeather(params: { lat?: number | null; lng?: number | null; date: string; city?: string; state?: string }) {
+  const searchParams = new URLSearchParams();
+  if (params.lat) searchParams.set("lat", params.lat.toString());
+  if (params.lng) searchParams.set("lng", params.lng.toString());
+  searchParams.set("date", params.date);
+  if (params.city) searchParams.set("city", params.city);
+  if (params.state) searchParams.set("state", params.state);
+  return fetchJSON<WeatherData>(`/api/weather?${searchParams.toString()}`);
 }

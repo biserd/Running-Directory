@@ -108,9 +108,15 @@ export default function RaceDetail() {
   });
 
   const { data: weather } = useQuery({
-    queryKey: ["/api/weather", race?.lat, race?.lng, race?.date],
-    queryFn: () => apiGetWeather(race!.lat!, race!.lng!, race!.date),
-    enabled: !!race?.lat && !!race?.lng && !!race?.date,
+    queryKey: ["/api/weather", race?.city, race?.state, race?.date],
+    queryFn: () => apiGetWeather({
+      lat: race!.lat,
+      lng: race!.lng,
+      date: race!.date,
+      city: race!.city,
+      state: race!.state,
+    }),
+    enabled: !!race?.date,
     staleTime: 1000 * 60 * 30,
   });
 

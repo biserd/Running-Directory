@@ -99,13 +99,51 @@ export async function registerRoutes(
 
   const weatherCache = new Map<string, { data: any; expires: number }>();
 
+  const geocodeCache = new Map<string, { lat: number; lng: number } | null>();
+
+  async function geocodeCity(city: string, state: string): Promise<{ lat: number; lng: number } | null> {
+    const key = `${city},${state}`;
+    if (geocodeCache.has(key)) return geocodeCache.get(key) || null;
+
+    try {
+      const geoRes = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=5&language=en&format=json`
+      );
+      const geo = await geoRes.json();
+      if (geo.results?.length > 0) {
+        const usResult = geo.results.find((r: any) => r.country_code === "US");
+        const pick = usResult || geo.results[0];
+        const result = { lat: pick.latitude, lng: pick.longitude };
+        geocodeCache.set(key, result);
+        return result;
+      }
+    } catch {}
+    geocodeCache.set(key, null);
+    return null;
+  }
+
   app.get("/api/weather", async (req, res) => {
-    const { lat, lng, date } = req.query;
-    if (!lat || !lng || !date) {
-      return res.status(400).json({ error: "lat, lng, and date are required" });
+    const { lat, lng, date, city, state } = req.query;
+    if (!date) {
+      return res.status(400).json({ error: "date is required" });
     }
 
-    const cacheKey = `${lat},${lng},${date}`;
+    let latitude = lat ? parseFloat(lat as string) : undefined;
+    let longitude = lng ? parseFloat(lng as string) : undefined;
+
+    if ((!latitude || !longitude) && city && state) {
+      const coords = await geocodeCity(city as string, state as string);
+      if (coords) {
+        latitude = coords.lat;
+        longitude = coords.lng;
+      }
+    }
+
+    if (!latitude || !longitude) {
+      return res.json({ type: "unavailable" });
+    }
+
+    const cacheKey = `${latitude.toFixed(2)},${longitude.toFixed(2)},${date}`;
     const cached = weatherCache.get(cacheKey);
     if (cached && cached.expires > Date.now()) {
       return res.json(cached.data);
@@ -120,7 +158,7 @@ export async function registerRoutes(
 
       if (daysUntil >= 0 && daysUntil <= 15) {
         const forecastRes = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,weather_code&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=auto&forecast_days=16`
+          `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,weather_code&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=auto&forecast_days=16`
         );
         const forecast = await forecastRes.json();
 
@@ -150,7 +188,7 @@ export async function registerRoutes(
         const endDate = `${(endDay.getMonth() + 1).toString().padStart(2, "0")}-${endDay.getDate().toString().padStart(2, "0")}`;
 
         const climateRes = await fetch(
-          `https://climate-api.open-meteo.com/v1/climate?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&start_date=2020-01-01&end_date=2024-12-31&models=EC_Earth3P_HR`
+          `https://climate-api.open-meteo.com/v1/climate?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&start_date=2020-01-01&end_date=2024-12-31&models=EC_Earth3P_HR`
         );
         const climate = await climateRes.json();
 
