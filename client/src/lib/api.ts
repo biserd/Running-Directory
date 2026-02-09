@@ -1,4 +1,4 @@
-import type { Race, Route, State, City, Collection, RaceOccurrence, Influencer, Podcast, Book, Favorite } from "@shared/schema";
+import type { Race, Route, State, City, Collection, RaceOccurrence, Influencer, Podcast, Book, Favorite, Review } from "@shared/schema";
 
 async function fetchJSON<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -228,4 +228,35 @@ export function apiGetBooks(params?: { category?: string; limit?: number }) {
 
 export function apiGetBook(slug: string) {
   return fetchJSON<Book>(`/api/books/${slug}`);
+}
+
+export type ReviewWithUser = Review & { userName: string | null };
+export type ReviewSummary = { avgRating: number; count: number };
+
+export function apiGetReviews(itemType: string, itemId: number) {
+  return fetchJSON<ReviewWithUser[]>(`/api/reviews?itemType=${itemType}&itemId=${itemId}`);
+}
+
+export function apiGetReviewSummary(itemType: string, itemId: number) {
+  return fetchJSON<ReviewSummary>(`/api/reviews/summary?itemType=${itemType}&itemId=${itemId}`);
+}
+
+export function apiGetMyReview(itemType: string, itemId: number) {
+  return fetchJSON<Review | null>(`/api/reviews/mine?itemType=${itemType}&itemId=${itemId}`);
+}
+
+export async function apiSubmitReview(data: { itemType: string; itemId: number; rating: number; comment?: string }) {
+  const res = await fetch("/api/reviews", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Failed to submit review");
+  return json as Review;
+}
+
+export async function apiDeleteReview(id: number) {
+  const res = await fetch(`/api/reviews/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete review");
 }

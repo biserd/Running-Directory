@@ -587,5 +587,65 @@ export async function registerRoutes(
     }
   });
 
+  const validItemTypes = ["race", "route"];
+
+  app.get("/api/reviews", async (req, res) => {
+    const { itemType, itemId } = req.query;
+    if (!itemType || !itemId || !validItemTypes.includes(itemType as string) || isNaN(parseInt(itemId as string))) {
+      return res.status(400).json({ message: "Valid itemType (race/route) and numeric itemId are required" });
+    }
+    const reviewsList = await storage.getReviews(itemType as string, parseInt(itemId as string));
+    res.json(reviewsList);
+  });
+
+  app.get("/api/reviews/summary", async (req, res) => {
+    const { itemType, itemId } = req.query;
+    if (!itemType || !itemId || !validItemTypes.includes(itemType as string) || isNaN(parseInt(itemId as string))) {
+      return res.status(400).json({ message: "Valid itemType (race/route) and numeric itemId are required" });
+    }
+    const summary = await storage.getReviewSummary(itemType as string, parseInt(itemId as string));
+    res.json(summary);
+  });
+
+  app.get("/api/reviews/mine", requireAuth, async (req, res) => {
+    const { itemType, itemId } = req.query;
+    if (!itemType || !itemId || !validItemTypes.includes(itemType as string) || isNaN(parseInt(itemId as string))) {
+      return res.status(400).json({ message: "Valid itemType (race/route) and numeric itemId are required" });
+    }
+    const review = await storage.getUserReview(req.session.userId!, itemType as string, parseInt(itemId as string));
+    res.json(review || null);
+  });
+
+  app.post("/api/reviews", requireAuth, async (req, res) => {
+    const { itemType, itemId, rating, comment } = req.body;
+    if (!itemType || !itemId || rating === undefined || rating === null) {
+      return res.status(400).json({ message: "itemType, itemId, and rating are required" });
+    }
+    const parsedRating = parseInt(rating);
+    const parsedItemId = parseInt(itemId);
+    if (isNaN(parsedRating) || parsedRating < 1 || parsedRating > 5) {
+      return res.status(400).json({ message: "Rating must be an integer between 1 and 5" });
+    }
+    if (isNaN(parsedItemId)) {
+      return res.status(400).json({ message: "itemId must be a valid number" });
+    }
+    if (!validItemTypes.includes(itemType)) {
+      return res.status(400).json({ message: "itemType must be 'race' or 'route'" });
+    }
+    const existing = await storage.getUserReview(req.session.userId!, itemType, parsedItemId);
+    if (existing) {
+      const updated = await storage.updateReview(existing.id, req.session.userId!, parsedRating, comment);
+      return res.json(updated);
+    }
+    const review = await storage.createReview(req.session.userId!, itemType, parsedItemId, parsedRating, comment);
+    res.status(201).json(review);
+  });
+
+  app.delete("/api/reviews/:id", requireAuth, async (req, res) => {
+    const id = parseInt(req.params.id);
+    await storage.deleteReview(id, req.session.userId!);
+    res.json({ success: true });
+  });
+
   return httpServer;
 }

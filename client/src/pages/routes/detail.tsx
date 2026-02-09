@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToolsCTA } from "@/components/tools-cta";
+import { ReviewSection } from "@/components/review-section";
 import { RouteMap } from "@/components/route-map";
 import { useQuery } from "@tanstack/react-query";
 import { apiGetRoute, apiGetRaces, apiGetPodcasts, apiGetBooks } from "@/lib/api";
@@ -132,6 +133,8 @@ export default function RouteDetail() {
               </div>
             )}
           </section>
+
+          <ReviewSection itemType="route" itemId={route.id} />
 
           <section>
             <ToolsCTA />

@@ -1,9 +1,9 @@
 import { db } from "./db";
-import { states, cities, races, raceOccurrences, routes, sources, sourceRecords, collections, influencers, podcasts, books, users, magicLinkTokens, favorites } from "@shared/schema";
+import { states, cities, races, raceOccurrences, routes, sources, sourceRecords, collections, influencers, podcasts, books, users, magicLinkTokens, favorites, reviews } from "@shared/schema";
 import type {
   State, City, Race, RaceOccurrence, Route, Source, SourceRecord, Collection, Influencer, Podcast, Book,
   InsertState, InsertCity, InsertRace, InsertRaceOccurrence, InsertRoute, InsertSource, InsertSourceRecord, InsertCollection, InsertInfluencer, InsertPodcast, InsertBook,
-  User, MagicLinkToken, Favorite
+  User, MagicLinkToken, Favorite, Review
 } from "@shared/schema";
 import { eq, and, sql, desc, asc, ilike, inArray } from "drizzle-orm";
 
@@ -79,6 +79,13 @@ export interface IStorage {
   removeFavorite(userId: number, itemType: string, itemId: number): Promise<void>;
   isFavorited(userId: number, itemType: string, itemId: number): Promise<boolean>;
   getUserFavoritesByType(userId: number, itemType: string): Promise<Favorite[]>;
+
+  getReviews(itemType: string, itemId: number): Promise<(Review & { userName: string | null })[]>;
+  getReviewSummary(itemType: string, itemId: number): Promise<{ avgRating: number; count: number }>;
+  getUserReview(userId: number, itemType: string, itemId: number): Promise<Review | undefined>;
+  createReview(userId: number, itemType: string, itemId: number, rating: number, comment?: string): Promise<Review>;
+  updateReview(id: number, userId: number, rating: number, comment?: string): Promise<Review>;
+  deleteReview(id: number, userId: number): Promise<void>;
 
   search(query: string, limit?: number): Promise<{
     races: { id: number; name: string; slug: string; city: string | null; state: string | null; distance: string | null; date: string | null }[];
@@ -657,6 +664,60 @@ export class DatabaseStorage implements IStorage {
       podcasts: podcastResults,
       books: bookResults,
     };
+  }
+
+  async getReviews(itemType: string, itemId: number): Promise<(Review & { userName: string | null })[]> {
+    const results = await db
+      .select({
+        id: reviews.id,
+        userId: reviews.userId,
+        itemType: reviews.itemType,
+        itemId: reviews.itemId,
+        rating: reviews.rating,
+        comment: reviews.comment,
+        createdAt: reviews.createdAt,
+        updatedAt: reviews.updatedAt,
+        userName: users.name,
+      })
+      .from(reviews)
+      .leftJoin(users, eq(reviews.userId, users.id))
+      .where(and(eq(reviews.itemType, itemType), eq(reviews.itemId, itemId)))
+      .orderBy(desc(reviews.createdAt));
+    return results;
+  }
+
+  async getReviewSummary(itemType: string, itemId: number): Promise<{ avgRating: number; count: number }> {
+    const result = await db
+      .select({
+        avgRating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
+        count: sql<number>`COUNT(*)::int`,
+      })
+      .from(reviews)
+      .where(and(eq(reviews.itemType, itemType), eq(reviews.itemId, itemId)));
+    return { avgRating: Number(result[0]?.avgRating || 0), count: result[0]?.count || 0 };
+  }
+
+  async getUserReview(userId: number, itemType: string, itemId: number): Promise<Review | undefined> {
+    const [review] = await db.select().from(reviews)
+      .where(and(eq(reviews.userId, userId), eq(reviews.itemType, itemType), eq(reviews.itemId, itemId)));
+    return review;
+  }
+
+  async createReview(userId: number, itemType: string, itemId: number, rating: number, comment?: string): Promise<Review> {
+    const [review] = await db.insert(reviews).values({ userId, itemType, itemId, rating, comment: comment || null }).returning();
+    return review;
+  }
+
+  async updateReview(id: number, userId: number, rating: number, comment?: string): Promise<Review> {
+    const [review] = await db.update(reviews)
+      .set({ rating, comment: comment || null, updatedAt: new Date() })
+      .where(and(eq(reviews.id, id), eq(reviews.userId, userId)))
+      .returning();
+    return review;
+  }
+
+  async deleteReview(id: number, userId: number): Promise<void> {
+    await db.delete(reviews).where(and(eq(reviews.id, id), eq(reviews.userId, userId)));
   }
 }
 

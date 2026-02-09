@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToolsCTA } from "@/components/tools-cta";
+import { ReviewSection } from "@/components/review-section";
 import { useQuery } from "@tanstack/react-query";
 import { apiGetRace, apiGetRoutes, apiGetWeather, apiGetElevationProfile, apiGetBooks, apiGetPodcasts, type WeatherData, type ElevationProfile } from "@/lib/api";
 import { format } from "date-fns";
@@ -407,6 +408,8 @@ export default function RaceDetail() {
               </div>
             </section>
           )}
+
+          <ReviewSection itemType="race" itemId={race.id} />
 
           <section>
             <ToolsCTA />
