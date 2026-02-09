@@ -90,7 +90,7 @@ function ReviewForm({ itemType, itemId, existingReview, onCancel }: {
   });
 
   return (
-    <div className="bg-muted/30 border rounded-lg p-4 space-y-3" data-testid="review-form">
+    <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 border border-blue-100 rounded-lg p-4 space-y-3" data-testid="review-form">
       <div>
         <label className="text-sm font-medium mb-1 block">Your Rating</label>
         <StarRating rating={rating} onRate={setRating} interactive size="md" />
@@ -110,6 +110,7 @@ function ReviewForm({ itemType, itemId, existingReview, onCancel }: {
           size="sm"
           disabled={rating === 0 || submitMutation.isPending}
           onClick={() => submitMutation.mutate({ itemType, itemId, rating, comment: comment || undefined })}
+          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
           data-testid="button-submit-review"
         >
           {submitMutation.isPending ? "Submitting..." : existingReview ? "Update Review" : "Submit Review"}
@@ -152,7 +153,7 @@ function ReviewItem({ review, isOwner, itemType, itemId }: {
             <User className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <span className="text-sm font-medium" data-testid={`text-reviewer-${review.id}`}>
+            <span className="text-sm font-semibold" data-testid={`text-reviewer-${review.id}`}>
               {review.userName || "Anonymous Runner"}
             </span>
             {review.createdAt && (
@@ -207,21 +208,20 @@ export function ReviewSection({ itemType, itemId }: { itemType: "race" | "route"
   return (
     <section data-testid="section-reviews">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-heading font-bold text-2xl flex items-center gap-2">
+        <h2 className="font-heading font-bold text-2xl flex items-center gap-2 border-l-4 border-primary pl-3">
           <MessageSquare className="h-5 w-5" />
           Reviews
         </h2>
         <RatingSummary itemType={itemType} itemId={itemId} />
       </div>
 
-      <div className="bg-card border rounded-xl p-6 shadow-sm">
+      <div className="bg-card border rounded-xl p-6 shadow-sm border-t-4 border-primary/60">
         {user ? (
           <>
             {!hasMyReview && !showForm && (
               <Button
-                variant="outline"
                 onClick={() => setShowForm(true)}
-                className="mb-4"
+                className="mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-0"
                 data-testid="button-write-review"
               >
                 Write a Review
@@ -259,9 +259,9 @@ export function ReviewSection({ itemType, itemId }: { itemType: "race" | "route"
             )}
           </>
         ) : (
-          <div className="mb-4 p-3 bg-muted/30 rounded-lg text-center">
+          <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg text-center">
             <p className="text-sm text-muted-foreground mb-2">Sign in to leave a review</p>
-            <Button variant="outline" size="sm" onClick={openLogin} data-testid="button-login-to-review">
+            <Button size="sm" onClick={openLogin} className="bg-blue-600 text-white hover:bg-blue-700" data-testid="button-login-to-review">
               Sign In
             </Button>
           </div>
@@ -280,9 +280,12 @@ export function ReviewSection({ itemType, itemId }: { itemType: "race" | "route"
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground text-center py-4" data-testid="text-no-reviews">
-            No reviews yet. Be the first to share your experience!
-          </p>
+          <div className="bg-gradient-to-b from-amber-50/50 to-transparent rounded-lg py-6 text-center" data-testid="text-no-reviews">
+            <MessageSquare className="h-5 w-5 text-amber-400 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">
+              No reviews yet. Be the first to share your experience!
+            </p>
+          </div>
         )}
       </div>
     </section>

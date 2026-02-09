@@ -1,5 +1,6 @@
 import { Layout } from "@/components/layout";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import heroImage from "@/assets/images/hero-race-detail.jpg";
 import { FavoriteButton } from "@/components/favorite-button";
 import { useParams, Link } from "wouter";
 import { MapPin, Calendar, Trophy, ExternalLink, CloudRain, Sun, CloudSun, Cloud, Snowflake, CloudFog, Wind, Droplets, Thermometer, Gauge, Mountain, BookOpen, Headphones } from "lucide-react";
@@ -52,7 +53,7 @@ function WeatherCard({ weather }: { weather: WeatherData }) {
   const isForecast = weather.type === "forecast";
 
   return (
-    <div className="bg-card border rounded-xl p-6 shadow-sm" data-testid="card-weather">
+    <div className="bg-gradient-to-b from-sky-50/50 to-transparent border border-t-4 border-sky-400 rounded-xl p-6 shadow-sm" data-testid="card-weather">
       <h3 className="font-heading font-semibold mb-1">Race Day Weather</h3>
       <p className="text-xs text-muted-foreground mb-4">
         {isForecast ? "Live forecast" : "Historical average for this date"}
@@ -147,12 +148,20 @@ const difficultyColors: Record<number, string> = {
   5: "text-red-600 bg-red-50 border-red-200",
 };
 
+const difficultyCardStyles: Record<number, string> = {
+  1: "border-t-4 border-green-500 bg-gradient-to-b from-green-50/50 to-transparent",
+  2: "border-t-4 border-blue-500 bg-gradient-to-b from-blue-50/50 to-transparent",
+  3: "border-t-4 border-amber-500 bg-gradient-to-b from-amber-50/50 to-transparent",
+  4: "border-t-4 border-orange-500 bg-gradient-to-b from-orange-50/50 to-transparent",
+  5: "border-t-4 border-red-500 bg-gradient-to-b from-red-50/50 to-transparent",
+};
+
 function DifficultyCard({ race, weather }: { race: Race; weather?: WeatherData | null }) {
   const { score, label, factors } = computeDifficulty(race, weather);
   const color = difficultyColors[score] || difficultyColors[3];
 
   return (
-    <div className="bg-card border rounded-xl p-6 shadow-sm" data-testid="card-difficulty">
+    <div className={`border rounded-xl p-6 shadow-sm ${difficultyCardStyles[score] || difficultyCardStyles[3]}`} data-testid="card-difficulty">
       <h3 className="font-heading font-semibold mb-4 flex items-center gap-2">
         <Gauge className="h-4 w-4" />
         Difficulty Rating
@@ -198,7 +207,7 @@ function ElevationProfileChart({ elevation }: { elevation: ElevationProfile }) {
 
   return (
     <section data-testid="section-elevation-profile">
-      <h2 className="font-heading font-bold text-2xl mb-4 flex items-center gap-2">
+      <h2 className="font-heading font-bold text-2xl mb-4 flex items-center gap-2 border-l-4 border-emerald-500 pl-3">
         <Mountain className="h-5 w-5" />
         Area Elevation Profile
       </h2>
@@ -335,36 +344,42 @@ export default function RaceDetail() {
   
   return (
     <Layout>
-      <div className="bg-muted/30 border-b">
-        <div className="container mx-auto px-4 py-8">
-          <Breadcrumbs items={[
-            { label: "Races", href: "/races" },
-            { label: getStateName(race.state), href: `/state/${getStateSlug(race.state)}` },
-            { label: race.name }
-          ]} />
+      <div className="relative">
+        <div className="absolute inset-0 z-0">
+          <img src={heroImage} alt="" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent" />
+        </div>
+        <div className="relative z-10 container mx-auto px-4 py-8">
+          <div className="text-white/80 [&_a]:text-white/80 [&_a:hover]:text-white [&_span]:text-white [&_svg]:text-white/50">
+            <Breadcrumbs items={[
+              { label: "Races", href: "/races" },
+              { label: getStateName(race.state), href: `/state/${getStateSlug(race.state)}` },
+              { label: race.name }
+            ]} />
+          </div>
           
           <div className="mt-8 flex flex-col md:flex-row justify-between items-start gap-8">
             <div>
                <div className="flex gap-2 mb-4">
-                 <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20" data-testid="badge-race-distance">{race.distance}</Badge>
-                 <Badge variant="outline" data-testid="badge-race-surface">{race.surface}</Badge>
+                 <Badge variant="secondary" className="bg-white/20 text-white border-white/30 backdrop-blur font-semibold" data-testid="badge-race-distance">{race.distance}</Badge>
+                 <Badge variant="outline" className="bg-white/20 text-white border-white/30 backdrop-blur" data-testid="badge-race-surface">{race.surface}</Badge>
                </div>
                <div className="flex items-start gap-3">
-                 <h1 className="font-heading font-extrabold text-4xl md:text-5xl tracking-tight mb-4 flex-1" data-testid="text-race-name">{race.name}</h1>
+                 <h1 className="font-heading font-extrabold text-4xl md:text-5xl tracking-tight mb-4 flex-1 text-white drop-shadow-lg" data-testid="text-race-name">{race.name}</h1>
                  <FavoriteButton itemType="race" itemId={race.id} className="mt-2" />
                </div>
-               <div className="flex flex-wrap gap-6 text-muted-foreground">
+               <div className="flex flex-wrap gap-6 text-white/80">
                  <div className="flex items-center gap-2">
                    <Calendar className="h-5 w-5" />
-                   <span className="font-medium text-foreground" data-testid="text-race-date">{format(parseRaceDate(race.date), "MMMM d, yyyy")}</span>
+                   <span className="font-medium text-white" data-testid="text-race-date">{format(parseRaceDate(race.date), "MMMM d, yyyy")}</span>
                  </div>
                  <div className="flex items-center gap-2">
                    <MapPin className="h-5 w-5" />
-                   <span className="font-medium text-foreground" data-testid="text-race-location">{race.city}, {getStateName(race.state)}</span>
+                   <span className="font-medium text-white" data-testid="text-race-location">{race.city}, {getStateName(race.state)}</span>
                  </div>
                  <div className="flex items-center gap-2">
                    <Trophy className="h-5 w-5" />
-                   <span className="font-medium text-foreground" data-testid="text-race-elevation">{race.elevation} Course</span>
+                   <span className="font-medium text-white" data-testid="text-race-elevation">{race.elevation} Course</span>
                  </div>
                </div>
             </div>
@@ -378,7 +393,7 @@ export default function RaceDetail() {
                 </Button>
               )}
               {race.website && (
-                <Button variant="outline" className="w-full" asChild data-testid="button-website">
+                <Button variant="outline" className="w-full bg-white/10 text-white border-white/30 hover:bg-white/20" asChild data-testid="button-website">
                   <a href={race.website} target="_blank" rel="noopener noreferrer nofollow">
                     Visit Website <ExternalLink className="ml-2 h-4 w-4" />
                   </a>
@@ -392,7 +407,7 @@ export default function RaceDetail() {
       <div className="container mx-auto px-4 py-12 grid grid-cols-1 lg:grid-cols-3 gap-12">
         <div className="lg:col-span-2 space-y-12">
           <section>
-            <h2 className="font-heading font-bold text-2xl mb-4">About the Race</h2>
+            <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-blue-500 pl-3">About the Race</h2>
             <div className="prose max-w-none text-muted-foreground">
               <p data-testid="text-race-description">{race.description || `Experience one of the premier ${race.distance} events in ${getStateName(race.state)}. The ${race.name} offers a ${race.elevation.toLowerCase()} course through the scenic streets of ${race.city}.`}</p>
             </div>
@@ -417,7 +432,7 @@ export default function RaceDetail() {
         </div>
         
         <aside className="space-y-8">
-          <div className="bg-card border rounded-xl p-6 shadow-sm">
+          <div className="bg-card border border-t-4 border-blue-500 rounded-xl p-6 shadow-sm">
             <h3 className="font-heading font-semibold mb-4">Race Logistics</h3>
             <ul className="space-y-4 text-sm">
               <li className="flex justify-between border-b pb-2">
@@ -449,7 +464,7 @@ export default function RaceDetail() {
             <WeatherCard weather={weather} />
           )}
 
-          <div className="bg-card border rounded-xl p-6 shadow-sm">
+          <div className="bg-card border border-t-4 border-emerald-500 rounded-xl p-6 shadow-sm">
             <h3 className="font-heading font-semibold mb-4">Data Source</h3>
             <ul className="space-y-3 text-sm">
               {race.lastSeenAt && (
@@ -478,24 +493,24 @@ export default function RaceDetail() {
             </p>
           </div>
 
-          <div className="bg-card border rounded-xl p-6 shadow-sm">
+          <div className="bg-card border border-t-4 border-amber-500 rounded-xl p-6 shadow-sm">
             <h3 className="font-heading font-semibold mb-4">Explore {getStateName(race.state)}</h3>
             <div className="space-y-3">
-              <Link href={`/state/${getStateSlug(race.state)}`} className="block p-3 border rounded-lg hover:border-primary/50 transition-colors text-sm" data-testid="link-state-hub">
+              <Link href={`/state/${getStateSlug(race.state)}`} className="block p-3 border rounded-lg hover:bg-primary/5 hover:border-primary/30 transition-colors text-sm" data-testid="link-state-hub">
                 <div className="font-semibold">{getStateName(race.state)} Running Hub</div>
                 <div className="text-xs text-muted-foreground mt-0.5">Races, routes & more</div>
               </Link>
-              <Link href={`/races/state/${getStateSlug(race.state)}`} className="block p-3 border rounded-lg hover:border-primary/50 transition-colors text-sm" data-testid="link-state-races">
+              <Link href={`/races/state/${getStateSlug(race.state)}`} className="block p-3 border rounded-lg hover:bg-primary/5 hover:border-primary/30 transition-colors text-sm" data-testid="link-state-races">
                 <div className="font-semibold">All {getStateName(race.state)} Races</div>
                 <div className="text-xs text-muted-foreground mt-0.5">Browse the full calendar</div>
               </Link>
               {race.date && (
-                <Link href={`/races/year/${race.date.split("-")[0]}/month/${race.date.split("-")[1]}`} className="block p-3 border rounded-lg hover:border-primary/50 transition-colors text-sm" data-testid="link-month-calendar">
+                <Link href={`/races/year/${race.date.split("-")[0]}/month/${race.date.split("-")[1]}`} className="block p-3 border rounded-lg hover:bg-primary/5 hover:border-primary/30 transition-colors text-sm" data-testid="link-month-calendar">
                   <div className="font-semibold">{new Date(race.date + "T12:00:00").toLocaleString("en-US", { month: "long", year: "numeric" })} Races</div>
                   <div className="text-xs text-muted-foreground mt-0.5">See all races this month</div>
                 </Link>
               )}
-              <Link href="/collections" className="block p-3 border rounded-lg hover:border-primary/50 transition-colors text-sm" data-testid="link-collections">
+              <Link href="/collections" className="block p-3 border rounded-lg hover:bg-primary/5 hover:border-primary/30 transition-colors text-sm" data-testid="link-collections">
                 <div className="font-semibold">Race Collections</div>
                 <div className="text-xs text-muted-foreground mt-0.5">Curated "best of" lists</div>
               </Link>
