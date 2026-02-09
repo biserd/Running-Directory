@@ -81,7 +81,7 @@ export default function InfluencerDetail() {
             </div>
             {influencer.website && (
               <Button asChild data-testid="button-website">
-                <a href={influencer.website} target="_blank" rel="noopener noreferrer">
+                <a href={influencer.website} target="_blank" rel="noopener noreferrer nofollow">
                   Visit Profile <ExternalLink className="ml-2 h-4 w-4" />
                 </a>
               </Button>

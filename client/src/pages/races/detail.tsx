@@ -371,14 +371,14 @@ export default function RaceDetail() {
             <div className="flex flex-col gap-3 min-w-[200px]">
               {(race.registrationUrl || race.website) && (
                 <Button size="lg" className="w-full font-semibold" asChild data-testid="button-register">
-                  <a href={race.registrationUrl || race.website!} target="_blank" rel="noopener noreferrer">
+                  <a href={race.registrationUrl || race.website!} target="_blank" rel="noopener noreferrer nofollow">
                     Register Now <ExternalLink className="ml-2 h-4 w-4" />
                   </a>
                 </Button>
               )}
               {race.website && (
                 <Button variant="outline" className="w-full" asChild data-testid="button-website">
-                  <a href={race.website} target="_blank" rel="noopener noreferrer">
+                  <a href={race.website} target="_blank" rel="noopener noreferrer nofollow">
                     Visit Website <ExternalLink className="ml-2 h-4 w-4" />
                   </a>
                 </Button>

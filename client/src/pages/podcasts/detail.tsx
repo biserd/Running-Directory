@@ -91,21 +91,21 @@ export default function PodcastDetail() {
           <div className="flex flex-wrap gap-3">
             {podcast.spotifyUrl && (
               <Button variant="outline" asChild data-testid="button-spotify">
-                <a href={podcast.spotifyUrl} target="_blank" rel="noopener noreferrer">
+                <a href={podcast.spotifyUrl} target="_blank" rel="noopener noreferrer nofollow">
                   Spotify <ExternalLink className="ml-2 h-4 w-4" />
                 </a>
               </Button>
             )}
             {podcast.appleUrl && (
               <Button variant="outline" asChild data-testid="button-apple">
-                <a href={podcast.appleUrl} target="_blank" rel="noopener noreferrer">
+                <a href={podcast.appleUrl} target="_blank" rel="noopener noreferrer nofollow">
                   Apple Podcasts <ExternalLink className="ml-2 h-4 w-4" />
                 </a>
               </Button>
             )}
             {podcast.website && (
               <Button variant="outline" asChild data-testid="button-website">
-                <a href={podcast.website} target="_blank" rel="noopener noreferrer">
+                <a href={podcast.website} target="_blank" rel="noopener noreferrer nofollow">
                   Website <ExternalLink className="ml-2 h-4 w-4" />
                 </a>
               </Button>

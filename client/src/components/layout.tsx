@@ -53,7 +53,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {/* User Auth Controls - Desktop */}
             <div className="hidden md:flex items-center">
               {!authLoading && !user && (
-                <Button variant="ghost" size="sm" onClick={openLogin} data-testid="button-sign-in">
+                <Button variant="ghost" size="sm" onClick={openLogin} className="cursor-pointer" data-testid="button-sign-in">
                   Sign in
                 </Button>
               )}
@@ -178,7 +178,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="/tools/race-predictor" className="hover:text-primary flex items-center gap-1">Race Predictor <ArrowRight className="h-3 w-3" /></Link></li>
                 <li><Link href="/tools/pace-calculator" className="hover:text-primary flex items-center gap-1">Pace Calculator <ArrowRight className="h-3 w-3" /></Link></li>
-                <li><a href="https://aitracker.run" target="_blank" rel="noopener noreferrer" className="hover:text-primary flex items-center gap-1 text-primary/80">AITracker.run <ArrowRight className="h-3 w-3" /></a></li>
+                <li><a href="https://aitracker.run" target="_blank" rel="noopener noreferrer nofollow" className="hover:text-primary flex items-center gap-1 text-primary/80">AITracker.run <ArrowRight className="h-3 w-3" /></a></li>
               </ul>
             </div>
           </div>

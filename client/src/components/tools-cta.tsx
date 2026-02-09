@@ -16,7 +16,7 @@ export function ToolsCTA() {
       </div>
       <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
         <Button asChild size="lg" className="bg-primary hover:bg-primary/90">
-          <a href="https://aitracker.run" target="_blank" rel="noopener noreferrer">
+          <a href="https://aitracker.run" target="_blank" rel="noopener noreferrer nofollow">
             Launch Tools <ArrowRight className="ml-2 h-4 w-4" />
           </a>
         </Button>

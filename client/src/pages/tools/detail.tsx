@@ -37,7 +37,7 @@ export default function ToolDetail() {
             <h1 className="font-heading font-extrabold text-4xl md:text-5xl tracking-tight mb-4" data-testid="text-tool-name">{tool.name}</h1>
             <p className="text-xl text-slate-300 mb-8" data-testid="text-tool-description">{tool.description}</p>
             <Button size="lg" className="bg-primary hover:bg-primary/90 text-white font-semibold" asChild data-testid="button-open-aitracker">
-              <a href={`https://aitracker.run`} target="_blank" rel="noopener noreferrer">
+              <a href={`https://aitracker.run`} target="_blank" rel="noopener noreferrer nofollow">
                 Open in AITracker <ArrowUpRight className="ml-2 h-5 w-5" />
               </a>
             </Button>
@@ -60,7 +60,7 @@ export default function ToolDetail() {
             <h3 className="font-heading font-bold text-xl mb-3">Ready to get started?</h3>
             <p className="text-muted-foreground mb-6">Open {tool.name} in AITracker to access the full tool.</p>
             <Button size="lg" asChild data-testid="button-open-aitracker-cta">
-              <a href="https://aitracker.run" target="_blank" rel="noopener noreferrer">
+              <a href="https://aitracker.run" target="_blank" rel="noopener noreferrer nofollow">
                 Open in AITracker <ArrowUpRight className="ml-2 h-5 w-5" />
               </a>
             </Button>

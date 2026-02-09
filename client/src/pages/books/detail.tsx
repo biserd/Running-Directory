@@ -79,7 +79,7 @@ export default function BookDetail() {
             </div>
             {book.amazonUrl && (
               <Button asChild data-testid="button-amazon">
-                <a href={book.amazonUrl} target="_blank" rel="noopener noreferrer">
+                <a href={book.amazonUrl} target="_blank" rel="noopener noreferrer nofollow">
                   View on Amazon <ExternalLink className="ml-2 h-4 w-4" />
                 </a>
               </Button>
@@ -170,7 +170,7 @@ export default function BookDetail() {
         {book.website && (
           <section className="mb-12">
             <Button variant="outline" asChild data-testid="button-website">
-              <a href={book.website} target="_blank" rel="noopener noreferrer">
+              <a href={book.website} target="_blank" rel="noopener noreferrer nofollow">
                 Visit Official Website <ExternalLink className="ml-2 h-4 w-4" />
               </a>
             </Button>

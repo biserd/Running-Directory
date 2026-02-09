@@ -101,7 +101,7 @@ export default function RouteDetail() {
 
             <div className="flex flex-col gap-3 min-w-[200px]">
               <Button size="lg" className="w-full font-semibold" asChild data-testid="button-train-aitracker">
-                <a href="https://aitracker.run" target="_blank" rel="noopener noreferrer">
+                <a href="https://aitracker.run" target="_blank" rel="noopener noreferrer nofollow">
                   Train with AITracker <ArrowUpRight className="ml-2 h-4 w-4" />
                 </a>
               </Button>
