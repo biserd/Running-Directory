@@ -29,7 +29,7 @@ export default function Home() {
         title="Find your next race." 
         subtitle="The comprehensive USA race calendar and route directory. Data-driven tools to help you train smarter."
         image={heroImage}
-        showSearch={true}
+        showSearch={false}
         size="default"
       >
         <div className="flex justify-center gap-4">
