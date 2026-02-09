@@ -5,11 +5,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = "running.services <hello@running.services>";
 const ADMIN_EMAIL = "hello@bigappledigital.nyc";
 
-export async function sendMagicLinkEmail(email: string, token: string): Promise<boolean> {
-  const baseUrl = process.env.NODE_ENV === "production"
-    ? "https://running.services"
-    : `http://localhost:${process.env.PORT || 5000}`;
-
+export async function sendMagicLinkEmail(email: string, token: string, baseUrl: string): Promise<boolean> {
   const magicLink = `${baseUrl}/auth/verify?token=${token}`;
 
   try {

@@ -29,7 +29,11 @@ export async function registerRoutes(
 
     await storage.createMagicLinkToken(email.toLowerCase(), token, expiresAt);
 
-    const sent = await sendMagicLinkEmail(email.toLowerCase(), token);
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+    const host = req.headers["x-forwarded-host"] || req.get("host");
+    const baseUrl = `${protocol}://${host}`;
+
+    const sent = await sendMagicLinkEmail(email.toLowerCase(), token, baseUrl);
     if (!sent) {
       return res.status(500).json({ message: "Failed to send email. Please try again." });
     }
