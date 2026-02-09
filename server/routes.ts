@@ -1,13 +1,161 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { refreshRaceData } from "./ingestion/pipeline";
 import { fetchRacesByState } from "./ingestion/runsignup";
+import { sendMagicLinkEmail, sendAdminNewUserNotification } from "./email";
+import crypto from "crypto";
+
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (!req.session?.userId) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+  next();
+}
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  app.post("/api/auth/magic-link", async (req, res) => {
+    const { email } = req.body;
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      return res.status(400).json({ message: "Valid email is required" });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    await storage.createMagicLinkToken(email.toLowerCase(), token, expiresAt);
+
+    const sent = await sendMagicLinkEmail(email.toLowerCase(), token);
+    if (!sent) {
+      return res.status(500).json({ message: "Failed to send email. Please try again." });
+    }
+
+    res.json({ message: "Magic link sent! Check your email." });
+  });
+
+  app.get("/api/auth/verify", async (req, res) => {
+    const { token } = req.query;
+    if (!token || typeof token !== "string") {
+      return res.status(400).json({ message: "Invalid token" });
+    }
+
+    const record = await storage.getMagicLinkToken(token);
+    if (!record) {
+      return res.status(400).json({ message: "Invalid or expired link" });
+    }
+    if (record.usedAt) {
+      return res.status(400).json({ message: "This link has already been used" });
+    }
+    if (new Date(record.expiresAt) < new Date()) {
+      return res.status(400).json({ message: "This link has expired" });
+    }
+
+    await storage.markTokenUsed(record.id);
+
+    let user = await storage.getUserByEmail(record.email);
+    const isNewUser = !user;
+    if (!user) {
+      user = await storage.createUser(record.email);
+      sendAdminNewUserNotification(record.email).catch(() => {});
+    }
+
+    await storage.updateUserLastLogin(user.id);
+
+    req.session.userId = user.id;
+
+    res.json({ user: { id: user.id, email: user.email, name: user.name }, isNewUser });
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    if (!req.session?.userId) {
+      return res.json({ user: null });
+    }
+    const user = await storage.getUserById(req.session.userId);
+    if (!user) {
+      req.session.destroy(() => {});
+      return res.json({ user: null });
+    }
+    res.json({ user: { id: user.id, email: user.email, name: user.name } });
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.clearCookie("connect.sid");
+      res.json({ message: "Logged out" });
+    });
+  });
+
+  app.patch("/api/auth/profile", requireAuth, async (req, res) => {
+    const { name } = req.body;
+    if (name && typeof name === "string") {
+      await storage.updateUserName(req.session.userId!, name.trim());
+    }
+    const user = await storage.getUserById(req.session.userId!);
+    res.json({ user: { id: user!.id, email: user!.email, name: user!.name } });
+  });
+
+  app.get("/api/favorites", requireAuth, async (req, res) => {
+    const { type } = req.query;
+    let favs;
+    if (type && typeof type === "string") {
+      favs = await storage.getUserFavoritesByType(req.session.userId!, type);
+    } else {
+      favs = await storage.getUserFavorites(req.session.userId!);
+    }
+    res.json(favs);
+  });
+
+  app.get("/api/favorites/enriched", requireAuth, async (req, res) => {
+    const favs = await storage.getUserFavorites(req.session.userId!);
+    const raceFavIds = favs.filter(f => f.itemType === "race").map(f => f.itemId);
+    const routeFavIds = favs.filter(f => f.itemType === "route").map(f => f.itemId);
+
+    const [raceItems, routeItems] = await Promise.all([
+      raceFavIds.length > 0 ? storage.getRacesByIds(raceFavIds) : Promise.resolve([]),
+      routeFavIds.length > 0 ? storage.getRoutesByIds(routeFavIds) : Promise.resolve([]),
+    ]);
+
+    res.json({
+      races: raceItems,
+      routes: routeItems,
+      favorites: favs,
+    });
+  });
+
+  app.post("/api/favorites", requireAuth, async (req, res) => {
+    const { itemType, itemId } = req.body;
+    if (!itemType || !itemId || !["race", "route"].includes(itemType)) {
+      return res.status(400).json({ message: "Valid itemType (race/route) and itemId required" });
+    }
+    const fav = await storage.addFavorite(req.session.userId!, itemType, parseInt(itemId));
+    res.json(fav);
+  });
+
+  app.delete("/api/favorites", requireAuth, async (req, res) => {
+    const { itemType, itemId } = req.body;
+    if (!itemType || !itemId) {
+      return res.status(400).json({ message: "itemType and itemId required" });
+    }
+    const parsedId = parseInt(String(itemId));
+    if (isNaN(parsedId)) {
+      return res.status(400).json({ message: "Invalid itemId" });
+    }
+    await storage.removeFavorite(req.session.userId!, itemType, parsedId);
+    res.json({ message: "Removed from favorites" });
+  });
+
+  app.get("/api/favorites/check", requireAuth, async (req, res) => {
+    const { itemType, itemId } = req.query;
+    if (!itemType || !itemId) {
+      return res.status(400).json({ message: "itemType and itemId required" });
+    }
+    const isFav = await storage.isFavorited(req.session.userId!, itemType as string, parseInt(itemId as string));
+    res.json({ isFavorited: isFav });
+  });
 
   app.get("/api/states", async (_req, res) => {
     const states = await storage.getStates();

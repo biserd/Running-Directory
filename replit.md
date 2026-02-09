@@ -91,7 +91,21 @@ Preferred communication style: Simple, everyday language.
   - `GET /api/podcasts/:slug` — Get a single podcast
   - `GET /api/books` — List running books with optional category filter
   - `GET /api/books/:slug` — Get a single book
+- **Auth endpoints**:
+  - `POST /api/auth/magic-link` — Send magic link email via Resend
+  - `GET /api/auth/verify` — Verify magic link token, create/login user, set session
+  - `GET /api/auth/me` — Get current authenticated user
+  - `POST /api/auth/logout` — Destroy session
+  - `PATCH /api/auth/profile` — Update user name
+- **Favorites endpoints** (require auth):
+  - `GET /api/favorites` — List user favorites
+  - `GET /api/favorites/enriched` — List favorites with full race/route data
+  - `POST /api/favorites` — Add favorite (itemType: race/route, itemId)
+  - `DELETE /api/favorites` — Remove favorite
+  - `GET /api/favorites/check` — Check if item is favorited
 - **Storage layer**: `server/storage.ts` implements `IStorage` interface using `DatabaseStorage` class that wraps Drizzle ORM queries
+- **Email service**: `server/email.ts` sends magic link emails and admin new user notifications via Resend API
+- **Session management**: express-session with connect-pg-simple (PostgreSQL-backed sessions), 30-day cookie
 - **Seeding**: `server/seed.ts` seeds 50 states, 18 races, 12 routes, auto-generates cities, race occurrences, sources, 6 collections, 12 influencers, 10 podcasts, and 12 books
 - **Ingestion pipeline**: `server/ingestion/` contains RunSignUp API client, normalization utils, dedupe matching via source_records lookup, quality scoring, and full race import pipeline
 - **Admin endpoints**: Protected by ADMIN_API_KEY env var via X-ADMIN-KEY header middleware. POST /api/admin/ingest/races (full), POST /api/admin/ingest/races/state/:state (single), GET /api/admin/stats
@@ -114,6 +128,9 @@ Preferred communication style: Simple, everyday language.
   - `influencers` — id, slug (unique), name, handle, platform, bio, followers, specialty, website, imageUrl, isActive
   - `podcasts` — id, slug (unique), name, host, description, category, episodeCount, website, spotifyUrl, appleUrl, imageUrl, isActive
   - `books` — id, slug (unique), title, author, description, category, publishYear, pages, amazonUrl, website, imageUrl, isActive
+  - `users` — id, email (unique), name, createdAt, lastLoginAt
+  - `magic_link_tokens` — id, email, token (unique), expiresAt, usedAt, createdAt
+  - `favorites` — id, userId (FK), itemType, itemId, createdAt. Unique index on (userId, itemType, itemId)
 - **Migrations**: Managed via `drizzle-kit push` (schema push approach, not migration files). Config in `drizzle.config.ts`
 - **Validation**: Zod schemas auto-generated from Drizzle schema via `drizzle-zod`
 

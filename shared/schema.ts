@@ -190,6 +190,39 @@ export const books = pgTable("books", {
   isActive: boolean("is_active").notNull().default(true),
 });
 
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastLoginAt: timestamp("last_login_at"),
+}, (table) => [
+  index("users_email_idx").on(table.email),
+]);
+
+export const magicLinkTokens = pgTable("magic_link_tokens", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("magic_link_tokens_token_idx").on(table.token),
+  index("magic_link_tokens_email_idx").on(table.email),
+]);
+
+export const favorites = pgTable("favorites", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  itemType: text("item_type").notNull(),
+  itemId: integer("item_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("favorites_user_item_idx").on(table.userId, table.itemType, table.itemId),
+  index("favorites_user_idx").on(table.userId),
+]);
+
 export const insertStateSchema = createInsertSchema(states).omit({ id: true });
 export const insertCitySchema = createInsertSchema(cities).omit({ id: true });
 export const insertRaceSchema = createInsertSchema(races).omit({ id: true });
@@ -201,6 +234,8 @@ export const insertCollectionSchema = createInsertSchema(collections).omit({ id:
 export const insertInfluencerSchema = createInsertSchema(influencers).omit({ id: true });
 export const insertPodcastSchema = createInsertSchema(podcasts).omit({ id: true });
 export const insertBookSchema = createInsertSchema(books).omit({ id: true });
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, lastLoginAt: true });
+export const insertFavoriteSchema = createInsertSchema(favorites).omit({ id: true, createdAt: true });
 
 export type InsertState = z.infer<typeof insertStateSchema>;
 export type InsertCity = z.infer<typeof insertCitySchema>;
@@ -213,6 +248,8 @@ export type InsertCollection = z.infer<typeof insertCollectionSchema>;
 export type InsertInfluencer = z.infer<typeof insertInfluencerSchema>;
 export type InsertPodcast = z.infer<typeof insertPodcastSchema>;
 export type InsertBook = z.infer<typeof insertBookSchema>;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertFavorite = z.infer<typeof insertFavoriteSchema>;
 
 export type State = typeof states.$inferSelect;
 export type City = typeof cities.$inferSelect;
@@ -225,3 +262,6 @@ export type Collection = typeof collections.$inferSelect;
 export type Influencer = typeof influencers.$inferSelect;
 export type Podcast = typeof podcasts.$inferSelect;
 export type Book = typeof books.$inferSelect;
+export type User = typeof users.$inferSelect;
+export type MagicLinkToken = typeof magicLinkTokens.$inferSelect;
+export type Favorite = typeof favorites.$inferSelect;

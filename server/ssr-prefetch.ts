@@ -671,6 +671,24 @@ const prefetchBlog: PrefetchFn = async () => ({
   canonicalUrl: "https://running.services/blog",
 });
 
+const prefetchAuthVerify: PrefetchFn = async () => ({
+  title: "Sign In | running.services",
+  description: "Verify your sign-in link and access your running.services account.",
+  ogTitle: "Sign In to running.services",
+  ogDescription: "Verify your sign-in link and access your running.services account.",
+  ogType: "website",
+  canonicalUrl: "https://running.services/auth/verify",
+});
+
+const prefetchFavorites: PrefetchFn = async () => ({
+  title: "My Favorites | running.services",
+  description: "Your saved races and routes on running.services. Sign in to save and manage your favorites.",
+  ogTitle: "My Favorites | running.services",
+  ogDescription: "Your saved races and routes on running.services.",
+  ogType: "website",
+  canonicalUrl: "https://running.services/favorites",
+});
+
 const routeMatches: RouteMatch[] = [
   { pattern: /^\/$/, prefetch: prefetchHome, paramNames: [] },
   { pattern: /^\/races$/, prefetch: prefetchRaces, paramNames: [] },
@@ -703,6 +721,8 @@ const routeMatches: RouteMatch[] = [
   { pattern: /^\/about$/, prefetch: prefetchAbout, paramNames: [] },
   { pattern: /^\/contact$/, prefetch: prefetchContact, paramNames: [] },
   { pattern: /^\/blog$/, prefetch: prefetchBlog, paramNames: [] },
+  { pattern: /^\/auth\/verify$/, prefetch: prefetchAuthVerify, paramNames: [] },
+  { pattern: /^\/favorites$/, prefetch: prefetchFavorites, paramNames: [] },
 ];
 
 export function getSSRPrefetch(url: string): ((qc: QueryClient) => Promise<PageMeta>) | undefined {

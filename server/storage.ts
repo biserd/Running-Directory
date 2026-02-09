@@ -1,8 +1,9 @@
 import { db } from "./db";
-import { states, cities, races, raceOccurrences, routes, sources, sourceRecords, collections, influencers, podcasts, books } from "@shared/schema";
+import { states, cities, races, raceOccurrences, routes, sources, sourceRecords, collections, influencers, podcasts, books, users, magicLinkTokens, favorites } from "@shared/schema";
 import type {
   State, City, Race, RaceOccurrence, Route, Source, SourceRecord, Collection, Influencer, Podcast, Book,
-  InsertState, InsertCity, InsertRace, InsertRaceOccurrence, InsertRoute, InsertSource, InsertSourceRecord, InsertCollection, InsertInfluencer, InsertPodcast, InsertBook
+  InsertState, InsertCity, InsertRace, InsertRaceOccurrence, InsertRoute, InsertSource, InsertSourceRecord, InsertCollection, InsertInfluencer, InsertPodcast, InsertBook,
+  User, MagicLinkToken, Favorite
 } from "@shared/schema";
 import { eq, and, sql, desc, asc, ilike, inArray } from "drizzle-orm";
 
@@ -58,6 +59,26 @@ export interface IStorage {
   getBooks(filters?: { category?: string; limit?: number }): Promise<Book[]>;
   getBookBySlug(slug: string): Promise<Book | undefined>;
   seedBooks(data: InsertBook[]): Promise<void>;
+
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserById(id: number): Promise<User | undefined>;
+  createUser(email: string, name?: string): Promise<User>;
+  updateUserLastLogin(id: number): Promise<void>;
+  updateUserName(id: number, name: string): Promise<void>;
+
+  createMagicLinkToken(email: string, token: string, expiresAt: Date): Promise<MagicLinkToken>;
+  getMagicLinkToken(token: string): Promise<MagicLinkToken | undefined>;
+  markTokenUsed(id: number): Promise<void>;
+  cleanExpiredTokens(): Promise<void>;
+
+  getRacesByIds(ids: number[]): Promise<Race[]>;
+  getRoutesByIds(ids: number[]): Promise<Route[]>;
+
+  getUserFavorites(userId: number): Promise<Favorite[]>;
+  addFavorite(userId: number, itemType: string, itemId: number): Promise<Favorite>;
+  removeFavorite(userId: number, itemType: string, itemId: number): Promise<void>;
+  isFavorited(userId: number, itemType: string, itemId: number): Promise<boolean>;
+  getUserFavoritesByType(userId: number, itemType: string): Promise<Favorite[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -468,6 +489,100 @@ export class DatabaseStorage implements IStorage {
     for (const b of data) {
       await db.insert(books).values(b).onConflictDoNothing();
     }
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase()));
+    return user;
+  }
+
+  async getUserById(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async createUser(email: string, name?: string): Promise<User> {
+    const [user] = await db.insert(users).values({
+      email: email.toLowerCase(),
+      name: name || null,
+    }).returning();
+    return user;
+  }
+
+  async updateUserLastLogin(id: number): Promise<void> {
+    await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, id));
+  }
+
+  async updateUserName(id: number, name: string): Promise<void> {
+    await db.update(users).set({ name }).where(eq(users.id, id));
+  }
+
+  async createMagicLinkToken(email: string, token: string, expiresAt: Date): Promise<MagicLinkToken> {
+    const [record] = await db.insert(magicLinkTokens).values({
+      email: email.toLowerCase(),
+      token,
+      expiresAt,
+    }).returning();
+    return record;
+  }
+
+  async getMagicLinkToken(token: string): Promise<MagicLinkToken | undefined> {
+    const [record] = await db.select().from(magicLinkTokens).where(eq(magicLinkTokens.token, token));
+    return record;
+  }
+
+  async markTokenUsed(id: number): Promise<void> {
+    await db.update(magicLinkTokens).set({ usedAt: new Date() }).where(eq(magicLinkTokens.id, id));
+  }
+
+  async cleanExpiredTokens(): Promise<void> {
+    await db.delete(magicLinkTokens).where(sql`${magicLinkTokens.expiresAt} < NOW()`);
+  }
+
+  async getRacesByIds(ids: number[]): Promise<Race[]> {
+    if (ids.length === 0) return [];
+    return db.select().from(races).where(inArray(races.id, ids));
+  }
+
+  async getRoutesByIds(ids: number[]): Promise<Route[]> {
+    if (ids.length === 0) return [];
+    return db.select().from(routes).where(inArray(routes.id, ids));
+  }
+
+  async getUserFavorites(userId: number): Promise<Favorite[]> {
+    return db.select().from(favorites)
+      .where(eq(favorites.userId, userId))
+      .orderBy(desc(favorites.createdAt));
+  }
+
+  async addFavorite(userId: number, itemType: string, itemId: number): Promise<Favorite> {
+    const [fav] = await db.insert(favorites).values({ userId, itemType, itemId })
+      .onConflictDoNothing()
+      .returning();
+    if (!fav) {
+      const [existing] = await db.select().from(favorites)
+        .where(and(eq(favorites.userId, userId), eq(favorites.itemType, itemType), eq(favorites.itemId, itemId)));
+      return existing;
+    }
+    return fav;
+  }
+
+  async removeFavorite(userId: number, itemType: string, itemId: number): Promise<void> {
+    await db.delete(favorites).where(
+      and(eq(favorites.userId, userId), eq(favorites.itemType, itemType), eq(favorites.itemId, itemId))
+    );
+  }
+
+  async isFavorited(userId: number, itemType: string, itemId: number): Promise<boolean> {
+    const [result] = await db.select({ count: sql<number>`count(*)` }).from(favorites)
+      .where(and(eq(favorites.userId, userId), eq(favorites.itemType, itemType), eq(favorites.itemId, itemId)));
+    return Number(result.count) > 0;
+  }
+
+  async getUserFavoritesByType(userId: number, itemType: string): Promise<Favorite[]> {
+    return db.select().from(favorites)
+      .where(and(eq(favorites.userId, userId), eq(favorites.itemType, itemType)))
+      .orderBy(desc(favorites.createdAt));
   }
 }
 

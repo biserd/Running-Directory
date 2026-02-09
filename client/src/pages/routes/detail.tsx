@@ -1,5 +1,6 @@
 import { Layout } from "@/components/layout";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { FavoriteButton } from "@/components/favorite-button";
 import { useParams, Link } from "wouter";
 import { MapPin, Mountain, Ruler, Share2, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -78,7 +79,10 @@ export default function RouteDetail() {
                 <Badge variant="outline" data-testid="badge-route-type">{route.type}</Badge>
                 <Badge variant="outline" className={difficultyColor} data-testid="badge-route-difficulty">{route.difficulty}</Badge>
               </div>
-              <h1 className="font-heading font-extrabold text-4xl md:text-5xl tracking-tight mb-4" data-testid="text-route-name">{route.name}</h1>
+              <div className="flex items-start gap-3">
+                <h1 className="font-heading font-extrabold text-4xl md:text-5xl tracking-tight mb-4 flex-1" data-testid="text-route-name">{route.name}</h1>
+                <FavoriteButton itemType="route" itemId={route.id} className="mt-2" />
+              </div>
               <div className="flex flex-wrap gap-6 text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <Ruler className="h-5 w-5" />

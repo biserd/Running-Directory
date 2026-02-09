@@ -1,12 +1,15 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Search, Menu, X, ChevronRight, ArrowRight, MapPin } from "lucide-react";
+import { Search, Menu, X, ChevronRight, ArrowRight, MapPin, Heart, User, LogOut } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/hooks/use-auth";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const { user, isLoading: authLoading, openLogin, logout } = useAuth();
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans">
@@ -53,6 +56,40 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 className="h-9 w-64 rounded-md border border-input bg-background pl-9 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
+
+            {/* User Auth Controls - Desktop */}
+            <div className="hidden md:flex items-center">
+              {!authLoading && !user && (
+                <Button variant="ghost" size="sm" onClick={openLogin} data-testid="button-sign-in">
+                  Sign in
+                </Button>
+              )}
+              {user && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu">
+                      <User className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <div className="px-2 py-1.5">
+                      <p className="text-sm font-medium" data-testid="text-user-name">{user.name || "Runner"}</p>
+                      <p className="text-xs text-muted-foreground" data-testid="text-user-email">{user.email}</p>
+                    </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/favorites" className="flex items-center gap-2 cursor-pointer" data-testid="link-favorites">
+                        <Heart className="h-4 w-4" /> My Favorites
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={logout} className="flex items-center gap-2 cursor-pointer text-red-600" data-testid="button-logout">
+                      <LogOut className="h-4 w-4" /> Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
             
             {/* Mobile Nav */}
             <Sheet>
@@ -75,6 +112,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <Link href="/podcasts" className="text-lg font-medium py-2 border-b" data-testid="link-podcasts-mobile">Podcasts</Link>
                   <Link href="/books" className="text-lg font-medium py-2 border-b" data-testid="link-books-mobile">Books</Link>
                   <Link href="/guides" className="text-lg font-medium py-2 border-b">Guides</Link>
+                  {user && (
+                    <Link href="/favorites" className="text-lg font-medium py-2 border-b flex items-center gap-2" data-testid="link-favorites-mobile">
+                      <Heart className="h-4 w-4" /> My Favorites
+                    </Link>
+                  )}
+                  <div className="pt-4 border-t">
+                    {!authLoading && !user && (
+                      <Button onClick={openLogin} className="w-full" data-testid="button-sign-in-mobile">
+                        Sign in
+                      </Button>
+                    )}
+                    {user && (
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-2" data-testid="text-user-email-mobile">{user.email}</p>
+                        <Button variant="outline" onClick={logout} className="w-full" data-testid="button-logout-mobile">
+                          Sign out
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </SheetContent>
             </Sheet>

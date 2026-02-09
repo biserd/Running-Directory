@@ -1,9 +1,79 @@
-import type { Race, Route, State, City, Collection, RaceOccurrence, Influencer, Podcast, Book } from "@shared/schema";
+import type { Race, Route, State, City, Collection, RaceOccurrence, Influencer, Podcast, Book, Favorite } from "@shared/schema";
 
 async function fetchJSON<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`API error: ${res.statusText}`);
   return res.json();
+}
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  name: string | null;
+}
+
+export async function apiSendMagicLink(email: string) {
+  const res = await fetch("/api/auth/magic-link", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to send magic link");
+  return data;
+}
+
+export async function apiVerifyToken(token: string) {
+  return fetchJSON<{ user: AuthUser; isNewUser: boolean }>(`/api/auth/verify?token=${token}`);
+}
+
+export async function apiGetCurrentUser() {
+  return fetchJSON<{ user: AuthUser | null }>("/api/auth/me");
+}
+
+export async function apiLogout() {
+  const res = await fetch("/api/auth/logout", { method: "POST" });
+  return res.json();
+}
+
+export async function apiUpdateProfile(name: string) {
+  const res = await fetch("/api/auth/profile", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  return res.json();
+}
+
+export async function apiGetFavorites(type?: string) {
+  const params = type ? `?type=${type}` : "";
+  return fetchJSON<Favorite[]>(`/api/favorites${params}`);
+}
+
+export async function apiGetFavoritesEnriched() {
+  return fetchJSON<{ races: Race[]; routes: Route[]; favorites: Favorite[] }>("/api/favorites/enriched");
+}
+
+export async function apiAddFavorite(itemType: string, itemId: number) {
+  const res = await fetch("/api/favorites", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ itemType, itemId }),
+  });
+  return res.json();
+}
+
+export async function apiRemoveFavorite(itemType: string, itemId: number) {
+  const res = await fetch("/api/favorites", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ itemType, itemId }),
+  });
+  return res.json();
+}
+
+export async function apiCheckFavorite(itemType: string, itemId: number) {
+  return fetchJSON<{ isFavorited: boolean }>(`/api/favorites/check?itemType=${itemType}&itemId=${itemId}`);
 }
 
 export function apiGetStates() {

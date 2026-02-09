@@ -1,5 +1,6 @@
 import { Layout } from "@/components/layout";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { FavoriteButton } from "@/components/favorite-button";
 import { useParams, Link } from "wouter";
 import { MapPin, Calendar, Trophy, ExternalLink, CloudRain, Sun, CloudSun, Cloud, Snowflake, CloudFog, Wind, Droplets, Thermometer, Gauge, Mountain, BookOpen, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -347,7 +348,10 @@ export default function RaceDetail() {
                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20" data-testid="badge-race-distance">{race.distance}</Badge>
                  <Badge variant="outline" data-testid="badge-race-surface">{race.surface}</Badge>
                </div>
-               <h1 className="font-heading font-extrabold text-4xl md:text-5xl tracking-tight mb-4" data-testid="text-race-name">{race.name}</h1>
+               <div className="flex items-start gap-3">
+                 <h1 className="font-heading font-extrabold text-4xl md:text-5xl tracking-tight mb-4 flex-1" data-testid="text-race-name">{race.name}</h1>
+                 <FavoriteButton itemType="race" itemId={race.id} className="mt-2" />
+               </div>
                <div className="flex flex-wrap gap-6 text-muted-foreground">
                  <div className="flex items-center gap-2">
                    <Calendar className="h-5 w-5" />
