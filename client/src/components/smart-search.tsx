@@ -222,9 +222,9 @@ export function SmartSearch({ className, variant = "desktop" }: { className?: st
 
       {isOpen && query.length >= 2 && (
         <div className={cn(
-          "absolute z-[100] mt-1 rounded-lg border shadow-lg overflow-hidden",
+          "absolute z-[100] mt-1 rounded-lg border bg-popover shadow-lg overflow-hidden",
           variant === "mobile" ? "left-0 right-0" : "right-0 w-96"
-        )} data-testid="search-results-dropdown" style={{ backgroundColor: 'white' }}>
+        )} data-testid="search-results-dropdown">
           {!hasResults && !isLoading && (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground" data-testid="search-no-results">
               No results found for "{query}"
