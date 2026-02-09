@@ -28,6 +28,11 @@ import BooksHub from "@/pages/books/index";
 import BookDetail from "@/pages/books/detail";
 import StateHub from "@/pages/state/index";
 import CityHub from "@/pages/state/city";
+import TermsOfService from "@/pages/terms";
+import PrivacyPolicy from "@/pages/privacy";
+import AboutPage from "@/pages/about";
+import ContactPage from "@/pages/contact";
+import BlogPage from "@/pages/blog";
 
 function AppRouter() {
   return (
@@ -58,6 +63,11 @@ function AppRouter() {
       <Route path="/books/:slug" component={BookDetail} />
       <Route path="/state/:state/city/:city" component={CityHub} />
       <Route path="/state/:state" component={StateHub} />
+      <Route path="/terms" component={TermsOfService} />
+      <Route path="/privacy" component={PrivacyPolicy} />
+      <Route path="/about" component={AboutPage} />
+      <Route path="/contact" component={ContactPage} />
+      <Route path="/blog" component={BlogPage} />
       <Route component={NotFound} />
     </Switch>
   );

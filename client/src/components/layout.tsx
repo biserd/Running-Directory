@@ -133,9 +133,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="border-t pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-muted-foreground">
             <p>© 2025 running.services. All rights reserved.</p>
-            <div className="flex gap-4">
-              <a href="#" className="hover:text-foreground">Privacy</a>
-              <a href="#" className="hover:text-foreground">Terms</a>
+            <div className="flex flex-wrap gap-4">
+              <Link href="/about" className="hover:text-foreground" data-testid="link-about-footer">About</Link>
+              <Link href="/blog" className="hover:text-foreground" data-testid="link-blog-footer">Blog</Link>
+              <Link href="/contact" className="hover:text-foreground" data-testid="link-contact-footer">Contact</Link>
+              <Link href="/privacy" className="hover:text-foreground" data-testid="link-privacy-footer">Privacy</Link>
+              <Link href="/terms" className="hover:text-foreground" data-testid="link-terms-footer">Terms</Link>
               <a href="/sitemap.xml" className="hover:text-foreground">Sitemap</a>
             </div>
           </div>

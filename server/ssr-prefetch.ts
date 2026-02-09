@@ -626,6 +626,51 @@ interface RouteMatch {
   paramNames: string[];
 }
 
+const prefetchTerms: PrefetchFn = async () => ({
+  title: "Terms of Service | running.services",
+  description: "Terms of Service for running.services — the data-driven race calendar and route directory for runners across the USA.",
+  ogTitle: "Terms of Service",
+  ogDescription: "Terms of Service for running.services.",
+  ogType: "website",
+  canonicalUrl: "https://running.services/terms",
+});
+
+const prefetchPrivacy: PrefetchFn = async () => ({
+  title: "Privacy Policy | running.services",
+  description: "Privacy Policy for running.services — learn how we handle your data and protect your privacy.",
+  ogTitle: "Privacy Policy",
+  ogDescription: "Privacy Policy for running.services.",
+  ogType: "website",
+  canonicalUrl: "https://running.services/privacy",
+});
+
+const prefetchAbout: PrefetchFn = async () => ({
+  title: "About Us | running.services",
+  description: "Learn about running.services — a data-driven running hub with 17,150+ races, routes, and community resources for runners across the USA.",
+  ogTitle: "About running.services",
+  ogDescription: "Data-driven race calendar and route directory for runners across the USA.",
+  ogType: "website",
+  canonicalUrl: "https://running.services/about",
+});
+
+const prefetchContact: PrefetchFn = async () => ({
+  title: "Contact Us | running.services",
+  description: "Get in touch with running.services — report data corrections, submit races, or ask questions about the USA's race calendar and route directory.",
+  ogTitle: "Contact Us",
+  ogDescription: "Get in touch with the running.services team.",
+  ogType: "website",
+  canonicalUrl: "https://running.services/contact",
+});
+
+const prefetchBlog: PrefetchFn = async () => ({
+  title: "Blog | running.services",
+  description: "Tips, guides, and race insights for runners of every level — from choosing your first marathon to advanced training strategies.",
+  ogTitle: "running.services Blog",
+  ogDescription: "Tips, guides, and race insights for runners of every level.",
+  ogType: "website",
+  canonicalUrl: "https://running.services/blog",
+});
+
 const routeMatches: RouteMatch[] = [
   { pattern: /^\/$/, prefetch: prefetchHome, paramNames: [] },
   { pattern: /^\/races$/, prefetch: prefetchRaces, paramNames: [] },
@@ -653,6 +698,11 @@ const routeMatches: RouteMatch[] = [
   { pattern: /^\/books\/([^/]+)$/, prefetch: prefetchBookDetail, paramNames: ["slug"] },
   { pattern: /^\/state\/([^/]+)\/city\/([^/]+)$/, prefetch: prefetchCityHub, paramNames: ["state", "city"] },
   { pattern: /^\/state\/([^/]+)$/, prefetch: prefetchStateHub, paramNames: ["state"] },
+  { pattern: /^\/terms$/, prefetch: prefetchTerms, paramNames: [] },
+  { pattern: /^\/privacy$/, prefetch: prefetchPrivacy, paramNames: [] },
+  { pattern: /^\/about$/, prefetch: prefetchAbout, paramNames: [] },
+  { pattern: /^\/contact$/, prefetch: prefetchContact, paramNames: [] },
+  { pattern: /^\/blog$/, prefetch: prefetchBlog, paramNames: [] },
 ];
 
 export function getSSRPrefetch(url: string): ((qc: QueryClient) => Promise<PageMeta>) | undefined {

@@ -75,6 +75,11 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
       urlEntry("/books", { changefreq: "weekly", priority: "0.8" }),
       urlEntry("/races/year/2025", { changefreq: "daily", priority: "0.8", lastmod: today }),
       urlEntry("/races/year/2026", { changefreq: "daily", priority: "0.8", lastmod: today }),
+      urlEntry("/about", { changefreq: "monthly", priority: "0.6" }),
+      urlEntry("/contact", { changefreq: "monthly", priority: "0.5" }),
+      urlEntry("/blog", { changefreq: "weekly", priority: "0.7", lastmod: today }),
+      urlEntry("/terms", { changefreq: "yearly", priority: "0.3" }),
+      urlEntry("/privacy", { changefreq: "yearly", priority: "0.3" }),
     ];
 
     const toolSlugs = ["race-predictor", "pace-calculator", "training-plan", "vo2-estimator"];
