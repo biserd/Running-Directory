@@ -13,7 +13,7 @@ export async function sendMagicLinkEmail(email: string, token: string): Promise<
   const magicLink = `${baseUrl}/auth/verify?token=${token}`;
 
   try {
-    await resend.emails.send({
+    const result = await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
       subject: "Sign in to running.services",
@@ -38,6 +38,11 @@ export async function sendMagicLinkEmail(email: string, token: string): Promise<
         </div>
       `,
     });
+    console.log("Resend magic link response:", JSON.stringify(result));
+    if (result.error) {
+      console.error("Resend API error:", result.error);
+      return false;
+    }
     return true;
   } catch (error) {
     console.error("Failed to send magic link email:", error);
