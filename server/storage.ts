@@ -79,6 +79,16 @@ export interface IStorage {
   removeFavorite(userId: number, itemType: string, itemId: number): Promise<void>;
   isFavorited(userId: number, itemType: string, itemId: number): Promise<boolean>;
   getUserFavoritesByType(userId: number, itemType: string): Promise<Favorite[]>;
+
+  search(query: string, limit?: number): Promise<{
+    races: { id: number; name: string; slug: string; city: string | null; state: string | null; distance: string | null; date: string | null }[];
+    routes: { id: number; name: string; slug: string; city: string | null; state: string | null; distance: string | null; surface: string | null }[];
+    states: { id: number; name: string; slug: string; abbreviation: string | null; raceCount: number }[];
+    cities: { id: number; name: string; slug: string; stateSlug: string; stateName: string }[];
+    influencers: { id: number; name: string; slug: string; platform: string | null; handle: string | null }[];
+    podcasts: { id: number; name: string; slug: string; host: string | null }[];
+    books: { id: number; title: string; slug: string; author: string | null }[];
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -583,6 +593,70 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(favorites)
       .where(and(eq(favorites.userId, userId), eq(favorites.itemType, itemType)))
       .orderBy(desc(favorites.createdAt));
+  }
+
+  async search(query: string, limit: number = 5) {
+    const pattern = `%${query}%`;
+
+    const [raceResults, routeResults, stateResults, cityResults, influencerResults, podcastResults, bookResults] = await Promise.all([
+      db.select({
+        id: races.id, name: races.name, slug: races.slug, city: races.city, state: races.state, distance: races.distance, date: races.date
+      }).from(races)
+        .where(and(eq(races.isActive, true), sql`(${races.name} ILIKE ${pattern} OR ${races.city} ILIKE ${pattern})`))
+        .orderBy(desc(races.qualityScore))
+        .limit(limit),
+
+      db.select({
+        id: routes.id, name: routes.name, slug: routes.slug, city: routes.city, state: routes.state, distance: routes.distance, surface: routes.surface
+      }).from(routes)
+        .where(and(eq(routes.isActive, true), sql`(${routes.name} ILIKE ${pattern} OR ${routes.city} ILIKE ${pattern})`))
+        .orderBy(desc(routes.qualityScore))
+        .limit(limit),
+
+      db.select({
+        id: states.id, name: states.name, slug: states.slug, abbreviation: states.abbreviation, raceCount: states.raceCount
+      }).from(states)
+        .where(sql`(${states.name} ILIKE ${pattern} OR ${states.abbreviation} ILIKE ${pattern})`)
+        .orderBy(desc(states.raceCount))
+        .limit(limit),
+
+      db.select({
+        id: cities.id, name: cities.name, slug: cities.slug,
+        stateSlug: states.slug, stateName: states.name
+      }).from(cities)
+        .innerJoin(states, eq(cities.stateId, states.id))
+        .where(sql`${cities.name} ILIKE ${pattern}`)
+        .orderBy(desc(cities.population))
+        .limit(limit),
+
+      db.select({
+        id: influencers.id, name: influencers.name, slug: influencers.slug, platform: influencers.platform, handle: influencers.handle
+      }).from(influencers)
+        .where(and(eq(influencers.isActive, true), sql`(${influencers.name} ILIKE ${pattern} OR ${influencers.handle} ILIKE ${pattern})`))
+        .limit(limit),
+
+      db.select({
+        id: podcasts.id, name: podcasts.name, slug: podcasts.slug, host: podcasts.host
+      }).from(podcasts)
+        .where(and(eq(podcasts.isActive, true), sql`(${podcasts.name} ILIKE ${pattern} OR ${podcasts.host} ILIKE ${pattern})`))
+        .limit(limit),
+
+      db.select({
+        id: books.id, title: books.title, slug: books.slug, author: books.author
+      }).from(books)
+        .where(and(eq(books.isActive, true), sql`(${books.title} ILIKE ${pattern} OR ${books.author} ILIKE ${pattern})`))
+        .limit(limit),
+    ]);
+
+    return {
+      races: raceResults,
+      routes: routeResults,
+      states: stateResults,
+      cities: cityResults,
+      influencers: influencerResults,
+      podcasts: podcastResults,
+      books: bookResults,
+    };
   }
 }
 

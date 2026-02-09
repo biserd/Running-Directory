@@ -1,11 +1,11 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Search, Menu, X, ChevronRight, ArrowRight, MapPin, Heart, User, LogOut } from "lucide-react";
-import { useState } from "react";
+import { Menu, X, ChevronRight, ArrowRight, MapPin, Heart, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
+import { SmartSearch } from "@/components/smart-search";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -48,14 +48,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="flex items-center gap-2">
-            <div className="hidden md:flex relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <input 
-                type="search" 
-                placeholder="Find a race or route..." 
-                className="h-9 w-64 rounded-md border border-input bg-background pl-9 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
+            <SmartSearch className="hidden md:block" variant="desktop" />
 
             {/* User Auth Controls - Desktop */}
             <div className="hidden md:flex items-center">
@@ -102,6 +95,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <SheetContent side="right">
                 <SheetTitle className="sr-only">Menu</SheetTitle>
                 <div className="flex flex-col gap-4 mt-8">
+                  <SmartSearch variant="mobile" className="mb-2" />
                   <Link href="/races" className="text-lg font-medium py-2 border-b">Races</Link>
                   <Link href="/races/nearby" className="text-lg font-medium py-2 border-b flex items-center gap-2" data-testid="link-near-me-mobile">
                     <MapPin className="h-4 w-4" /> Races Near Me
