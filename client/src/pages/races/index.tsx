@@ -10,7 +10,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useQuery } from "@tanstack/react-query";
 import { apiGetState } from "@/lib/api";
-import { Search, SlidersHorizontal, X, MapPin, List, Map as MapIcon } from "lucide-react";
+import { Search, SlidersHorizontal, X, MapPin, List, Map as MapIcon, Crosshair, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import type { Race } from "@shared/schema";
 import { CompareBar } from "@/components/compare-bar";
 
@@ -29,6 +30,23 @@ const ELEVATION_BUCKETS: { label: string; max?: number; min?: number }[] = [
   { label: "Hilly (200–500m)", min: 200, max: 500 },
   { label: "Mountainous (500m+)", min: 500 },
 ];
+const DIFFICULTY_BUCKETS: { label: string; value: string; minBeginnerScore: number }[] = [
+  { label: "Easy (great for first timers)", value: "easy", minBeginnerScore: 80 },
+  { label: "Moderate", value: "moderate", minBeginnerScore: 60 },
+  { label: "Hard", value: "hard", minBeginnerScore: 40 },
+  { label: "Very hard", value: "very-hard", minBeginnerScore: 0 },
+];
+const VIBE_TAGS: { value: string; label: string }[] = [
+  { value: "festive", label: "Festive / Party" },
+  { value: "beer", label: "Beer garden" },
+  { value: "music", label: "Live music" },
+  { value: "costume", label: "Costumed / Themed" },
+  { value: "scenic", label: "Scenic / Destination" },
+  { value: "fast", label: "Fast course" },
+  { value: "charity", label: "Charity vibe" },
+  { value: "trail", label: "Trail / Off-road" },
+];
+const RADIUS_OPTIONS = [10, 25, 50, 100, 250];
 const SORTS: { value: string; label: string }[] = [
   { value: "date", label: "Sooner first" },
   { value: "price", label: "Cheapest" },
@@ -63,6 +81,11 @@ type FilterState = {
   registrationOpen: boolean;
   priceIncreaseSoon: boolean;
   transitFriendly: boolean;
+  difficulty: string;
+  vibeTag: string;
+  radiusMiles: number;
+  lat: number | null;
+  lng: number | null;
   sort: string;
   near: boolean;
 };
@@ -88,12 +111,20 @@ const EMPTY_FILTERS: FilterState = {
   registrationOpen: false,
   priceIncreaseSoon: false,
   transitFriendly: false,
+  difficulty: "",
+  vibeTag: "",
+  radiusMiles: 50,
+  lat: null,
+  lng: null,
   sort: "date",
   near: false,
 };
 
 function parseFiltersFromUrl(search: string, stateAbbr?: string): FilterState {
   const params = new URLSearchParams(search.replace(/^\?/, ""));
+  const lat = params.get("lat");
+  const lng = params.get("lng");
+  const radius = params.get("radiusMiles");
   return {
     q: params.get("q") || "",
     distance: params.get("distance") || "",
@@ -115,6 +146,11 @@ function parseFiltersFromUrl(search: string, stateAbbr?: string): FilterState {
     registrationOpen: params.get("registrationOpen") === "true",
     priceIncreaseSoon: params.get("priceIncreaseSoon") === "true",
     transitFriendly: params.get("transitFriendly") === "true",
+    difficulty: params.get("difficulty") || "",
+    vibeTag: params.get("vibeTag") || "",
+    radiusMiles: radius ? Number(radius) : 50,
+    lat: lat ? Number(lat) : null,
+    lng: lng ? Number(lng) : null,
     sort: params.get("sort") || "date",
     near: params.get("near") === "1",
   };
@@ -137,6 +173,17 @@ function filtersToApiQs(f: FilterState): string {
   if (f.turkeyTrot) qs.set("isTurkeyTrot", "true");
   if (f.registrationOpen) qs.set("registrationOpen", "true");
   if (f.priceIncreaseSoon) qs.set("priceIncreaseSoon", "true");
+  if (f.transitFriendly) qs.set("transitFriendly", "true");
+  if (f.vibeTag) qs.set("vibeTag", f.vibeTag);
+  if (f.difficulty) {
+    const bucket = DIFFICULTY_BUCKETS.find(b => b.value === f.difficulty);
+    if (bucket && bucket.minBeginnerScore > 0) qs.set("minBeginnerScore", String(bucket.minBeginnerScore));
+  }
+  if (f.near && f.lat != null && f.lng != null) {
+    qs.set("lat", String(f.lat));
+    qs.set("lng", String(f.lng));
+    qs.set("radiusMiles", String(f.radiusMiles));
+  }
   if (f.sort) qs.set("sort", f.sort);
   qs.set("limit", "60");
   return qs.toString();
@@ -162,8 +209,15 @@ function filtersToUrlQs(f: FilterState): string {
   if (f.registrationOpen) qs.set("registrationOpen", "true");
   if (f.priceIncreaseSoon) qs.set("priceIncreaseSoon", "true");
   if (f.transitFriendly) qs.set("transitFriendly", "true");
+  if (f.difficulty) qs.set("difficulty", f.difficulty);
+  if (f.vibeTag) qs.set("vibeTag", f.vibeTag);
+  if (f.near) {
+    qs.set("near", "1");
+    if (f.lat != null) qs.set("lat", String(f.lat));
+    if (f.lng != null) qs.set("lng", String(f.lng));
+    if (f.radiusMiles && f.radiusMiles !== 50) qs.set("radiusMiles", String(f.radiusMiles));
+  }
   if (f.sort && f.sort !== "date") qs.set("sort", f.sort);
-  if (f.near) qs.set("near", "1");
   return qs.toString();
 }
 
@@ -171,10 +225,11 @@ function activeChipCount(f: FilterState, ignoreSort = true): number {
   let n = 0;
   for (const [k, v] of Object.entries(f)) {
     if (ignoreSort && k === "sort") continue;
-    if (k === "state") continue;
+    if (k === "state" || k === "lat" || k === "lng" || k === "radiusMiles") continue;
     if (typeof v === "boolean" && v) n += 1;
     if (typeof v === "string" && v) n += 1;
   }
+  if (f.near) n += 1;
   return n;
 }
 
@@ -219,14 +274,43 @@ function clientSideFilter(races: Race[], f: FilterState): Race[] {
 function FilterRail({
   filters,
   setFilter,
+  updateFilters,
   reset,
   showHeader = true,
 }: {
   filters: FilterState;
   setFilter: <K extends keyof FilterState>(key: K, value: FilterState[K]) => void;
+  updateFilters: (updater: (prev: FilterState) => FilterState) => void;
   reset: () => void;
   showHeader?: boolean;
 }) {
+  const [geoLoading, setGeoLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleUseLocation = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      toast({ title: "Location not available", description: "Your browser doesn't support geolocation.", variant: "destructive" });
+      return;
+    }
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        updateFilters(prev => ({
+          ...prev,
+          near: true,
+          lat: Number(pos.coords.latitude.toFixed(4)),
+          lng: Number(pos.coords.longitude.toFixed(4)),
+        }));
+        setGeoLoading(false);
+      },
+      (err) => {
+        setGeoLoading(false);
+        toast({ title: "Couldn't get your location", description: err.message || "Permission denied or unavailable.", variant: "destructive" });
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 }
+    );
+  };
+
   return (
     <div className="space-y-6">
       {showHeader && (
@@ -239,6 +323,46 @@ function FilterRail({
           )}
         </div>
       )}
+
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Near me</div>
+        {filters.near && filters.lat != null && filters.lng != null ? (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Within</span>
+              <button
+                type="button"
+                onClick={() => updateFilters(prev => ({ ...prev, near: false, lat: null, lng: null }))}
+                className="text-primary hover:underline"
+                data-testid="button-clear-location"
+              >
+                Clear location
+              </button>
+            </div>
+            <select
+              value={String(filters.radiusMiles)}
+              onChange={e => setFilter("radiusMiles", Number(e.target.value))}
+              className="w-full text-sm border rounded px-2 py-2 bg-background"
+              data-testid="filter-radius"
+            >
+              {RADIUS_OPTIONS.map(r => <option key={r} value={r}>{r} miles</option>)}
+            </select>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full justify-start h-9 text-sm"
+            onClick={handleUseLocation}
+            disabled={geoLoading}
+            data-testid="button-use-location"
+          >
+            {geoLoading ? <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> : <Crosshair className="h-3.5 w-3.5 mr-2" />}
+            Use my location
+          </Button>
+        )}
+      </div>
 
       <div>
         <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Distance</div>
@@ -267,6 +391,32 @@ function FilterRail({
         >
           <option value="">Any month</option>
           {MONTH_LABELS.slice(1).map((m, i) => <option key={m} value={String(i + 1)}>{m}</option>)}
+        </select>
+      </div>
+
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Difficulty</div>
+        <select
+          value={filters.difficulty}
+          onChange={e => setFilter("difficulty", e.target.value)}
+          className="w-full text-sm border rounded px-2 py-2 bg-background"
+          data-testid="filter-difficulty"
+        >
+          <option value="">Any difficulty</option>
+          {DIFFICULTY_BUCKETS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+        </select>
+      </div>
+
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Vibe</div>
+        <select
+          value={filters.vibeTag}
+          onChange={e => setFilter("vibeTag", e.target.value)}
+          className="w-full text-sm border rounded px-2 py-2 bg-background"
+          data-testid="filter-vibe"
+        >
+          <option value="">Any vibe</option>
+          {VIBE_TAGS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
         </select>
       </div>
 
@@ -381,14 +531,18 @@ export default function RacesSearchPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location, stateData?.abbreviation]);
 
-  const setFilter = <K extends keyof FilterState>(key: K, value: FilterState[K]) => {
+  const updateFilters = (updater: (prev: FilterState) => FilterState) => {
     setFilters(prev => {
-      const next = { ...prev, [key]: value };
+      const next = updater(prev);
       const qs = filtersToUrlQs(next);
       const target = stateSlug ? `/races/state/${stateSlug}` : "/races";
       navigate(qs ? `${target}?${qs}` : target, { replace: true });
       return next;
     });
+  };
+
+  const setFilter = <K extends keyof FilterState>(key: K, value: FilterState[K]) => {
+    updateFilters(prev => ({ ...prev, [key]: value }));
   };
 
   const reset = () => {
@@ -442,7 +596,7 @@ export default function RacesSearchPage() {
               <SheetTitle>Filters</SheetTitle>
               <SheetDescription className="sr-only">Filter the race results</SheetDescription>
               <div className="mt-4">
-                <FilterRail filters={filters} setFilter={setFilter} reset={reset} showHeader={false} />
+                <FilterRail filters={filters} setFilter={setFilter} updateFilters={updateFilters} reset={reset} showHeader={false} />
               </div>
               <div className="sticky bottom-0 -mx-6 px-6 py-3 bg-background border-t mt-6 flex gap-2">
                 <Button variant="outline" onClick={reset} className="flex-1" data-testid="button-mobile-reset">Reset</Button>
@@ -497,7 +651,7 @@ export default function RacesSearchPage() {
           {/* Desktop filter rail */}
           <aside className="hidden lg:block lg:col-span-3" data-testid="filter-rail">
             <div className="sticky top-20">
-              <FilterRail filters={filters} setFilter={setFilter} reset={reset} />
+              <FilterRail filters={filters} setFilter={setFilter} updateFilters={updateFilters} reset={reset} />
             </div>
           </aside>
 

@@ -8,20 +8,24 @@ type PrefetchFn = (queryClient: QueryClient, params: Record<string, string>) => 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 const defaultMeta: PageMeta = {
-  title: "running.services | USA Race Calendar & Route Directory",
-  description: "The comprehensive data-driven running hub for the USA. Find races, discover routes, and access essential training tools.",
+  title: "running.services | Find the right race, not just the next race",
+  description: "A race decision engine for runners in the USA. Compare races by beginner, PR, value, vibe, and family scores so you can pick the right one for your goal.",
   ogType: "website",
 };
 
 const prefetchHome: PrefetchFn = async (qc) => {
-  const [races, routes, statesList] = await Promise.all([
-    storage.getRaces({ limit: 4 }),
-    storage.getRoutes({ limit: 4 }),
+  const [weekendRaces, bestValue5K, beginnerHalfs, turkeyTrots, statesList] = await Promise.all([
+    storage.getRacesThisWeekend().catch(() => []),
+    storage.getRacesAdvanced({ distance: "5K", sort: "value", limit: 4 }).catch(() => []),
+    storage.getRacesAdvanced({ distance: "Half Marathon", sort: "beginner", limit: 4 }).catch(() => []),
+    storage.getRacesAdvanced({ isTurkeyTrot: true, limit: 3 }).catch(() => []),
     storage.getStates(),
   ]);
 
-  qc.setQueryData(["/api/races", { limit: 4 }], races);
-  qc.setQueryData(["/api/routes", { limit: 4 }], routes);
+  qc.setQueryData(["/api/races/this-weekend"], weekendRaces);
+  qc.setQueryData(["/api/races/search", { distance: "5K", sort: "value", limit: 4 }], bestValue5K);
+  qc.setQueryData(["/api/races/search", { distance: "Half Marathon", sort: "beginner", limit: 4 }], beginnerHalfs);
+  qc.setQueryData(["/api/races/search", { isTurkeyTrot: true, limit: 3 }], turkeyTrots);
   qc.setQueryData(["/api/states"], statesList);
 
   return {
@@ -43,24 +47,27 @@ const prefetchHome: PrefetchFn = async (qc) => {
 };
 
 const prefetchRaces: PrefetchFn = async (qc) => {
+  // The race search page first renders with EMPTY_FILTERS, which produces this exact API qs.
+  // Seed that key so SSR HTML matches the first client render.
+  const defaultApiQs = "sort=date&limit=60";
   const [races, statesList] = await Promise.all([
-    storage.getRaces(),
+    storage.getRacesAdvanced({ sort: "date", limit: 60 }),
     storage.getStates(),
   ]);
 
-  qc.setQueryData(["/api/races", {}], races);
+  qc.setQueryData(["/api/races/search", defaultApiQs], races);
   qc.setQueryData(["/api/states"], statesList);
 
   return {
-    title: "USA Race Calendar | running.services",
-    description: "Discover thousands of races from 5Ks to Ultras across all 50 states. Find your next marathon, half marathon, or trail race.",
+    title: "Find the right race | running.services",
+    description: "Search USA races and filter by distance, month, terrain, price, beginner-friendliness, PR potential, value, vibe, and more.",
     ogType: "website",
     canonicalUrl: "https://running.services/races",
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
-      name: "USA Race Calendar",
-      description: "Comprehensive race calendar with thousands of running events across the United States.",
+      name: "USA Race Search",
+      description: "Search and compare running races across the United States with deterministic 0–100 scores.",
       url: "https://running.services/races",
     },
   };
@@ -96,8 +103,12 @@ const prefetchRacesState: PrefetchFn = async (qc, params) => {
   qc.setQueryData(["/api/states"], allStates);
 
   if (stateData) {
-    const races = await storage.getRaces({ state: stateData.abbreviation });
-    qc.setQueryData(["/api/races", { state: stateData.abbreviation }], races);
+    // The /races/state/:state page reuses RacesSearchPage which queries ["/api/races/search", apiQs]
+    // with apiQs derived from EMPTY_FILTERS + the state abbreviation. Seed that exact key so
+    // SSR HTML matches the first client render and there's no hydration cache miss.
+    const stateApiQs = `state=${encodeURIComponent(stateData.abbreviation)}&sort=date&limit=60`;
+    const races = await storage.getRacesAdvanced({ state: stateData.abbreviation, sort: "date", limit: 60 });
+    qc.setQueryData(["/api/races/search", stateApiQs], races);
 
     return {
       title: `${stateData.name} Race Calendar | running.services`,

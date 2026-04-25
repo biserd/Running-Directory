@@ -1,8 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import type { Race } from "@shared/schema";
-import { Calendar, MapPin, Mountain, DollarSign, AlarmClock, Users, Heart, Scale, Bell, ExternalLink, Check } from "lucide-react";
+import type { Race, RaceAlert } from "@shared/schema";
+import { Calendar, MapPin, Mountain, DollarSign, AlarmClock, Users, Heart, Scale, Bell, BellRing, ExternalLink, Check } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { parseRaceDate } from "@/lib/dates";
@@ -11,6 +11,9 @@ import { useCompareCart } from "@/hooks/use-compare-cart";
 import { FavoriteButton } from "@/components/favorite-button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 function fmtPrice(min: number | null | undefined, max: number | null | undefined): string | null {
   if (min == null && max == null) return null;
@@ -49,7 +52,18 @@ interface RaceCardProps {
 export function RaceCard({ race, showCompare = true, showAlert = true }: RaceCardProps) {
   const { has, toggle, isFull } = useCompareCart();
   const { toast } = useToast();
+  const { user, openLogin } = useAuth();
+  const queryClient = useQueryClient();
+  const [alertPending, setAlertPending] = useState(false);
   const inCompare = has(race.id);
+
+  const { data: alerts } = useQuery<RaceAlert[]>({
+    queryKey: ["/api/alerts"],
+    enabled: !!user && showAlert,
+    staleTime: 60_000,
+  });
+  const myAlert = alerts?.find(a => a.raceId === race.id);
+  const hasAlert = !!myAlert;
 
   const price = fmtPrice(race.priceMin ?? null, race.priceMax ?? null);
   const fieldSize = fmtFieldSize(race.fieldSize ?? null);
@@ -70,10 +84,35 @@ export function RaceCard({ race, showCompare = true, showAlert = true }: RaceCar
     toast({ title: inCompare ? "Removed from compare" : "Added to compare", description: race.name });
   };
 
-  const handleAlert = (e: React.MouseEvent) => {
+  const handleAlert = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    toast({ title: "Alerts coming soon", description: "We're wiring up price-drop and registration alerts. Save the race for now and you'll be the first to know." });
+    if (!user) {
+      openLogin();
+      return;
+    }
+    if (alertPending) return;
+    setAlertPending(true);
+    try {
+      if (myAlert) {
+        const res = await fetch(`/api/alerts/${myAlert.id}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("Failed to remove alert");
+        toast({ title: "Alert removed", description: race.name });
+      } else {
+        const res = await fetch("/api/alerts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ raceId: race.id, alertType: "price-drop" }),
+        });
+        if (!res.ok) throw new Error("Failed to create alert");
+        toast({ title: "Alert set", description: `We'll notify you about ${race.name}.` });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
+    } catch (err) {
+      toast({ title: "Couldn't update alert", description: "Please try again in a moment.", variant: "destructive" });
+    } finally {
+      setAlertPending(false);
+    }
   };
 
   const handleRegister = async (e: React.MouseEvent) => {
@@ -203,12 +242,13 @@ export function RaceCard({ race, showCompare = true, showAlert = true }: RaceCar
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 w-8 p-0"
+                className={cn("h-8 w-8 p-0", hasAlert && "text-primary")}
                 onClick={handleAlert}
-                title="Set an alert"
+                disabled={alertPending}
+                title={hasAlert ? "Remove alert" : "Set price-drop alert"}
                 data-testid={`button-alert-${race.id}`}
               >
-                <Bell className="h-4 w-4" />
+                {hasAlert ? <BellRing className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
               </Button>
             )}
           </div>

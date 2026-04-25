@@ -5,8 +5,9 @@ import { cn } from "@/lib/utils";
 
 interface SearchResults {
   races: { id: number; name: string; slug: string; city: string | null; state: string | null; distance: string | null; date: string | null }[];
-  states: { id: number; name: string; slug: string; abbreviation: string | null; raceCount: number }[];
   cities: { id: number; name: string; slug: string; stateSlug: string; stateName: string }[];
+  organizers: { id: number; name: string; slug: string; state: string | null; raceCount?: number }[];
+  states?: unknown[];
 }
 
 interface SearchItem {
@@ -20,33 +21,34 @@ interface SearchItem {
 function flattenResults(results: SearchResults): SearchItem[] {
   const items: SearchItem[] = [];
 
-  for (const s of results.states) {
-    items.push({
-      type: "States",
-      label: s.name,
-      sublabel: `${s.abbreviation} · ${s.raceCount} races`,
-      href: `/state/${s.slug}`,
-      icon: <MapPin className="h-4 w-4 text-blue-500" />,
-    });
-  }
-
-  for (const c of results.cities) {
-    items.push({
-      type: "Cities",
-      label: c.name,
-      sublabel: c.stateName,
-      href: `/state/${c.stateSlug}/city/${c.slug}`,
-      icon: <Building2 className="h-4 w-4 text-violet-500" />,
-    });
-  }
-
-  for (const r of results.races) {
+  for (const r of results.races ?? []) {
     items.push({
       type: "Races",
       label: r.name,
       sublabel: [r.city, r.state, r.distance].filter(Boolean).join(" · "),
       href: `/races/${r.slug}`,
       icon: <Trophy className="h-4 w-4 text-amber-500" />,
+    });
+  }
+
+  for (const o of results.organizers ?? []) {
+    const sub = [o.state, o.raceCount != null ? `${o.raceCount} races` : null].filter(Boolean).join(" · ");
+    items.push({
+      type: "Organizers",
+      label: o.name,
+      sublabel: sub,
+      href: `/organizers/${o.slug}`,
+      icon: <Building2 className="h-4 w-4 text-emerald-500" />,
+    });
+  }
+
+  for (const c of results.cities ?? []) {
+    items.push({
+      type: "Cities",
+      label: c.name,
+      sublabel: c.stateName,
+      href: `/state/${c.stateSlug}/city/${c.slug}`,
+      icon: <MapPin className="h-4 w-4 text-violet-500" />,
     });
   }
 

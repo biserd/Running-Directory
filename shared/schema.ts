@@ -501,6 +501,7 @@ export type RaceSearchFilters = {
   vibeTag?: string;
   registrationOpen?: boolean;
   priceIncreaseSoon?: boolean;
+  transitFriendly?: boolean;
   organizerId?: number;
   seriesId?: number;
   near?: { lat: number; lng: number; radiusMiles: number };

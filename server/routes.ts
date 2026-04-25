@@ -701,6 +701,7 @@ export async function registerRoutes(
     vibeTag: optStr,
     registrationOpen: optBool,
     priceIncreaseSoon: optBool,
+    transitFriendly: optBool,
     organizerId: optInt,
     seriesId: optInt,
     lat: z.preprocess(v => v == null || v === "" ? undefined : Number(v), z.number().optional()),

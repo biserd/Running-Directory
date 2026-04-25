@@ -128,8 +128,8 @@ export interface IStorage {
 
 export type SearchResult = {
   races: { id: number; name: string; slug: string; city: string | null; state: string | null; distance: string | null; date: string | null }[];
-  states: { id: number; name: string; slug: string; abbreviation: string | null; raceCount: number }[];
   cities: { id: number; name: string; slug: string; stateSlug: string; stateName: string }[];
+  organizers: { id: number; name: string; slug: string; state: string | null; raceCount: number }[];
 };
 
 export class DatabaseStorage implements IStorage {
@@ -625,19 +625,12 @@ export class DatabaseStorage implements IStorage {
   async search(query: string, limit: number = 5): Promise<SearchResult> {
     const pattern = `%${query}%`;
 
-    const [raceResults, stateResults, cityResults] = await Promise.all([
+    const [raceResults, cityResults, organizerResults] = await Promise.all([
       db.select({
         id: races.id, name: races.name, slug: races.slug, city: races.city, state: races.state, distance: races.distance, date: races.date
       }).from(races)
         .where(and(eq(races.isActive, true), sql`(${races.name} ILIKE ${pattern} OR ${races.city} ILIKE ${pattern})`))
         .orderBy(desc(races.qualityScore))
-        .limit(limit),
-
-      db.select({
-        id: states.id, name: states.name, slug: states.slug, abbreviation: states.abbreviation, raceCount: states.raceCount
-      }).from(states)
-        .where(sql`(${states.name} ILIKE ${pattern} OR ${states.abbreviation} ILIKE ${pattern})`)
-        .orderBy(desc(states.raceCount))
         .limit(limit),
 
       db.select({
@@ -648,12 +641,19 @@ export class DatabaseStorage implements IStorage {
         .where(sql`${cities.name} ILIKE ${pattern}`)
         .orderBy(desc(cities.population))
         .limit(limit),
+
+      db.select({
+        id: organizers.id, name: organizers.name, slug: organizers.slug, state: organizers.state, raceCount: organizers.raceCount
+      }).from(organizers)
+        .where(sql`${organizers.name} ILIKE ${pattern}`)
+        .orderBy(desc(organizers.raceCount))
+        .limit(limit),
     ]);
 
     return {
       races: raceResults,
-      states: stateResults,
       cities: cityResults,
+      organizers: organizerResults.map(o => ({ ...o, raceCount: o.raceCount ?? 0 })),
     };
   }
 
@@ -746,6 +746,7 @@ export class DatabaseStorage implements IStorage {
     if (filters.charity) conditions.push(eq(races.charity, true));
     if (filters.bostonQualifier) conditions.push(eq(races.bostonQualifier, true));
     if (filters.isTurkeyTrot) conditions.push(eq(races.isTurkeyTrot, true));
+    if (filters.transitFriendly) conditions.push(eq(races.transitFriendly, true));
     if (filters.vibeTag) conditions.push(sql`${filters.vibeTag} = ANY(${races.vibeTags})`);
     if (filters.registrationOpen) conditions.push(or(eq(races.registrationOpen, true), sql`${races.registrationOpen} IS NULL`)!);
     if (filters.priceIncreaseSoon) {
