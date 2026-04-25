@@ -57,6 +57,7 @@ function buildFieldGroups(): FieldGroup[] {
   return [
     {
       rows: [
+        { label: "Distance", render: r => <span className="uppercase tracking-wide text-xs font-semibold">{r.distance}</span> },
         { label: "Date", render: r => format(parseRaceDate(r.date), "EEE, MMM d, yyyy") },
         { label: "Start time", render: r => r.startTime || "TBA" },
         { label: "Location", render: r => `${r.city}, ${r.state}` },

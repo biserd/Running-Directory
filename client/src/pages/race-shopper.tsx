@@ -471,7 +471,15 @@ export default function RaceShopperPage() {
                     </div>
                     {isOverall ? (
                       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {section.races.map(r => <RaceCard key={r.id} race={r} />)}
+                        {section.races.map(r => (
+                          <div key={r.id} className="space-y-2" data-testid={`overall-pick-${r.id}`}>
+                            <RaceCard race={r} />
+                            <div className="text-xs bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 rounded px-2 py-1.5 inline-flex items-start gap-1.5 w-full" data-testid={`overall-reason-${r.id}`}>
+                              <Lightbulb className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                              <span>{pickRationale(r, goal)}</span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ) : (
                       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">

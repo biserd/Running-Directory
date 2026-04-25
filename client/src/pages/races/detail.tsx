@@ -650,12 +650,10 @@ export default function RaceDetail() {
               <li className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Start Time</span><span className="font-medium" data-testid="text-start-time">{race.startTime || "TBA"}</span></li>
               <li className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Time Limit</span><span className="font-medium" data-testid="text-time-limit">{race.timeLimit || "None"}</span></li>
               <li className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Surface</span><span className="font-medium">{race.surface}</span></li>
-              {race.packetPickup && <li className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Packet pickup</span><span className="font-medium text-right max-w-[60%]">{race.packetPickup}</span></li>}
-              {race.parkingNotes && <li className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Parking</span><span className="font-medium text-right max-w-[60%]">{race.parkingNotes}</span></li>}
-              {race.transitFriendly != null && <li className="flex justify-between"><span className="text-muted-foreground">Transit-friendly</span><span className="font-medium">{race.transitFriendly ? "Yes" : "No"}</span></li>}
-              {race.bostonQualifier !== null && (
-                <li className="flex justify-between pt-2"><span className="text-muted-foreground">Boston Qualifier</span><span className={`font-medium ${race.bostonQualifier ? "text-green-600" : "text-muted-foreground"}`} data-testid="text-bq">{race.bostonQualifier ? "Yes" : "No"}</span></li>
-              )}
+              <li className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Packet pickup</span><span className="font-medium text-right max-w-[60%]" data-testid="text-packet-pickup">{race.packetPickup || <span className="text-muted-foreground italic">Not provided</span>}</span></li>
+              <li className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Parking</span><span className="font-medium text-right max-w-[60%]" data-testid="text-parking">{race.parkingNotes || <span className="text-muted-foreground italic">Not provided</span>}</span></li>
+              <li className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Transit-friendly</span><span className="font-medium" data-testid="text-transit-friendly">{race.transitFriendly == null ? <span className="text-muted-foreground italic">Unknown</span> : (race.transitFriendly ? "Yes" : "No")}</span></li>
+              <li className="flex justify-between pt-2"><span className="text-muted-foreground">Boston Qualifier</span><span className={`font-medium ${race.bostonQualifier === true ? "text-green-600" : "text-muted-foreground"}`} data-testid="text-bq">{race.bostonQualifier == null ? <span className="text-muted-foreground italic">Unknown</span> : (race.bostonQualifier ? "Yes" : "No")}</span></li>
             </ul>
           </div>
 
