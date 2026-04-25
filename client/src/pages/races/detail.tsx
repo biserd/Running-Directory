@@ -668,8 +668,8 @@ export default function RaceDetail() {
               {race.nextPriceIncreaseAt && (
                 <li className="flex justify-between text-amber-700"><span className="inline-flex items-center gap-1"><AlarmClock className="h-3.5 w-3.5" />Price hike</span><span className="font-semibold" data-testid="text-next-price-hike">{format(parseRaceDate(race.nextPriceIncreaseAt), "MMM d")}{race.nextPriceIncreaseAmount ? ` (+$${race.nextPriceIncreaseAmount})` : ""}</span></li>
               )}
-              {race.refundPolicy && <li className="border-t pt-2"><span className="text-muted-foreground block text-xs mb-1">Refund policy</span><span>{race.refundPolicy}</span></li>}
-              {race.deferralPolicy && <li className="border-t pt-2"><span className="text-muted-foreground block text-xs mb-1">Deferral policy</span><span>{race.deferralPolicy}</span></li>}
+              <li className="border-t pt-2"><span className="text-muted-foreground block text-xs mb-1">Refund policy</span><span data-testid="text-refund-policy">{race.refundPolicy || <span className="text-muted-foreground italic">Not stated by organizer</span>}</span></li>
+              <li className="border-t pt-2"><span className="text-muted-foreground block text-xs mb-1">Deferral policy</span><span data-testid="text-deferral-policy">{race.deferralPolicy || <span className="text-muted-foreground italic">Not stated by organizer</span>}</span></li>
             </ul>
           </div>
 

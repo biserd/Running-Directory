@@ -68,15 +68,17 @@ interface ScoreCellProps {
   scoreKey: ScoreKey;
   value: number | null | undefined;
   rationale?: string;
+  factors?: string[];
   raceId: number;
   compact?: boolean;
 }
 
-function ScoreCell({ scoreKey, value, rationale, raceId, compact }: ScoreCellProps) {
+function ScoreCell({ scoreKey, value, rationale, factors, raceId, compact }: ScoreCellProps) {
   const meta = SCORE_META[scoreKey];
   const Icon = meta.icon;
   const display = value == null ? "—" : value;
   const why = rationale || (value == null ? "Not yet scored." : value >= 60 ? meta.good : meta.bad);
+  const hasFactors = factors && factors.length > 0;
 
   return (
     <Tooltip>
@@ -111,9 +113,16 @@ function ScoreCell({ scoreKey, value, rationale, raceId, compact }: ScoreCellPro
         </button>
       </TooltipTrigger>
       <TooltipContent side="top" className="max-w-xs">
-        <div className="space-y-1">
+        <div className="space-y-1.5" data-testid={`score-tooltip-${scoreKey}-${raceId}`}>
           <div className="font-semibold text-xs">{meta.label} — {value ?? "—"}/100</div>
           <div className="text-xs">{why}</div>
+          {hasFactors && (
+            <ul className="text-[11px] space-y-0.5 pt-1 border-t border-border/40 list-disc list-inside" data-testid={`score-factors-${scoreKey}-${raceId}`}>
+              {factors!.slice(0, 5).map((f, i) => (
+                <li key={i} className="leading-snug">{f}</li>
+              ))}
+            </ul>
+          )}
         </div>
       </TooltipContent>
     </Tooltip>
@@ -126,14 +135,51 @@ interface ScoreBlockProps {
   hide?: ScoreKey[];
 }
 
-function rationaleFor(race: ScoreBlockProps["race"], key: ScoreKey): string | undefined {
+type ScoreNode = {
+  rationale?: string;
+  reason?: string;
+  why?: string;
+  factors?: unknown;
+  reasons?: unknown;
+  contributors?: unknown;
+  breakdown?: unknown;
+};
+
+function getScoreNode(race: ScoreBlockProps["race"], key: ScoreKey): ScoreNode | undefined {
   const b = race.scoreBreakdown as Record<string, unknown> | null | undefined;
   if (!b || typeof b !== "object") return undefined;
-  const node = (b[key] || b[`${key}Score`] || b[`${key}_score`]) as { rationale?: string; reason?: string; why?: string } | undefined;
-  if (node && typeof node === "object") {
-    return node.rationale || node.reason || node.why;
+  const node = (b[key] || b[`${key}Score`] || b[`${key}_score`]) as ScoreNode | undefined;
+  return node && typeof node === "object" ? node : undefined;
+}
+
+function rationaleFor(race: ScoreBlockProps["race"], key: ScoreKey): string | undefined {
+  const node = getScoreNode(race, key);
+  return node?.rationale || node?.reason || node?.why;
+}
+
+function factorsFor(race: ScoreBlockProps["race"], key: ScoreKey): string[] | undefined {
+  const node = getScoreNode(race, key);
+  if (!node) return undefined;
+  const candidate = node.factors ?? node.reasons ?? node.contributors ?? node.breakdown;
+  if (!candidate) return undefined;
+  const out: string[] = [];
+  if (Array.isArray(candidate)) {
+    for (const item of candidate) {
+      if (typeof item === "string") out.push(item);
+      else if (item && typeof item === "object") {
+        const it = item as { label?: string; reason?: string; text?: string; name?: string; description?: string };
+        const text = it.label || it.reason || it.text || it.name || it.description;
+        if (text) out.push(text);
+      }
+    }
+  } else if (typeof candidate === "object") {
+    for (const [k, v] of Object.entries(candidate as Record<string, unknown>)) {
+      if (typeof v === "string") out.push(`${k}: ${v}`);
+      else if (typeof v === "number") out.push(`${k}: ${v}`);
+      else if (typeof v === "boolean" && v) out.push(k);
+    }
   }
-  return undefined;
+  return out.length > 0 ? out : undefined;
 }
 
 export function ScoreBlock({ race, compact, hide = [] }: ScoreBlockProps) {
@@ -161,6 +207,7 @@ export function ScoreBlock({ race, compact, hide = [] }: ScoreBlockProps) {
           scoreKey={item.key}
           value={item.value}
           rationale={rationaleFor(race, item.key)}
+          factors={factorsFor(race, item.key)}
           raceId={race.id}
           compact={compact}
         />
