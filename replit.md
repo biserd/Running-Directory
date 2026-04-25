@@ -7,17 +7,21 @@ running.services is a **race decision engine** for runners in the USA. Tagline: 
 ### Decision Engine Surfaces
 - **Homepage** (`/`): "Find the right race." hero with location/distance/month/goal search form, 8 goal chips (first race, PR, fun, family, trail, cheap, charity, Turkey Trot), this-weekend digest, best-value 5Ks, beginner-friendly halfs, popular metros, Turkey Trot teaser, Race Shopper invite, organizers callout, browse-by-state.
 - **Race search** (`/races`): comprehensive filter rail (distance, month, surface, terrain, elevation bucket, race-size bucket, max price, beginner/accessibility flags, vibe, logistics), sort by date/price/beginner/PR/value/vibe/family/urgency/quality, mobile-first chip filters with bottom-sheet, list/map view toggle (map placeholder), client-side compare cart with floating CompareBar.
-- **Race Shopper** (`/race-shopper`, `/race-shopper/:goal`): goal-driven race picker.
-- **Compare** (`/compare`): side-by-side race comparison (reads `?ids=` from URL).
+- **Race Shopper** (`/race-shopper`, `/race-shopper/:goal`): goal-driven race picker. Six goal chips (first race / PR / value / vibe / family / urgency), guided form (distance, state, month, budget, walker/stroller/BQ flags), POSTs to `/api/races/shopper`, then renders categorized recommendations (top picks for goal, best value, beginner-friendly, PR potential, big vibe, hidden gems, sign-up urgency) with plain-English rationale per pick.
+- **Compare** (`/compare`): side-by-side race comparison (reads `?ids=` from URL, max 4 races). Highlights best entry fee, lowest elevation, biggest field, and top decision scores in each row. Includes register CTAs wired to outbound tracking and a "Best fit" row using the BestForBadges component.
+- **Race detail** (`/races/:slug`): full decision page with 18 sections — hero with Register/Compare/Notify/Website CTAs, decision score strip (six 0–100 scores via `ScoreBlock`), best-for badges, about, course profile (elevation chart from Open-Meteo), course features grid, accessibility & inclusion, vibe & charity, reviews, similar races (`/api/races/:slug/similar`), tools CTA, and sidebar (logistics, pricing & registration with next-price-hike warning, difficulty card, weather card, organizer/claim card, data source, explore-the-area links, nearby routes/books/podcasts). All outbound clicks tracked via `/api/outbound`. SSR JSON-LD includes Offer (price, currency, availability, validThrough), Organization, GeoCoordinates, and additionalProperty (terrain, elevation gain, surface).
 - **This Weekend** (`/this-weekend`): last-minute races in the next 72 hours.
 - **Price Watch** (`/price-watch`): races whose entry fee is about to increase.
-- **Race detail pages**: include score breakdowns, similar-race recommendations, and outbound-click tracking to organizer registration pages.
 
 ### Race Card
 The shared `RaceCard` component (`client/src/components/race-card.tsx`) shows distance, name, date, city/state, price range, field size, terrain, elevation, registration deadline, next-price-increase warning, beginner/PR/value scores, vibe tags, and Save / Compare / Alert / Register actions. The Register button POSTs to `/api/outbound` for click tracking before opening the organizer URL.
 
 ### Compare Cart
 A localStorage-backed `useCompareCart` hook (`client/src/hooks/use-compare-cart.ts`) stages up to 4 race IDs. The `CompareBar` component renders a floating bottom bar on the search page when 1+ races are staged and links to `/compare?ids=...`.
+
+### Shared decision components
+- `client/src/components/score-block.tsx` — renders the six 0–100 decision scores with tooltips reading rationale from `scoreBreakdown` jsonb. Used by race detail and (in compact form) by other surfaces.
+- `client/src/components/best-for-badges.tsx` — derives up to 9 "best for" badges (beginners, PR-friendly, walkers, families, value, vibe, destination, charity, trail/hill challenge) from race fields. Used by race detail, compare table, and Race Shopper picks.
 
 ### Deprecated (kept alive but removed from nav, sitemap, and indexed for noindex)
 Influencers, Podcasts, Books, Collections, Guides, and Blog routes still respond (so old links don't 404), but they are excluded from the sitemap, marked `noindex` via SSR meta, and `Disallow`ed in `robots.txt`.

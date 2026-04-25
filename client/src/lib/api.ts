@@ -109,6 +109,63 @@ export function apiGetRace(slug: string) {
   return fetchJSON<Race>(`/api/races/${slug}`);
 }
 
+export function apiCompareRaces(ids: number[]) {
+  const param = ids.filter(n => Number.isFinite(n)).join(",");
+  return fetchJSON<Race[]>(`/api/races/compare?ids=${param}`);
+}
+
+export function apiSimilarRaces(slug: string, limit = 6) {
+  return fetchJSON<Race[]>(`/api/races/${slug}/similar?limit=${limit}`);
+}
+
+export interface ShopperInput {
+  goal: "beginner" | "pr" | "value" | "vibe" | "family" | "urgency";
+  distance?: string;
+  distances?: string[];
+  state?: string;
+  near?: { lat: number; lng: number; radiusMiles?: number };
+  dateFrom?: string;
+  dateTo?: string;
+  budget?: number;
+  walkerFriendly?: boolean;
+  strollerFriendly?: boolean;
+  dogFriendly?: boolean;
+  kidsRace?: boolean;
+  charity?: boolean;
+  bostonQualifier?: boolean;
+  limit?: number;
+}
+
+export async function apiShopperRaces(input: ShopperInput) {
+  const res = await fetch("/api/races/shopper", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error("Shopper request failed");
+  return res.json() as Promise<{ goal: string; count: number; races: Race[] }>;
+}
+
+export async function apiSubmitRaceClaim(slug: string, body: { claimerEmail: string; claimerName?: string; claimerRole?: string; message?: string }) {
+  const res = await fetch(`/api/races/${slug}/claim`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message || "Claim failed");
+  return json as { message: string; claimId: number };
+}
+
+export async function apiTrackOutbound(input: { raceId?: number; organizerId?: number; destination: "registration" | "website" | "organizer" | "course-map" | "elevation" | "results" | "social"; targetUrl: string }) {
+  return fetch("/api/outbound", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+    keepalive: true,
+  }).catch(() => undefined);
+}
+
 export function apiGetRaceOccurrences(params?: { raceId?: number; year?: number; month?: number; limit?: number }) {
   const searchParams = new URLSearchParams();
   if (params?.raceId) searchParams.set("raceId", params.raceId.toString());

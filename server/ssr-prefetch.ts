@@ -206,6 +206,72 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
   qc.setQueryData(["/api/routes", { limit: 3 }], nearbyRoutes);
 
   if (race) {
+    let organizerInfo: { name: string; url?: string } | undefined;
+    if (race.organizerId) {
+      try {
+        const orgs = await storage.getOrganizers({ limit: 500 });
+        const org = orgs.find(o => o.id === race.organizerId);
+        if (org) organizerInfo = { name: org.name, url: org.website ?? undefined };
+      } catch { /* organizer lookup is non-critical */ }
+    }
+
+    const jsonLd: Record<string, unknown> = {
+      "@context": "https://schema.org",
+      "@type": "SportsEvent",
+      name: race.name,
+      startDate: race.date,
+      eventStatus: "https://schema.org/EventScheduled",
+      eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+      location: {
+        "@type": "Place",
+        name: `${race.city}, ${getStateName(race.state)}`,
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: race.city,
+          addressRegion: race.state,
+          addressCountry: "US",
+        },
+        ...(race.lat != null && race.lng != null ? { geo: { "@type": "GeoCoordinates", latitude: race.lat, longitude: race.lng } } : {}),
+      },
+      description: race.description || `A ${race.distance} race in ${race.city}, ${getStateName(race.state)}.`,
+      sport: "Running",
+      url: `https://running.services/races/${slug}`,
+      ...(race.website ? { sameAs: race.website } : {}),
+      ...(race.priceMin != null || race.priceMax != null ? (() => {
+        const isRange = race.priceMin != null && race.priceMax != null && race.priceMin !== race.priceMax;
+        const baseAvailability = race.registrationOpen === false ? "https://schema.org/SoldOut" : "https://schema.org/InStock";
+        return {
+          offers: isRange
+            ? {
+                "@type": "AggregateOffer",
+                lowPrice: race.priceMin,
+                highPrice: race.priceMax,
+                priceCurrency: race.priceCurrency || "USD",
+                availability: baseAvailability,
+                ...(race.registrationUrl ? { url: race.registrationUrl } : {}),
+                ...(race.registrationDeadline ? { validThrough: race.registrationDeadline } : {}),
+              }
+            : {
+                "@type": "Offer",
+                price: race.priceMin ?? race.priceMax,
+                priceCurrency: race.priceCurrency || "USD",
+                availability: baseAvailability,
+                ...(race.registrationUrl ? { url: race.registrationUrl } : {}),
+                ...(race.registrationDeadline ? { validThrough: race.registrationDeadline } : {}),
+              },
+        };
+      })() : {}),
+      ...(organizerInfo ? {
+        organizer: { "@type": "Organization", name: organizerInfo.name, ...(organizerInfo.url ? { url: organizerInfo.url } : {}) },
+      } : {}),
+    };
+    const additionalProperty: Array<Record<string, string | number>> = [];
+    if (race.terrain) additionalProperty.push({ "@type": "PropertyValue", name: "Terrain", value: race.terrain });
+    if (race.elevationGainM != null) additionalProperty.push({ "@type": "PropertyValue", name: "Elevation gain (m)", value: race.elevationGainM });
+    if (race.surface) additionalProperty.push({ "@type": "PropertyValue", name: "Surface", value: race.surface });
+    if (race.distance) additionalProperty.push({ "@type": "PropertyValue", name: "Distance", value: race.distance });
+    if (additionalProperty.length > 0) jsonLd.additionalProperty = additionalProperty;
+
     return {
       title: `${race.name} - ${race.city}, ${getStateName(race.state)} | running.services`,
       description: race.description || `${race.name} is a ${race.distance} race in ${race.city}, ${getStateName(race.state)}. ${race.surface} course with ${race.elevation.toLowerCase()} elevation.`,
@@ -213,26 +279,7 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
       ogDescription: `${race.distance} race on ${race.date} in ${race.city}, ${getStateName(race.state)}`,
       ogType: "article",
       canonicalUrl: `https://running.services/races/${slug}`,
-      jsonLd: {
-        "@context": "https://schema.org",
-        "@type": "SportsEvent",
-        name: race.name,
-        startDate: race.date,
-        location: {
-          "@type": "Place",
-          name: `${race.city}, ${getStateName(race.state)}`,
-          address: {
-            "@type": "PostalAddress",
-            addressLocality: race.city,
-            addressRegion: race.state,
-            addressCountry: "US",
-          },
-        },
-        description: race.description || `A ${race.distance} race in ${race.city}, ${getStateName(race.state)}.`,
-        sport: "Running",
-        url: `https://running.services/races/${slug}`,
-        ...(race.website ? { sameAs: race.website } : {}),
-      },
+      jsonLd,
       breadcrumbJsonLd: {
         "@context": "https://schema.org",
         "@type": "BreadcrumbList",
@@ -717,6 +764,7 @@ const prefetchCompare: PrefetchFn = async () => ({
   description: "Side-by-side race comparison on weather, difficulty, vibe, value, and PR potential.",
   ogType: "website",
   canonicalUrl: "https://running.services/compare",
+  noindex: true,
 });
 
 const prefetchThisWeekendPage: PrefetchFn = async (qc) => {

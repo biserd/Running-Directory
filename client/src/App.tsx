@@ -37,7 +37,9 @@ import ContactPage from "@/pages/contact";
 import BlogPage from "@/pages/blog";
 import AuthVerifyPage from "@/pages/auth/verify";
 import FavoritesPage from "@/pages/favorites";
-import { RaceShopperPage, ComparePage, ThisWeekendPage, PriceWatchPage, OrganizersPage, OrganizerDetailPage } from "@/pages/coming-soon";
+import RaceShopperPage from "@/pages/race-shopper";
+import ComparePage from "@/pages/compare";
+import { ThisWeekendPage, PriceWatchPage, OrganizersPage, OrganizerDetailPage } from "@/pages/coming-soon";
 
 function AppRouter() {
   return (
