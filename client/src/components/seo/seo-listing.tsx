@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { Calendar, ArrowRight, Info, Bell } from "lucide-react";
+import type { ReactNode } from "react";
 import type { Race } from "@shared/schema";
 
 interface RelatedLink {
@@ -31,6 +32,7 @@ interface SeoListingProps {
   alertCtaText?: string;
   noindex?: boolean;
   testIdPrefix?: string;
+  children?: ReactNode;
 }
 
 export function SeoListing({
@@ -46,6 +48,7 @@ export function SeoListing({
   alertCtaText = "Get an alert when a new race is added",
   noindex,
   testIdPrefix = "seo",
+  children,
 }: SeoListingProps) {
   const hasRaces = races.length > 0;
   return (
@@ -140,6 +143,8 @@ export function SeoListing({
               </div>
             </div>
           )}
+
+          {children}
         </div>
       </section>
     </Layout>

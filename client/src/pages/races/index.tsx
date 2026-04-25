@@ -498,6 +498,19 @@ function FilterRail({
           <CheckboxRow checked={filters.transitFriendly} onChange={v => setFilter("transitFriendly", v)} label="Public transit friendly" testId="filter-transit" />
         </div>
       </div>
+
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Curated lists</div>
+        <div className="flex flex-col gap-1.5 text-sm">
+          <Link href="/best/cheap-races" className="text-primary hover:underline" data-testid="link-best-cheap">Best value races</Link>
+          <Link href="/best/beginner-half-marathons" className="text-primary hover:underline" data-testid="link-best-beginner-halfs">Beginner-friendly halfs</Link>
+          <Link href="/best/flat-fast-marathons" className="text-primary hover:underline" data-testid="link-best-flat-fast">Flat & fast marathons</Link>
+          <Link href="/best/family-friendly-5ks" className="text-primary hover:underline" data-testid="link-best-family-5ks">Family-friendly 5Ks</Link>
+          <Link href="/best/charity-races" className="text-primary hover:underline" data-testid="link-best-charity">Charity races</Link>
+          <Link href="/best/scenic-10ks" className="text-primary hover:underline" data-testid="link-best-scenic-10ks">Scenic 10Ks</Link>
+          <Link href="/best/this-weekend" className="text-primary hover:underline" data-testid="link-best-this-weekend">Races this weekend</Link>
+        </div>
+      </div>
     </div>
   );
 }

@@ -46,7 +46,7 @@ export default function BestPage() {
         title: "Not enough data yet",
         body: cfg.emptyBody,
       }}
-      noindex={list.length < 5}
+      noindex={list.length === 0}
       testIdPrefix={`best-${slug}`}
     />
   );

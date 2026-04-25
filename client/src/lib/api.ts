@@ -105,8 +105,10 @@ export function apiGetRaces(params?: { state?: string; distance?: string; surfac
   return fetchJSON<Race[]>(`/api/races${qs ? `?${qs}` : ""}`);
 }
 
+export type RaceWithCitySlug = Race & { citySlug?: string | null };
+
 export function apiGetRace(slug: string) {
-  return fetchJSON<Race>(`/api/races/${slug}`);
+  return fetchJSON<RaceWithCitySlug>(`/api/races/${slug}`);
 }
 
 export type RaceSearchParams = {

@@ -656,7 +656,7 @@ export default function RaceDetail() {
               const distSlug = race.surface === "Trail"
                 ? "trail-races"
                 : (race.distance && distMap[race.distance]);
-              const citySlug = (race as any).citySlug as string | null | undefined;
+              const citySlug = race.citySlug;
               if (!distSlug || !citySlug || !race.state) return null;
               const metroSlug = `${citySlug}-${race.state.toLowerCase()}`;
               return (

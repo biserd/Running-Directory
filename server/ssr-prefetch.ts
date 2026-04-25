@@ -1084,7 +1084,7 @@ const prefetchBest: PrefetchFn = async (qc, params) => {
     description: cfg.intro,
     ogType: "website",
     canonicalUrl: url,
-    noindex: races.length < 5,
+    noindex: races.length === 0,
     jsonLd: buildCollectionJsonLd(cfg.title, cfg.intro, url, races),
     breadcrumbJsonLd: buildBreadcrumbJsonLd([
       { name: "Home", href: "/" },
