@@ -165,6 +165,14 @@ app.use((req, res, next) => {
           console.error("Database seeding failed:", err);
         });
       });
+
+      if (process.env.NODE_ENV !== "test") {
+        import("./alerts/scheduler").then(({ startAlertScheduler }) => {
+          startAlertScheduler();
+        }).catch((err) => {
+          console.error("Alert scheduler failed to start:", err);
+        });
+      }
     },
   );
 })();

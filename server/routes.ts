@@ -20,6 +20,22 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+}
+
+function humanizeAlertType(t: string): string {
+  switch (t) {
+    case "price-increase": return "price increase";
+    case "registration-close": return "registration closing";
+    case "saved-race-reminder": return "saved race reminder";
+    case "this-weekend": return "this weekend digest";
+    case "saved-search-matches": return "saved search match";
+    case "turkey-trot-watch": return "Turkey Trot watchlist";
+    default: return t;
+  }
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -1063,7 +1079,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/alerts", requireAuth, async (req, res) => {
-    const list = await storage.getRaceAlerts(req.session.userId!);
+    const list = await storage.getRaceAlertsWithRace(req.session.userId!);
     res.json(list);
   });
 
@@ -1084,6 +1100,142 @@ export async function registerRoutes(
     const id = parseInt(String(req.params.id));
     await storage.deleteRaceAlert(id, req.session.userId!);
     res.json({ ok: true });
+  });
+
+  // ───────── Alert preferences, tracking, unsubscribe ─────────
+  app.get("/api/alerts/preferences", requireAuth, async (req, res) => {
+    const prefs = await storage.getUserAlertPrefs(req.session.userId!);
+    res.json({
+      unsubscribedAll: prefs?.unsubscribedAll ?? false,
+      unsubscribedAlertTypes: prefs?.unsubscribedAlertTypes ?? [],
+    });
+  });
+
+  const updatePrefsSchema = z.object({
+    unsubscribedAll: z.boolean().optional(),
+    unsubscribedAlertTypes: z.array(z.string()).optional(),
+  });
+
+  app.patch("/api/alerts/preferences", requireAuth, async (req, res) => {
+    try {
+      const data = updatePrefsSchema.parse(req.body);
+      await storage.updateUserAlertPrefs(req.session.userId!, data);
+      const prefs = await storage.getUserAlertPrefs(req.session.userId!);
+      res.json({
+        unsubscribedAll: prefs?.unsubscribedAll ?? false,
+        unsubscribedAlertTypes: prefs?.unsubscribedAlertTypes ?? [],
+      });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: err.errors });
+      }
+      throw err;
+    }
+  });
+
+  // 1x1 transparent GIF for tracking pixel.
+  const TRACKING_PIXEL = Buffer.from(
+    "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+    "base64",
+  );
+
+  app.get("/api/alerts/track/open", async (req, res) => {
+    const token = String(req.query.t || "");
+    if (token) {
+      try {
+        await storage.markAlertOpened(token);
+      } catch (err) {
+        console.error("[alerts] open track failure", err);
+      }
+    }
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    res.set("Content-Type", "image/gif");
+    res.send(TRACKING_PIXEL);
+  });
+
+  app.get("/api/alerts/track/click", async (req, res) => {
+    const token = String(req.query.t || "");
+    const url = String(req.query.u || "");
+    if (token) {
+      try {
+        await storage.markAlertClicked(token);
+      } catch (err) {
+        console.error("[alerts] click track failure", err);
+      }
+    }
+    let dest = "/";
+    if (url) {
+      try {
+        const decoded = decodeURIComponent(url);
+        // Allow only same-origin paths starting with a single "/" (no protocol-relative "//"),
+        // or absolute https://running.services URLs. Anything else falls back to "/".
+        const safePath = decoded.startsWith("/") && !decoded.startsWith("//") && !decoded.startsWith("/\\");
+        let safeAbs = false;
+        if (/^https?:\/\//i.test(decoded)) {
+          try {
+            const parsed = new URL(decoded);
+            safeAbs = parsed.hostname === "running.services" || parsed.hostname.endsWith(".running.services");
+          } catch {
+            safeAbs = false;
+          }
+        }
+        if (safePath || safeAbs) dest = decoded;
+      } catch {
+        dest = "/";
+      }
+    }
+    res.set("Referrer-Policy", "no-referrer");
+    res.redirect(302, dest);
+  });
+
+  app.get("/api/alerts/unsubscribe", async (req, res) => {
+    const token = String(req.query.t || "");
+    let label = "this alert";
+    if (token) {
+      try {
+        const result = await storage.unsubscribeUserFromTokenAlertType(token);
+        if (result) label = humanizeAlertType(result.alertType);
+      } catch (err) {
+        console.error("[alerts] unsub failure", err);
+      }
+    }
+    res.set("Content-Type", "text/html; charset=utf-8");
+    res.send(`<!doctype html><html><head><meta charset="utf-8"><title>Unsubscribed</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:520px;margin:8vh auto;padding:0 24px;color:#111;line-height:1.5}h1{font-size:24px}a{color:#dc2626}</style>
+</head><body>
+<h1>You're unsubscribed</h1>
+<p>You won't get more <strong>${escapeHtml(label)}</strong> emails. You can still manage every alert from your account.</p>
+<p><a href="/alerts">Manage all alerts</a> &nbsp;·&nbsp; <a href="/">Back to running.services</a></p>
+</body></html>`);
+  });
+
+  app.post("/api/alerts/unsubscribe", async (req, res) => {
+    const token = String(req.query.t || req.body?.t || "");
+    if (token) {
+      try {
+        await storage.unsubscribeUserFromTokenAlertType(token);
+      } catch (err) {
+        console.error("[alerts] one-click unsub failure", err);
+      }
+    }
+    res.status(200).send("ok");
+  });
+
+  app.post("/api/admin/alerts/dispatch", adminAuth, async (_req, res) => {
+    const { runAlertDispatch } = await import("./alerts/scheduler");
+    try {
+      const result = await runAlertDispatch({ force: true });
+      res.json({ ok: true, result });
+    } catch (err: unknown) {
+      res.status(500).json({ ok: false, message: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.get("/api/admin/alerts/stats", adminAuth, async (req, res) => {
+    const days = Math.min(180, Math.max(1, parseInt(String(req.query.days || "30"), 10) || 30));
+    const stats = await storage.getDispatchStats(days);
+    res.json({ days, stats });
   });
 
   const outboundSchema = z.object({

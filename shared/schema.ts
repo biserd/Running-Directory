@@ -211,6 +211,28 @@ export const raceAlerts = pgTable("race_alerts", {
   index("race_alerts_user_idx").on(table.userId),
 ]);
 
+export const alertDispatches = pgTable("alert_dispatches", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  alertType: text("alert_type").notNull(),
+  raceId: integer("race_id").references(() => races.id, { onDelete: "set null" }),
+  savedSearchId: integer("saved_search_id").references(() => savedSearches.id, { onDelete: "set null" }),
+  raceAlertId: integer("race_alert_id").references(() => raceAlerts.id, { onDelete: "set null" }),
+  dispatchKey: text("dispatch_key").notNull().unique(),
+  unsubToken: text("unsub_token").notNull().unique(),
+  trackToken: text("track_token").notNull().unique(),
+  emailSubject: text("email_subject"),
+  emailTo: text("email_to"),
+  matchCount: integer("match_count"),
+  dispatchedAt: timestamp("dispatched_at").defaultNow(),
+  openedAt: timestamp("opened_at"),
+  clickedAt: timestamp("clicked_at"),
+}, (table) => [
+  index("alert_dispatches_user_idx").on(table.userId),
+  index("alert_dispatches_type_idx").on(table.alertType),
+  index("alert_dispatches_dispatched_idx").on(table.dispatchedAt),
+]);
+
 export const outboundClicks = pgTable("outbound_clicks", {
   id: serial("id").primaryKey(),
   raceId: integer("race_id").references(() => races.id, { onDelete: "cascade" }),
@@ -346,6 +368,8 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   name: text("name"),
+  unsubscribedAlertTypes: text("unsubscribed_alert_types").array().notNull().default(sql`'{}'`),
+  unsubscribedAll: boolean("unsubscribed_all").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   lastLoginAt: timestamp("last_login_at"),
 }, (table) => [
@@ -417,6 +441,7 @@ export const insertRaceSeriesSchema = createInsertSchema(raceSeries).omit({ id: 
 export const insertRaceClaimSchema = createInsertSchema(raceClaims).omit({ id: true, createdAt: true, verifiedAt: true, reviewedAt: true });
 export const insertSavedSearchSchema = createInsertSchema(savedSearches).omit({ id: true, createdAt: true, lastNotifiedAt: true });
 export const insertRaceAlertSchema = createInsertSchema(raceAlerts).omit({ id: true, createdAt: true, lastNotifiedAt: true });
+export const insertAlertDispatchSchema = createInsertSchema(alertDispatches).omit({ id: true, dispatchedAt: true, openedAt: true, clickedAt: true });
 export const insertOutboundClickSchema = createInsertSchema(outboundClicks).omit({ id: true, createdAt: true });
 
 export type InsertState = z.infer<typeof insertStateSchema>;
@@ -461,6 +486,8 @@ export type RaceClaim = typeof raceClaims.$inferSelect;
 export type SavedSearch = typeof savedSearches.$inferSelect;
 export type RaceAlert = typeof raceAlerts.$inferSelect;
 export type OutboundClick = typeof outboundClicks.$inferSelect;
+export type AlertDispatch = typeof alertDispatches.$inferSelect;
+export type InsertAlertDispatch = z.infer<typeof insertAlertDispatchSchema>;
 
 export type ScoreFactor = { factor: string; points: number };
 export type ScoreBreakdown = {

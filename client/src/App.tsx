@@ -37,6 +37,7 @@ import ContactPage from "@/pages/contact";
 import BlogPage from "@/pages/blog";
 import AuthVerifyPage from "@/pages/auth/verify";
 import FavoritesPage from "@/pages/favorites";
+import AlertsPage from "@/pages/alerts";
 import RaceShopperPage from "@/pages/race-shopper";
 import ComparePage from "@/pages/compare";
 import { ThisWeekendPage, PriceWatchPage, OrganizersPage, OrganizerDetailPage } from "@/pages/coming-soon";
@@ -53,6 +54,7 @@ function AppRouter() {
       <Route path="/" component={Home} />
       <Route path="/auth/verify" component={AuthVerifyPage} />
       <Route path="/favorites" component={FavoritesPage} />
+      <Route path="/alerts" component={AlertsPage} />
       <Route path="/races" component={RacesHub} />
       <Route path="/races/usa" component={RacesUSAPage} />
       <Route path="/races/state/:state/city/:city" component={RacesCityPage} />

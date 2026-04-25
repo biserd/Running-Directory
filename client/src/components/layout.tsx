@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Menu, ArrowRight, Heart, User, LogOut, ChevronDown } from "lucide-react";
+import { Menu, ArrowRight, Heart, User, LogOut, ChevronDown, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -101,6 +101,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         <Heart className="h-4 w-4" /> Saved races
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/alerts" className="flex items-center gap-2 cursor-pointer" data-testid="link-alerts">
+                        <Bell className="h-4 w-4" /> Alerts & saved searches
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={logout} className="flex items-center gap-2 cursor-pointer text-red-600" data-testid="button-logout">
                       <LogOut className="h-4 w-4" /> Sign out
@@ -135,6 +140,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   {user && (
                     <Link href="/favorites" className="text-base font-medium py-3 border-b flex items-center gap-2" data-testid="link-favorites-mobile">
                       <Heart className="h-4 w-4" /> Saved races
+                    </Link>
+                  )}
+                  {user && (
+                    <Link href="/alerts" className="text-base font-medium py-3 border-b flex items-center gap-2" data-testid="link-alerts-mobile">
+                      <Bell className="h-4 w-4" /> Alerts & saved searches
                     </Link>
                   )}
                   <div className="pt-6 border-t mt-4">

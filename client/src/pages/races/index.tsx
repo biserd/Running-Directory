@@ -8,10 +8,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Switch as UISwitch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useQuery } from "@tanstack/react-query";
 import { apiGetState } from "@/lib/api";
-import { Search, SlidersHorizontal, X, MapPin, List, Map as MapIcon, Crosshair, Loader2 } from "lucide-react";
+import { Search, SlidersHorizontal, X, MapPin, List, Map as MapIcon, Crosshair, Loader2, BookmarkPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import type { Race } from "@shared/schema";
 import { CompareBar } from "@/components/compare-bar";
 
@@ -534,6 +539,12 @@ export default function RacesSearchPage() {
   const params = useParams();
   const stateSlug = params.state;
   const [location, navigate] = useLocation();
+  const { user, openLogin } = useAuth();
+  const { toast } = useToast();
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [saveAlertOn, setSaveAlertOn] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const { data: stateData } = useQuery({
     queryKey: ["/api/states", stateSlug],
@@ -713,6 +724,23 @@ export default function RacesSearchPage() {
               >
                 {SORTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9"
+                onClick={() => {
+                  if (!user) {
+                    openLogin();
+                    return;
+                  }
+                  setSaveName(buildDefaultSearchName(filters));
+                  setSaveAlertOn(true);
+                  setSaveDialogOpen(true);
+                }}
+                data-testid="button-save-search"
+              >
+                <BookmarkPlus className="h-3.5 w-3.5 mr-1.5" /> Save this search
+              </Button>
               <div className="flex border rounded overflow-hidden ml-auto" role="tablist">
                 <button
                   type="button"
@@ -821,8 +849,107 @@ export default function RacesSearchPage() {
       </div>
 
       <CompareBar />
+
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Save this search</DialogTitle>
+            <DialogDescription>We'll remember these filters. Turn alerts on for a weekly digest of new matches.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="save-search-name">Name</Label>
+              <Input
+                id="save-search-name"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                placeholder="e.g. Cheap NorCal halves"
+                data-testid="input-save-search-name"
+              />
+            </div>
+            <div className="flex items-center justify-between rounded border p-3">
+              <div>
+                <div className="font-medium text-sm">Email me about new matches</div>
+                <div className="text-xs text-muted-foreground">Weekly Monday roundup + Friday weekend digest.</div>
+              </div>
+              <UISwitch checked={saveAlertOn} onCheckedChange={setSaveAlertOn} data-testid="switch-save-search-alerts" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSaveDialogOpen(false)} data-testid="button-cancel-save-search">Cancel</Button>
+            <Button
+              disabled={saving || !saveName.trim()}
+              onClick={async () => {
+                setSaving(true);
+                try {
+                  const res = await fetch("/api/saved-searches", {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      name: saveName.trim(),
+                      queryJson: filtersToQueryJson(filters),
+                      alertEnabled: saveAlertOn,
+                    }),
+                  });
+                  if (!res.ok) throw new Error(`${res.status}`);
+                  toast({ title: "Search saved", description: "Manage saved searches and alerts at /alerts." });
+                  setSaveDialogOpen(false);
+                } catch (err) {
+                  toast({ title: "Couldn't save search", description: String(err), variant: "destructive" });
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              data-testid="button-confirm-save-search"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
+}
+
+function buildDefaultSearchName(f: FilterState): string {
+  const bits: string[] = [];
+  if (f.distance) bits.push(f.distance);
+  if (f.state) bits.push(f.state.toUpperCase());
+  if (f.month) bits.push(MONTH_LABELS[Number(f.month)] || "");
+  if (f.priceMax) bits.push(`≤$${f.priceMax}`);
+  if (f.surface) bits.push(f.surface);
+  if (f.terrain) bits.push(f.terrain);
+  if (f.bostonQualifier) bits.push("BQ");
+  if (f.charity) bits.push("charity");
+  if (f.turkeyTrot) bits.push("Turkey Trot");
+  return bits.filter(Boolean).join(" · ") || "My race search";
+}
+
+function filtersToQueryJson(f: FilterState): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (f.q) out.q = f.q;
+  if (f.distance) out.distance = f.distance;
+  if (f.surface) out.surface = f.surface;
+  if (f.terrain) out.terrain = f.terrain;
+  if (f.state) out.state = f.state;
+  if (f.city) out.city = f.city;
+  if (f.month) out.month = f.month;
+  if (f.priceMax) out.priceMax = f.priceMax;
+  if (f.elevationBucket) out.elevationBucket = f.elevationBucket;
+  if (f.sizeBucket) out.sizeBucket = f.sizeBucket;
+  if (f.walkerFriendly) out.walkerFriendly = true;
+  if (f.strollerFriendly) out.strollerFriendly = true;
+  if (f.dogFriendly) out.dogFriendly = true;
+  if (f.kidsRace) out.kidsRace = true;
+  if (f.charity) out.charity = true;
+  if (f.bostonQualifier) out.bostonQualifier = true;
+  if (f.turkeyTrot) out.turkeyTrot = true;
+  if (f.registrationOpen) out.registrationOpen = true;
+  if (f.priceIncreaseSoon) out.priceIncreaseSoon = true;
+  if (f.transitFriendly) out.transitFriendly = true;
+  if (f.sort) out.sort = f.sort;
+  return out;
 }
 
 function activeFilterChips(

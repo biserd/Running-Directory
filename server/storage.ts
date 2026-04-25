@@ -1,11 +1,11 @@
 import { db } from "./db";
-import { states, cities, races, raceOccurrences, routes, sources, sourceRecords, collections, influencers, podcasts, books, users, magicLinkTokens, favorites, reviews, organizers, raceSeries, raceClaims, savedSearches, raceAlerts, outboundClicks } from "@shared/schema";
+import { states, cities, races, raceOccurrences, routes, sources, sourceRecords, collections, influencers, podcasts, books, users, magicLinkTokens, favorites, reviews, organizers, raceSeries, raceClaims, savedSearches, raceAlerts, outboundClicks, alertDispatches } from "@shared/schema";
 import type {
   State, City, Race, RaceOccurrence, Route, Source, SourceRecord, Collection, Influencer, Podcast, Book,
   InsertState, InsertCity, InsertRace, InsertRaceOccurrence, InsertRoute, InsertSource, InsertSourceRecord, InsertCollection, InsertInfluencer, InsertPodcast, InsertBook,
   User, MagicLinkToken, Favorite, Review,
-  Organizer, RaceSeries, RaceClaim, SavedSearch, RaceAlert, OutboundClick,
-  InsertOrganizer, InsertRaceSeries, InsertRaceClaim, InsertSavedSearch, InsertRaceAlert, InsertOutboundClick,
+  Organizer, RaceSeries, RaceClaim, SavedSearch, RaceAlert, OutboundClick, AlertDispatch,
+  InsertOrganizer, InsertRaceSeries, InsertRaceClaim, InsertSavedSearch, InsertRaceAlert, InsertOutboundClick, InsertAlertDispatch,
   RaceSearchFilters,
 } from "@shared/schema";
 import { eq, and, sql, desc, asc, ilike, inArray, gte, lte, or, isNotNull } from "drizzle-orm";
@@ -124,6 +124,7 @@ export interface IStorage {
   toggleSavedSearchAlert(id: number, userId: number, enabled: boolean): Promise<void>;
 
   getRaceAlerts(userId: number): Promise<RaceAlert[]>;
+  getRaceAlertsWithRace(userId: number): Promise<(RaceAlert & { raceSlug: string | null; raceName: string | null })[]>;
   createRaceAlert(data: InsertRaceAlert): Promise<RaceAlert>;
   deleteRaceAlert(id: number, userId: number): Promise<void>;
 
@@ -1031,6 +1032,24 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(raceAlerts).where(eq(raceAlerts.userId, userId)).orderBy(desc(raceAlerts.createdAt));
   }
 
+  async getRaceAlertsWithRace(userId: number): Promise<(RaceAlert & { raceSlug: string | null; raceName: string | null })[]> {
+    const rows = await db.select({
+      id: raceAlerts.id,
+      userId: raceAlerts.userId,
+      raceId: raceAlerts.raceId,
+      alertType: raceAlerts.alertType,
+      lastNotifiedAt: raceAlerts.lastNotifiedAt,
+      createdAt: raceAlerts.createdAt,
+      raceSlug: races.slug,
+      raceName: races.name,
+    })
+      .from(raceAlerts)
+      .leftJoin(races, eq(races.id, raceAlerts.raceId))
+      .where(eq(raceAlerts.userId, userId))
+      .orderBy(desc(raceAlerts.createdAt));
+    return rows as (RaceAlert & { raceSlug: string | null; raceName: string | null })[];
+  }
+
   async createRaceAlert(data: InsertRaceAlert): Promise<RaceAlert> {
     const [a] = await db.insert(raceAlerts).values(data).onConflictDoNothing().returning();
     if (!a) {
@@ -1070,6 +1089,142 @@ export class DatabaseStorage implements IStorage {
       total += Number(r.count);
     }
     return { total, byDestination };
+  }
+
+  // ───────── Alert dispatch + preferences ─────────
+  async getUserAlertPrefs(userId: number): Promise<{ unsubscribedAll: boolean; unsubscribedAlertTypes: string[] } | undefined> {
+    const [u] = await db.select({
+      unsubscribedAll: users.unsubscribedAll,
+      unsubscribedAlertTypes: users.unsubscribedAlertTypes,
+    }).from(users).where(eq(users.id, userId));
+    return u;
+  }
+
+  async updateUserAlertPrefs(userId: number, prefs: { unsubscribedAll?: boolean; unsubscribedAlertTypes?: string[] }): Promise<void> {
+    const update: Record<string, unknown> = {};
+    if (typeof prefs.unsubscribedAll === "boolean") update.unsubscribedAll = prefs.unsubscribedAll;
+    if (Array.isArray(prefs.unsubscribedAlertTypes)) update.unsubscribedAlertTypes = prefs.unsubscribedAlertTypes;
+    if (Object.keys(update).length === 0) return;
+    await db.update(users).set(update).where(eq(users.id, userId));
+  }
+
+  async findDispatchByKey(key: string): Promise<AlertDispatch | undefined> {
+    const [d] = await db.select().from(alertDispatches).where(eq(alertDispatches.dispatchKey, key));
+    return d;
+  }
+
+  async findDispatchByToken(token: string): Promise<AlertDispatch | undefined> {
+    const [d] = await db.select().from(alertDispatches).where(eq(alertDispatches.unsubToken, token));
+    return d;
+  }
+
+  async findDispatchByTrackToken(token: string): Promise<AlertDispatch | undefined> {
+    const [d] = await db.select().from(alertDispatches).where(eq(alertDispatches.trackToken, token));
+    return d;
+  }
+
+  async recordAlertDispatch(data: InsertAlertDispatch): Promise<AlertDispatch | undefined> {
+    const [d] = await db.insert(alertDispatches).values(data).onConflictDoNothing({ target: alertDispatches.dispatchKey }).returning();
+    return d;
+  }
+
+  async markAlertOpened(trackToken: string): Promise<void> {
+    await db.update(alertDispatches)
+      .set({ openedAt: new Date() })
+      .where(and(eq(alertDispatches.trackToken, trackToken), sql`${alertDispatches.openedAt} IS NULL`));
+  }
+
+  async markAlertClicked(trackToken: string): Promise<void> {
+    await db.update(alertDispatches)
+      .set({ clickedAt: new Date() })
+      .where(and(eq(alertDispatches.trackToken, trackToken), sql`${alertDispatches.clickedAt} IS NULL`));
+  }
+
+  async unsubscribeUserFromTokenAlertType(token: string): Promise<{ userId: number; alertType: string } | undefined> {
+    const dispatch = await this.findDispatchByToken(token);
+    if (!dispatch) return undefined;
+    const prefs = await this.getUserAlertPrefs(dispatch.userId);
+    const current = prefs?.unsubscribedAlertTypes ?? [];
+    if (!current.includes(dispatch.alertType)) {
+      await this.updateUserAlertPrefs(dispatch.userId, {
+        unsubscribedAlertTypes: [...current, dispatch.alertType],
+      });
+    }
+    return { userId: dispatch.userId, alertType: dispatch.alertType };
+  }
+
+  async getActiveSavedSearches(): Promise<(SavedSearch & { userEmail: string; userId: number; unsubscribedAll: boolean; unsubscribedAlertTypes: string[] })[]> {
+    const rows = await db.select({
+      id: savedSearches.id,
+      userId: savedSearches.userId,
+      name: savedSearches.name,
+      queryJson: savedSearches.queryJson,
+      alertEnabled: savedSearches.alertEnabled,
+      lastNotifiedAt: savedSearches.lastNotifiedAt,
+      createdAt: savedSearches.createdAt,
+      userEmail: users.email,
+      unsubscribedAll: users.unsubscribedAll,
+      unsubscribedAlertTypes: users.unsubscribedAlertTypes,
+    }).from(savedSearches)
+      .innerJoin(users, eq(users.id, savedSearches.userId))
+      .where(eq(savedSearches.alertEnabled, true));
+    return rows as (SavedSearch & { userEmail: string; userId: number; unsubscribedAll: boolean; unsubscribedAlertTypes: string[] })[];
+  }
+
+  async getActiveRaceAlertsWithRace(): Promise<{ alert: RaceAlert; race: Race; userEmail: string; unsubscribedAll: boolean; unsubscribedAlertTypes: string[] }[]> {
+    const rows = await db.select({
+      alert: raceAlerts,
+      race: races,
+      userEmail: users.email,
+      unsubscribedAll: users.unsubscribedAll,
+      unsubscribedAlertTypes: users.unsubscribedAlertTypes,
+    }).from(raceAlerts)
+      .innerJoin(users, eq(users.id, raceAlerts.userId))
+      .innerJoin(races, eq(races.id, raceAlerts.raceId))
+      .where(eq(races.isActive, true));
+    return rows;
+  }
+
+  async getFavoritedRacesForReminders(daysOut: number): Promise<{ userId: number; userEmail: string; race: Race; favoriteId: number; unsubscribedAll: boolean; unsubscribedAlertTypes: string[] }[]> {
+    const rows = await db.select({
+      favoriteId: favorites.id,
+      userId: favorites.userId,
+      userEmail: users.email,
+      race: races,
+      unsubscribedAll: users.unsubscribedAll,
+      unsubscribedAlertTypes: users.unsubscribedAlertTypes,
+    }).from(favorites)
+      .innerJoin(users, eq(users.id, favorites.userId))
+      .innerJoin(races, eq(races.id, favorites.itemId))
+      .where(and(
+        eq(favorites.itemType, "race"),
+        eq(races.isActive, true),
+        sql`${races.date}::date >= CURRENT_DATE`,
+        sql`${races.date}::date <= (CURRENT_DATE + INTERVAL '1 day' * ${daysOut})::date`,
+      ));
+    return rows;
+  }
+
+  async updateRaceAlertNotified(id: number): Promise<void> {
+    await db.update(raceAlerts).set({ lastNotifiedAt: new Date() }).where(eq(raceAlerts.id, id));
+  }
+
+  async updateSavedSearchNotified(id: number): Promise<void> {
+    await db.update(savedSearches).set({ lastNotifiedAt: new Date() }).where(eq(savedSearches.id, id));
+  }
+
+  async getDispatchStats(sinceDays: number = 30): Promise<{ alertType: string; sent: number; opened: number; clicked: number }[]> {
+    const since = new Date();
+    since.setDate(since.getDate() - sinceDays);
+    const rows = await db.select({
+      alertType: alertDispatches.alertType,
+      sent: sql<number>`COUNT(*)::int`,
+      opened: sql<number>`COUNT(${alertDispatches.openedAt})::int`,
+      clicked: sql<number>`COUNT(${alertDispatches.clickedAt})::int`,
+    }).from(alertDispatches)
+      .where(sql`${alertDispatches.dispatchedAt} >= ${since}`)
+      .groupBy(alertDispatches.alertType);
+    return rows;
   }
 }
 

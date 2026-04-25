@@ -760,6 +760,16 @@ const prefetchFavorites: PrefetchFn = async () => ({
   canonicalUrl: "https://running.services/favorites",
 });
 
+const prefetchAlerts: PrefetchFn = async () => ({
+  title: "Alerts & saved searches | running.services",
+  description: "Manage your race alerts, saved searches, and email digest preferences on running.services.",
+  ogTitle: "Alerts & saved searches | running.services",
+  ogDescription: "Get notified before prices go up or registration closes — manage your alerts and saved searches.",
+  ogType: "website",
+  canonicalUrl: "https://running.services/alerts",
+  noindex: true,
+});
+
 const prefetchRaceShopper: PrefetchFn = async (_qc, params) => {
   const goal = params.goal;
   const title = goal ? `Race Shopper: ${goal} | running.services` : "Race Shopper | running.services";
@@ -1288,6 +1298,7 @@ const routeMatches: RouteMatch[] = [
   { pattern: /^\/blog$/, prefetch: prefetchBlog, paramNames: [] },
   { pattern: /^\/auth\/verify$/, prefetch: prefetchAuthVerify, paramNames: [] },
   { pattern: /^\/favorites$/, prefetch: prefetchFavorites, paramNames: [] },
+  { pattern: /^\/alerts$/, prefetch: prefetchAlerts, paramNames: [] },
   { pattern: /^\/race-shopper\/([^/]+)$/, prefetch: prefetchRaceShopper, paramNames: ["goal"] },
   { pattern: /^\/race-shopper$/, prefetch: prefetchRaceShopper, paramNames: [] },
   { pattern: /^\/shopper\/([^/]+)$/, prefetch: prefetchRaceShopper, paramNames: ["goal"] },
