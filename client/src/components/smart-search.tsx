@@ -155,7 +155,7 @@ export function SmartSearch({ className, variant = "desktop" }: { className?: st
           onChange={e => setQuery(e.target.value)}
           onFocus={() => { if (query.length >= 2 && results) setIsOpen(true); }}
           onKeyDown={handleKeyDown}
-          placeholder="Search races, routes, states..."
+          placeholder="Search races, cities, organizers..."
           className={cn(
             "rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary",
             variant === "mobile"
