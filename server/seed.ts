@@ -487,4 +487,16 @@ export async function seedDatabase() {
   console.log(`Seeded ${SEED_BOOKS.length} books`);
 
   console.log("Database seeding complete.");
+
+  setImmediate(async () => {
+    try {
+      const { backfillRaceScores } = await import("./scoring-backfill");
+      const result = await backfillRaceScores({ batchSize: 500, force: false });
+      if (result.updated > 0) {
+        console.log(`[scoring] Backfilled scores for ${result.updated} of ${result.processed} races.`);
+      }
+    } catch (err) {
+      console.error("[scoring] Background backfill failed:", err);
+    }
+  });
 }

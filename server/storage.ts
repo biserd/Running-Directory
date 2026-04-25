@@ -1,11 +1,14 @@
 import { db } from "./db";
-import { states, cities, races, raceOccurrences, routes, sources, sourceRecords, collections, influencers, podcasts, books, users, magicLinkTokens, favorites, reviews } from "@shared/schema";
+import { states, cities, races, raceOccurrences, routes, sources, sourceRecords, collections, influencers, podcasts, books, users, magicLinkTokens, favorites, reviews, organizers, raceSeries, raceClaims, savedSearches, raceAlerts, outboundClicks } from "@shared/schema";
 import type {
   State, City, Race, RaceOccurrence, Route, Source, SourceRecord, Collection, Influencer, Podcast, Book,
   InsertState, InsertCity, InsertRace, InsertRaceOccurrence, InsertRoute, InsertSource, InsertSourceRecord, InsertCollection, InsertInfluencer, InsertPodcast, InsertBook,
-  User, MagicLinkToken, Favorite, Review
+  User, MagicLinkToken, Favorite, Review,
+  Organizer, RaceSeries, RaceClaim, SavedSearch, RaceAlert, OutboundClick,
+  InsertOrganizer, InsertRaceSeries, InsertRaceClaim, InsertSavedSearch, InsertRaceAlert, InsertOutboundClick,
+  RaceSearchFilters,
 } from "@shared/schema";
-import { eq, and, sql, desc, asc, ilike, inArray } from "drizzle-orm";
+import { eq, and, sql, desc, asc, ilike, inArray, gte, lte, or, isNotNull } from "drizzle-orm";
 
 export interface IStorage {
   getStates(): Promise<State[]>;
@@ -86,6 +89,39 @@ export interface IStorage {
   createReview(userId: number, itemType: string, itemId: number, rating: number, comment?: string): Promise<Review>;
   updateReview(id: number, userId: number, rating: number, comment?: string): Promise<Review>;
   deleteReview(id: number, userId: number): Promise<void>;
+
+  getRacesAdvanced(filters: RaceSearchFilters): Promise<Race[]>;
+  getRaceWithScores(slug: string): Promise<Race | undefined>;
+  getSimilarRaces(slug: string, limit?: number): Promise<Race[]>;
+  getRacesThisWeekend(state?: string): Promise<Race[]>;
+  getPriceIncreasingSoon(days?: number, limit?: number): Promise<Race[]>;
+  updateRaceScores(raceId: number, scores: { beginnerScore: number; prScore: number; valueScore: number; vibeScore: number; familyScore: number; urgencyScore: number; scoreBreakdown: unknown }): Promise<void>;
+
+  getOrganizers(filters?: { state?: string; isVerified?: boolean; limit?: number }): Promise<Organizer[]>;
+  getOrganizerBySlug(slug: string): Promise<Organizer | undefined>;
+  createOrganizer(data: InsertOrganizer): Promise<Organizer>;
+  updateOrganizer(id: number, data: Partial<InsertOrganizer>): Promise<Organizer | undefined>;
+  getRacesByOrganizer(organizerId: number): Promise<Race[]>;
+
+  createRaceClaim(data: InsertRaceClaim): Promise<RaceClaim>;
+  getRaceClaimByToken(token: string): Promise<RaceClaim | undefined>;
+  getRaceClaimsByRace(raceId: number): Promise<RaceClaim[]>;
+  getRaceClaimsByStatus(status: string, limit?: number): Promise<RaceClaim[]>;
+  approveRaceClaim(id: number, organizerId: number, reviewerNote?: string): Promise<void>;
+  rejectRaceClaim(id: number, reviewerNote?: string): Promise<void>;
+  verifyRaceClaim(id: number): Promise<void>;
+
+  getSavedSearches(userId: number): Promise<SavedSearch[]>;
+  createSavedSearch(data: InsertSavedSearch): Promise<SavedSearch>;
+  deleteSavedSearch(id: number, userId: number): Promise<void>;
+  toggleSavedSearchAlert(id: number, userId: number, enabled: boolean): Promise<void>;
+
+  getRaceAlerts(userId: number): Promise<RaceAlert[]>;
+  createRaceAlert(data: InsertRaceAlert): Promise<RaceAlert>;
+  deleteRaceAlert(id: number, userId: number): Promise<void>;
+
+  recordOutboundClick(data: InsertOutboundClick): Promise<OutboundClick>;
+  getOutboundClickStats(raceId: number, sinceDays?: number): Promise<{ total: number; byDestination: Record<string, number> }>;
 
   search(query: string, limit?: number): Promise<{
     races: { id: number; name: string; slug: string; city: string | null; state: string | null; distance: string | null; date: string | null }[];
@@ -389,35 +425,19 @@ export class DatabaseStorage implements IStorage {
       LIMIT ${limit}
     `);
 
-    return (results.rows as any[]).map(row => ({
-      id: row.id,
-      slug: row.slug,
-      name: row.name,
-      date: row.date,
-      city: row.city,
-      state: row.state,
-      distance: row.distance,
-      surface: row.surface,
-      elevation: row.elevation,
-      description: row.description,
-      website: row.website,
-      registrationUrl: row.registration_url,
-      startTime: row.start_time,
-      timeLimit: row.time_limit,
-      bostonQualifier: row.boston_qualifier,
-      cityId: row.city_id,
-      stateId: row.state_id,
-      distanceMeters: row.distance_meters,
-      distanceLabel: row.distance_label,
-      lat: row.lat,
-      lng: row.lng,
-      isActive: row.is_active,
-      qualityScore: row.quality_score,
-      firstSeenAt: row.first_seen_at,
-      lastSeenAt: row.last_seen_at,
-      distanceMiles: row.distance_miles ? Math.round(parseFloat(row.distance_miles) * 10) / 10 : 0,
-    }));
+    return (results.rows as any[]).map(row => {
+      const camel: Record<string, any> = {};
+      for (const k of Object.keys(row)) {
+        const ck = k.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+        camel[ck] = row[k];
+      }
+      return {
+        ...(camel as Race),
+        distanceMiles: row.distance_miles ? Math.round(parseFloat(row.distance_miles) * 10) / 10 : 0,
+      };
+    });
   }
+
   async getPopularRaces(limit: number = 12): Promise<Race[]> {
     const today = new Date().toISOString().split("T")[0];
     return db.select().from(races)
@@ -663,7 +683,7 @@ export class DatabaseStorage implements IStorage {
       influencers: influencerResults,
       podcasts: podcastResults,
       books: bookResults,
-    };
+    } as any;
   }
 
   async getReviews(itemType: string, itemId: number): Promise<(Review & { userName: string | null })[]> {
@@ -718,6 +738,294 @@ export class DatabaseStorage implements IStorage {
 
   async deleteReview(id: number, userId: number): Promise<void> {
     await db.delete(reviews).where(and(eq(reviews.id, id), eq(reviews.userId, userId)));
+  }
+
+  async getRacesAdvanced(filters: RaceSearchFilters): Promise<Race[]> {
+    const conditions = [eq(races.isActive, true)];
+
+    if (filters.state) conditions.push(eq(races.state, filters.state));
+    if (filters.city) conditions.push(eq(races.city, filters.city));
+    if (filters.cityId) conditions.push(eq(races.cityId, filters.cityId));
+    if (filters.distance) conditions.push(eq(races.distance, filters.distance));
+    if (filters.distances && filters.distances.length > 0) conditions.push(inArray(races.distance, filters.distances));
+    if (filters.surface) conditions.push(eq(races.surface, filters.surface));
+    if (filters.terrain) conditions.push(eq(races.terrain, filters.terrain));
+
+    if (filters.year) conditions.push(sql`EXTRACT(YEAR FROM ${races.date}::date) = ${filters.year}`);
+    if (filters.month) conditions.push(sql`EXTRACT(MONTH FROM ${races.date}::date) = ${filters.month}`);
+    if (filters.dateFrom) conditions.push(sql`${races.date} >= ${filters.dateFrom}`);
+    if (filters.dateTo) conditions.push(sql`${races.date} <= ${filters.dateTo}`);
+    if (!filters.year && !filters.month && !filters.dateFrom) {
+      conditions.push(sql`${races.date} >= CURRENT_DATE::text`);
+    }
+
+    if (filters.priceMin != null) conditions.push(sql`COALESCE(${races.priceMin}, ${races.priceMax}, 0) >= ${filters.priceMin}`);
+    if (filters.priceMax != null) conditions.push(sql`COALESCE(${races.priceMax}, ${races.priceMin}, 0) <= ${filters.priceMax}`);
+
+    if (filters.minBeginnerScore != null) conditions.push(sql`COALESCE(${races.beginnerScore}, 0) >= ${filters.minBeginnerScore}`);
+    if (filters.minPrScore != null) conditions.push(sql`COALESCE(${races.prScore}, 0) >= ${filters.minPrScore}`);
+    if (filters.minValueScore != null) conditions.push(sql`COALESCE(${races.valueScore}, 0) >= ${filters.minValueScore}`);
+    if (filters.minVibeScore != null) conditions.push(sql`COALESCE(${races.vibeScore}, 0) >= ${filters.minVibeScore}`);
+    if (filters.minFamilyScore != null) conditions.push(sql`COALESCE(${races.familyScore}, 0) >= ${filters.minFamilyScore}`);
+
+    if (filters.walkerFriendly) conditions.push(eq(races.walkerFriendly, true));
+    if (filters.strollerFriendly) conditions.push(eq(races.strollerFriendly, true));
+    if (filters.dogFriendly) conditions.push(eq(races.dogFriendly, true));
+    if (filters.kidsRace) conditions.push(eq(races.kidsRace, true));
+    if (filters.charity) conditions.push(eq(races.charity, true));
+    if (filters.bostonQualifier) conditions.push(eq(races.bostonQualifier, true));
+    if (filters.isTurkeyTrot) conditions.push(eq(races.isTurkeyTrot, true));
+    if (filters.vibeTag) conditions.push(sql`${filters.vibeTag} = ANY(${races.vibeTags})`);
+    if (filters.registrationOpen) conditions.push(or(eq(races.registrationOpen, true), sql`${races.registrationOpen} IS NULL`)!);
+    if (filters.priceIncreaseSoon) {
+      conditions.push(sql`${races.nextPriceIncreaseAt} IS NOT NULL AND ${races.nextPriceIncreaseAt}::date <= (CURRENT_DATE + INTERVAL '14 days')::date`);
+    }
+    if (filters.organizerId) conditions.push(eq(races.organizerId, filters.organizerId));
+    if (filters.seriesId) conditions.push(eq(races.seriesId, filters.seriesId));
+
+    if (filters.near) {
+      const { lat, lng, radiusMiles } = filters.near;
+      const cosLat = Math.cos(lat * Math.PI / 180);
+      conditions.push(sql`(
+        (${races.lat} IS NOT NULL AND ${races.lng} IS NOT NULL AND
+         SQRT(POWER((${races.lat} - ${lat}), 2) + POWER((${cosLat} * (${races.lng} - ${lng})), 2)) * 69.0 <= ${radiusMiles})
+      )`);
+    }
+
+    let orderBy;
+    switch (filters.sort) {
+      case "price": orderBy = [asc(sql`COALESCE(${races.priceMin}, ${races.priceMax}, 999999)`), asc(races.date)]; break;
+      case "beginner": orderBy = [desc(sql`COALESCE(${races.beginnerScore}, 0)`), asc(races.date)]; break;
+      case "pr": orderBy = [desc(sql`COALESCE(${races.prScore}, 0)`), asc(races.date)]; break;
+      case "value": orderBy = [desc(sql`COALESCE(${races.valueScore}, 0)`), asc(races.date)]; break;
+      case "vibe": orderBy = [desc(sql`COALESCE(${races.vibeScore}, 0)`), asc(races.date)]; break;
+      case "family": orderBy = [desc(sql`COALESCE(${races.familyScore}, 0)`), asc(races.date)]; break;
+      case "urgency": orderBy = [desc(sql`COALESCE(${races.urgencyScore}, 0)`), asc(races.date)]; break;
+      case "quality": orderBy = [desc(races.qualityScore), asc(races.date)]; break;
+      default: orderBy = [asc(races.date)];
+    }
+
+    return db.select().from(races)
+      .where(and(...conditions))
+      .orderBy(...orderBy)
+      .limit(filters.limit ?? 100)
+      .offset(filters.offset ?? 0);
+  }
+
+  async getRaceWithScores(slug: string): Promise<Race | undefined> {
+    const [race] = await db.select().from(races).where(eq(races.slug, slug));
+    return race;
+  }
+
+  async getSimilarRaces(slug: string, limit: number = 6): Promise<Race[]> {
+    const [race] = await db.select().from(races).where(eq(races.slug, slug));
+    if (!race) return [];
+
+    const today = new Date().toISOString().split("T")[0];
+    return db.select().from(races)
+      .where(and(
+        eq(races.isActive, true),
+        sql`${races.id} != ${race.id}`,
+        sql`${races.date} >= ${today}`,
+        or(
+          eq(races.distance, race.distance),
+          eq(races.state, race.state),
+        )!,
+      ))
+      .orderBy(desc(races.qualityScore), asc(races.date))
+      .limit(limit);
+  }
+
+  async getRacesThisWeekend(state?: string): Promise<Race[]> {
+    const now = new Date();
+    const day = now.getDay();
+    let start = new Date(now);
+    let end: Date;
+    if (day === 5 || day === 6 || day === 0) {
+      end = new Date(now);
+      end.setDate(now.getDate() + (day === 5 ? 2 : day === 6 ? 1 : 0));
+    } else {
+      start = new Date(now);
+      start.setDate(now.getDate() + ((5 - day + 7) % 7));
+      end = new Date(start);
+      end.setDate(start.getDate() + 2);
+    }
+    const startStr = start.toISOString().split("T")[0];
+    const endStr = end.toISOString().split("T")[0];
+
+    const conditions = [
+      eq(races.isActive, true),
+      sql`${races.date} >= ${startStr}`,
+      sql`${races.date} <= ${endStr}`,
+    ];
+    if (state) conditions.push(eq(races.state, state));
+
+    return db.select().from(races)
+      .where(and(...conditions))
+      .orderBy(asc(races.date), desc(races.qualityScore))
+      .limit(60);
+  }
+
+  async getPriceIncreasingSoon(days: number = 14, limit: number = 30): Promise<Race[]> {
+    return db.select().from(races)
+      .where(and(
+        eq(races.isActive, true),
+        isNotNull(races.nextPriceIncreaseAt),
+        sql`${races.nextPriceIncreaseAt}::date <= (CURRENT_DATE + INTERVAL '${sql.raw(String(days))} days')::date`,
+        sql`${races.nextPriceIncreaseAt}::date >= CURRENT_DATE`,
+      ))
+      .orderBy(asc(races.nextPriceIncreaseAt))
+      .limit(limit);
+  }
+
+  async updateRaceScores(raceId: number, scores: { beginnerScore: number; prScore: number; valueScore: number; vibeScore: number; familyScore: number; urgencyScore: number; scoreBreakdown: unknown }): Promise<void> {
+    await db.update(races).set({
+      beginnerScore: scores.beginnerScore,
+      prScore: scores.prScore,
+      valueScore: scores.valueScore,
+      vibeScore: scores.vibeScore,
+      familyScore: scores.familyScore,
+      urgencyScore: scores.urgencyScore,
+      scoreBreakdown: scores.scoreBreakdown as any,
+      scoresUpdatedAt: new Date(),
+    }).where(eq(races.id, raceId));
+  }
+
+  async getOrganizers(filters?: { state?: string; isVerified?: boolean; limit?: number }): Promise<Organizer[]> {
+    const conditions = [];
+    if (filters?.state) conditions.push(eq(organizers.state, filters.state));
+    if (filters?.isVerified != null) conditions.push(eq(organizers.isVerified, filters.isVerified));
+
+    const q = db.select().from(organizers);
+    if (conditions.length > 0) {
+      return q.where(and(...conditions)).orderBy(desc(organizers.raceCount), organizers.name).limit(filters?.limit || 100);
+    }
+    return q.orderBy(desc(organizers.raceCount), organizers.name).limit(filters?.limit || 100);
+  }
+
+  async getOrganizerBySlug(slug: string): Promise<Organizer | undefined> {
+    const [org] = await db.select().from(organizers).where(eq(organizers.slug, slug));
+    return org;
+  }
+
+  async createOrganizer(data: InsertOrganizer): Promise<Organizer> {
+    const [org] = await db.insert(organizers).values(data).returning();
+    return org;
+  }
+
+  async updateOrganizer(id: number, data: Partial<InsertOrganizer>): Promise<Organizer | undefined> {
+    const [org] = await db.update(organizers).set(data).where(eq(organizers.id, id)).returning();
+    return org;
+  }
+
+  async getRacesByOrganizer(organizerId: number): Promise<Race[]> {
+    return db.select().from(races)
+      .where(and(eq(races.organizerId, organizerId), eq(races.isActive, true)))
+      .orderBy(asc(races.date));
+  }
+
+  async createRaceClaim(data: InsertRaceClaim): Promise<RaceClaim> {
+    const [claim] = await db.insert(raceClaims).values(data).returning();
+    return claim;
+  }
+
+  async getRaceClaimByToken(token: string): Promise<RaceClaim | undefined> {
+    const [claim] = await db.select().from(raceClaims).where(eq(raceClaims.verificationToken, token));
+    return claim;
+  }
+
+  async getRaceClaimsByRace(raceId: number): Promise<RaceClaim[]> {
+    return db.select().from(raceClaims).where(eq(raceClaims.raceId, raceId)).orderBy(desc(raceClaims.createdAt));
+  }
+
+  async getRaceClaimsByStatus(status: string, limit: number = 100): Promise<RaceClaim[]> {
+    return db.select().from(raceClaims).where(eq(raceClaims.status, status)).orderBy(desc(raceClaims.createdAt)).limit(limit);
+  }
+
+  async approveRaceClaim(id: number, organizerId: number, reviewerNote?: string): Promise<void> {
+    const [claim] = await db.select().from(raceClaims).where(eq(raceClaims.id, id));
+    if (!claim) return;
+    await db.update(raceClaims).set({
+      status: "approved",
+      organizerId,
+      reviewerNote: reviewerNote ?? null,
+      reviewedAt: new Date(),
+    }).where(eq(raceClaims.id, id));
+    await db.update(races).set({ organizerId, isClaimed: true }).where(eq(races.id, claim.raceId));
+  }
+
+  async rejectRaceClaim(id: number, reviewerNote?: string): Promise<void> {
+    await db.update(raceClaims).set({
+      status: "rejected",
+      reviewerNote: reviewerNote ?? null,
+      reviewedAt: new Date(),
+    }).where(eq(raceClaims.id, id));
+  }
+
+  async verifyRaceClaim(id: number): Promise<void> {
+    await db.update(raceClaims).set({ verifiedAt: new Date() }).where(eq(raceClaims.id, id));
+  }
+
+  async getSavedSearches(userId: number): Promise<SavedSearch[]> {
+    return db.select().from(savedSearches).where(eq(savedSearches.userId, userId)).orderBy(desc(savedSearches.createdAt));
+  }
+
+  async createSavedSearch(data: InsertSavedSearch): Promise<SavedSearch> {
+    const [s] = await db.insert(savedSearches).values(data).returning();
+    return s;
+  }
+
+  async deleteSavedSearch(id: number, userId: number): Promise<void> {
+    await db.delete(savedSearches).where(and(eq(savedSearches.id, id), eq(savedSearches.userId, userId)));
+  }
+
+  async toggleSavedSearchAlert(id: number, userId: number, enabled: boolean): Promise<void> {
+    await db.update(savedSearches).set({ alertEnabled: enabled }).where(and(eq(savedSearches.id, id), eq(savedSearches.userId, userId)));
+  }
+
+  async getRaceAlerts(userId: number): Promise<RaceAlert[]> {
+    return db.select().from(raceAlerts).where(eq(raceAlerts.userId, userId)).orderBy(desc(raceAlerts.createdAt));
+  }
+
+  async createRaceAlert(data: InsertRaceAlert): Promise<RaceAlert> {
+    const [a] = await db.insert(raceAlerts).values(data).onConflictDoNothing().returning();
+    if (!a) {
+      const [existing] = await db.select().from(raceAlerts).where(and(
+        eq(raceAlerts.userId, data.userId),
+        eq(raceAlerts.raceId, data.raceId),
+        eq(raceAlerts.alertType, data.alertType),
+      ));
+      return existing;
+    }
+    return a;
+  }
+
+  async deleteRaceAlert(id: number, userId: number): Promise<void> {
+    await db.delete(raceAlerts).where(and(eq(raceAlerts.id, id), eq(raceAlerts.userId, userId)));
+  }
+
+  async recordOutboundClick(data: InsertOutboundClick): Promise<OutboundClick> {
+    const [c] = await db.insert(outboundClicks).values(data).returning();
+    return c;
+  }
+
+  async getOutboundClickStats(raceId: number, sinceDays: number = 30): Promise<{ total: number; byDestination: Record<string, number> }> {
+    const since = new Date();
+    since.setDate(since.getDate() - sinceDays);
+    const rows = await db.select({
+      destination: outboundClicks.destination,
+      count: sql<number>`COUNT(*)::int`,
+    }).from(outboundClicks)
+      .where(and(eq(outboundClicks.raceId, raceId), sql`${outboundClicks.createdAt} >= ${since}`))
+      .groupBy(outboundClicks.destination);
+
+    const byDestination: Record<string, number> = {};
+    let total = 0;
+    for (const r of rows) {
+      byDestination[r.destination] = Number(r.count);
+      total += Number(r.count);
+    }
+    return { total, byDestination };
   }
 }
 

@@ -4,6 +4,11 @@ import { storage } from "./storage";
 import { refreshRaceData } from "./ingestion/pipeline";
 import { fetchRacesByState } from "./ingestion/runsignup";
 import { sendMagicLinkEmail, sendAdminNewUserNotification } from "./email";
+import { computeRaceScores } from "./scoring";
+import { backfillRaceScores, recomputeUrgencyScores } from "./scoring-backfill";
+import { z } from "zod";
+import { insertOrganizerSchema, insertRaceClaimSchema, insertSavedSearchSchema, insertRaceAlertSchema, insertOutboundClickSchema } from "@shared/schema";
+import type { RaceSearchFilters } from "@shared/schema";
 import crypto from "crypto";
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -234,7 +239,19 @@ export async function registerRoutes(
     res.json(races);
   });
 
-  app.get("/api/races/:slug", async (req, res) => {
+  const RESERVED_RACE_ROUTES = new Set([
+    "search",
+    "compare",
+    "this-weekend",
+    "price-increase-soon",
+    "shopper",
+    "popular",
+    "trending",
+    "nearby",
+  ]);
+
+  app.get("/api/races/:slug", async (req, res, next) => {
+    if (RESERVED_RACE_ROUTES.has(req.params.slug)) return next();
     const race = await storage.getRaceBySlug(req.params.slug);
     if (!race) return res.status(404).json({ message: "Race not found" });
     res.json(race);
@@ -531,7 +548,10 @@ export async function registerRoutes(
 
   const adminAuth = (req: any, res: any, next: any) => {
     const adminKey = process.env.ADMIN_API_KEY;
-    if (adminKey && req.headers["x-admin-key"] !== adminKey) {
+    if (!adminKey) {
+      return res.status(503).json({ error: "Admin API not configured" });
+    }
+    if (req.headers["x-admin-key"] !== adminKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     next();
@@ -642,9 +662,401 @@ export async function registerRoutes(
   });
 
   app.delete("/api/reviews/:id", requireAuth, async (req, res) => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(String(req.params.id));
     await storage.deleteReview(id, req.session.userId!);
     res.json({ success: true });
+  });
+
+  const optStr = z.string().optional();
+  const optBool = z.preprocess(v => v === "true" || v === true ? true : v === "false" || v === false ? false : undefined, z.boolean().optional());
+  const optInt = z.preprocess(v => v == null || v === "" ? undefined : Number(v), z.number().int().optional());
+
+  const raceSearchSchema = z.object({
+    state: optStr,
+    city: optStr,
+    cityId: optInt,
+    distance: optStr,
+    distances: z.union([z.string(), z.array(z.string())]).optional().transform(v => v == null ? undefined : Array.isArray(v) ? v : v.split(",").filter(Boolean)),
+    surface: optStr,
+    terrain: optStr,
+    year: optInt,
+    month: optInt,
+    dateFrom: optStr,
+    dateTo: optStr,
+    priceMin: optInt,
+    priceMax: optInt,
+    minBeginnerScore: optInt,
+    minPrScore: optInt,
+    minValueScore: optInt,
+    minVibeScore: optInt,
+    minFamilyScore: optInt,
+    walkerFriendly: optBool,
+    strollerFriendly: optBool,
+    dogFriendly: optBool,
+    kidsRace: optBool,
+    charity: optBool,
+    bostonQualifier: optBool,
+    isTurkeyTrot: optBool,
+    vibeTag: optStr,
+    registrationOpen: optBool,
+    priceIncreaseSoon: optBool,
+    organizerId: optInt,
+    seriesId: optInt,
+    lat: z.preprocess(v => v == null || v === "" ? undefined : Number(v), z.number().optional()),
+    lng: z.preprocess(v => v == null || v === "" ? undefined : Number(v), z.number().optional()),
+    radiusMiles: z.preprocess(v => v == null || v === "" ? undefined : Number(v), z.number().optional()),
+    sort: z.enum(["date", "price", "beginner", "pr", "value", "vibe", "family", "urgency", "quality"]).optional(),
+    limit: optInt,
+    offset: optInt,
+  });
+
+  function parseRaceFilters(req: Request): RaceSearchFilters {
+    const parsed = raceSearchSchema.parse(req.query);
+    const { lat, lng, radiusMiles, ...rest } = parsed;
+    const filters: RaceSearchFilters = { ...rest };
+    if (lat != null && lng != null) {
+      filters.near = { lat, lng, radiusMiles: radiusMiles ?? 50 };
+    }
+    return filters;
+  }
+
+  app.get("/api/races/search", async (req, res) => {
+    try {
+      const filters = parseRaceFilters(req);
+      const results = await storage.getRacesAdvanced(filters);
+      res.json(results);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid filters", errors: err.errors });
+      }
+      console.error("Race search error:", err);
+      res.status(500).json({ message: "Search failed" });
+    }
+  });
+
+  app.get("/api/races/compare", async (req, res) => {
+    const idsParam = (req.query.ids as string) || "";
+    const ids = idsParam.split(",").map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+    if (ids.length < 2 || ids.length > 4) {
+      return res.status(400).json({ message: "Provide 2 to 4 race ids in ids=1,2,3" });
+    }
+    const list = await storage.getRacesByIds(ids);
+    const ordered = ids.map(id => list.find(r => r.id === id)).filter(Boolean);
+    res.json(ordered);
+  });
+
+  app.get("/api/races/this-weekend", async (req, res) => {
+    const state = (req.query.state as string) || undefined;
+    const list = await storage.getRacesThisWeekend(state);
+    res.json(list);
+  });
+
+  app.get("/api/races/price-increase-soon", async (req, res) => {
+    const days = req.query.days ? parseInt(req.query.days as string) : 14;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 30;
+    const list = await storage.getPriceIncreasingSoon(days, limit);
+    res.json(list);
+  });
+
+  const shopperSchema = z.object({
+    goal: z.enum(["beginner", "pr", "value", "vibe", "family", "urgency"]).default("beginner"),
+    distance: z.string().optional(),
+    distances: z.array(z.string()).optional(),
+    state: z.string().optional(),
+    near: z.object({ lat: z.number(), lng: z.number(), radiusMiles: z.number().optional() }).optional(),
+    dateFrom: z.string().optional(),
+    dateTo: z.string().optional(),
+    budget: z.number().int().optional(),
+    walkerFriendly: z.boolean().optional(),
+    strollerFriendly: z.boolean().optional(),
+    dogFriendly: z.boolean().optional(),
+    kidsRace: z.boolean().optional(),
+    charity: z.boolean().optional(),
+    bostonQualifier: z.boolean().optional(),
+    limit: z.number().int().optional(),
+  });
+
+  app.post("/api/races/shopper", async (req, res) => {
+    try {
+      const input = shopperSchema.parse(req.body || {});
+      const sortKey = input.goal as RaceSearchFilters["sort"];
+      const filters: RaceSearchFilters = {
+        sort: sortKey,
+        distance: input.distance,
+        distances: input.distances,
+        state: input.state,
+        dateFrom: input.dateFrom,
+        dateTo: input.dateTo,
+        priceMax: input.budget,
+        walkerFriendly: input.walkerFriendly,
+        strollerFriendly: input.strollerFriendly,
+        dogFriendly: input.dogFriendly,
+        kidsRace: input.kidsRace,
+        charity: input.charity,
+        bostonQualifier: input.bostonQualifier,
+        limit: input.limit ?? 20,
+      };
+      if (input.near) {
+        filters.near = { lat: input.near.lat, lng: input.near.lng, radiusMiles: input.near.radiusMiles ?? 100 };
+      }
+      const goalToMin: Record<string, keyof RaceSearchFilters> = {
+        beginner: "minBeginnerScore",
+        pr: "minPrScore",
+        value: "minValueScore",
+        vibe: "minVibeScore",
+        family: "minFamilyScore",
+      };
+      const minKey = goalToMin[input.goal];
+      if (minKey) (filters as any)[minKey] = 40;
+      const results = await storage.getRacesAdvanced(filters);
+      res.json({ goal: input.goal, count: results.length, races: results });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: err.errors });
+      }
+      console.error("Shopper error:", err);
+      res.status(500).json({ message: "Shopper failed" });
+    }
+  });
+
+  app.get("/api/races/:slug/scores", async (req, res) => {
+    const race = await storage.getRaceBySlug(req.params.slug);
+    if (!race) return res.status(404).json({ message: "Race not found" });
+    let scores;
+    if (race.scoresUpdatedAt && race.beginnerScore != null) {
+      scores = {
+        beginnerScore: race.beginnerScore,
+        prScore: race.prScore,
+        valueScore: race.valueScore,
+        vibeScore: race.vibeScore,
+        familyScore: race.familyScore,
+        urgencyScore: race.urgencyScore,
+        scoreBreakdown: race.scoreBreakdown,
+      };
+    } else {
+      const computed = computeRaceScores(race);
+      scores = computed;
+    }
+    res.json({ raceId: race.id, slug: race.slug, ...scores });
+  });
+
+  app.get("/api/races/:slug/similar", async (req, res) => {
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 6;
+    const list = await storage.getSimilarRaces(req.params.slug, limit);
+    res.json(list);
+  });
+
+  app.get("/api/organizers", async (req, res) => {
+    const { state, verified, limit } = req.query;
+    const list = await storage.getOrganizers({
+      state: state as string | undefined,
+      isVerified: verified === "true" ? true : verified === "false" ? false : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+    });
+    res.json(list);
+  });
+
+  app.get("/api/organizers/:slug", async (req, res) => {
+    const org = await storage.getOrganizerBySlug(req.params.slug);
+    if (!org) return res.status(404).json({ message: "Organizer not found" });
+    const races = await storage.getRacesByOrganizer(org.id);
+    res.json({ organizer: org, races });
+  });
+
+  app.post("/api/organizers", adminAuth, async (req, res) => {
+    try {
+      const data = insertOrganizerSchema.parse(req.body);
+      const org = await storage.createOrganizer(data);
+      res.status(201).json(org);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: err.errors });
+      }
+      console.error("Create organizer error:", err);
+      res.status(500).json({ message: "Failed to create organizer" });
+    }
+  });
+
+  app.patch("/api/organizers/:slug", adminAuth, async (req, res) => {
+    const org = await storage.getOrganizerBySlug(req.params.slug);
+    if (!org) return res.status(404).json({ message: "Organizer not found" });
+    const updated = await storage.updateOrganizer(org.id, req.body);
+    res.json(updated);
+  });
+
+  const claimSchema = z.object({
+    raceSlug: z.string(),
+    claimerEmail: z.string().email(),
+    claimerName: z.string().optional(),
+    claimerRole: z.string().optional(),
+    message: z.string().max(2000).optional(),
+  });
+
+  app.post("/api/races/:slug/claim", async (req, res) => {
+    try {
+      const input = claimSchema.parse({ ...req.body, raceSlug: req.params.slug });
+      const race = await storage.getRaceBySlug(input.raceSlug);
+      if (!race) return res.status(404).json({ message: "Race not found" });
+
+      const verificationToken = crypto.randomBytes(32).toString("hex");
+      const claim = await storage.createRaceClaim({
+        raceId: race.id,
+        claimerEmail: input.claimerEmail.toLowerCase(),
+        claimerName: input.claimerName,
+        claimerRole: input.claimerRole,
+        message: input.message,
+        verificationToken,
+        status: "pending",
+      } as any);
+
+      res.status(201).json({
+        message: "Claim submitted. Our team will review and reach out within 2 business days.",
+        claimId: claim.id,
+      });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: err.errors });
+      }
+      console.error("Claim error:", err);
+      res.status(500).json({ message: "Claim failed" });
+    }
+  });
+
+  app.get("/api/admin/claims", adminAuth, async (req, res) => {
+    const status = (req.query.status as string) || "pending";
+    const list = await storage.getRaceClaimsByStatus(status, 100);
+    res.json(list);
+  });
+
+  app.post("/api/admin/claims/:id/approve", adminAuth, async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { organizerId, note } = req.body || {};
+    if (!organizerId) return res.status(400).json({ message: "organizerId required" });
+    await storage.approveRaceClaim(id, parseInt(organizerId), note);
+    res.json({ ok: true });
+  });
+
+  app.post("/api/admin/claims/:id/reject", adminAuth, async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { note } = req.body || {};
+    await storage.rejectRaceClaim(id, note);
+    res.json({ ok: true });
+  });
+
+  app.get("/api/saved-searches", requireAuth, async (req, res) => {
+    const list = await storage.getSavedSearches(req.session.userId!);
+    res.json(list);
+  });
+
+  app.post("/api/saved-searches", requireAuth, async (req, res) => {
+    try {
+      const data = insertSavedSearchSchema.omit({ userId: true } as any).parse(req.body);
+      const created = await storage.createSavedSearch({ ...data, userId: req.session.userId! } as any);
+      res.status(201).json(created);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: err.errors });
+      }
+      throw err;
+    }
+  });
+
+  app.patch("/api/saved-searches/:id", requireAuth, async (req, res) => {
+    const id = parseInt(String(req.params.id));
+    const { alertEnabled } = req.body || {};
+    if (typeof alertEnabled !== "boolean") return res.status(400).json({ message: "alertEnabled boolean required" });
+    await storage.toggleSavedSearchAlert(id, req.session.userId!, alertEnabled);
+    res.json({ ok: true });
+  });
+
+  app.delete("/api/saved-searches/:id", requireAuth, async (req, res) => {
+    const id = parseInt(String(req.params.id));
+    await storage.deleteSavedSearch(id, req.session.userId!);
+    res.json({ ok: true });
+  });
+
+  app.get("/api/alerts", requireAuth, async (req, res) => {
+    const list = await storage.getRaceAlerts(req.session.userId!);
+    res.json(list);
+  });
+
+  app.post("/api/alerts", requireAuth, async (req, res) => {
+    try {
+      const data = insertRaceAlertSchema.omit({ userId: true } as any).parse(req.body);
+      const created = await storage.createRaceAlert({ ...data, userId: req.session.userId! } as any);
+      res.status(201).json(created);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: err.errors });
+      }
+      throw err;
+    }
+  });
+
+  app.delete("/api/alerts/:id", requireAuth, async (req, res) => {
+    const id = parseInt(String(req.params.id));
+    await storage.deleteRaceAlert(id, req.session.userId!);
+    res.json({ ok: true });
+  });
+
+  const outboundSchema = z.object({
+    raceId: z.number().int().optional(),
+    organizerId: z.number().int().optional(),
+    destination: z.enum(["registration", "website", "organizer", "course-map", "elevation", "results", "social"]),
+    targetUrl: z.string().url(),
+  });
+
+  app.post("/api/outbound", async (req, res) => {
+    try {
+      const input = outboundSchema.parse(req.body);
+      const click = await storage.recordOutboundClick({
+        raceId: input.raceId,
+        organizerId: input.organizerId,
+        destination: input.destination,
+        targetUrl: input.targetUrl,
+        userId: req.session?.userId,
+        sessionId: req.sessionID,
+        referer: req.get("referer"),
+        userAgent: req.get("user-agent"),
+      } as any);
+      res.json({ ok: true, id: click.id });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: err.errors });
+      }
+      throw err;
+    }
+  });
+
+  app.get("/api/admin/outbound/stats/:raceId", adminAuth, async (req, res) => {
+    const days = req.query.days ? parseInt(req.query.days as string) : 30;
+    const stats = await storage.getOutboundClickStats(parseInt(req.params.raceId), days);
+    res.json(stats);
+  });
+
+  app.post("/api/admin/scoring/backfill", adminAuth, async (req, res) => {
+    const force = req.query.force === "true";
+    res.json({ status: "started", force });
+    setImmediate(async () => {
+      try {
+        const result = await backfillRaceScores({ force });
+        console.log("[scoring-backfill] complete:", result);
+      } catch (err) {
+        console.error("[scoring-backfill] failed:", err);
+      }
+    });
+  });
+
+  app.post("/api/admin/scoring/recompute-urgency", adminAuth, async (_req, res) => {
+    res.json({ status: "started" });
+    setImmediate(async () => {
+      try {
+        const result = await recomputeUrgencyScores();
+        console.log("[urgency-recompute] complete:", result);
+      } catch (err) {
+        console.error("[urgency-recompute] failed:", err);
+      }
+    });
   });
 
   return httpServer;

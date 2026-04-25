@@ -406,12 +406,7 @@ const prefetchCollections: PrefetchFn = async (qc) => {
     description: "Curated lists of the best races and routes across the USA. Expert picks and community favorites.",
     ogType: "website",
     canonicalUrl: "https://running.services/collections",
-    jsonLd: {
-      "@context": "https://schema.org",
-      "@type": "CollectionPage",
-      name: "Running Collections",
-      url: "https://running.services/collections",
-    },
+    noindex: true,
   };
 };
 
@@ -426,13 +421,7 @@ const prefetchCollectionDetail: PrefetchFn = async (qc, params) => {
       description: collection.description || `A curated collection of ${collection.type}.`,
       ogType: "article",
       canonicalUrl: `https://running.services/collections/${slug}`,
-      jsonLd: {
-        "@context": "https://schema.org",
-        "@type": "CollectionPage",
-        name: collection.title,
-        description: collection.description,
-        url: `https://running.services/collections/${slug}`,
-      },
+      noindex: true,
     };
   }
 
@@ -449,6 +438,7 @@ const prefetchInfluencers: PrefetchFn = async (qc) => {
     ogTitle: "Running Influencers",
     ogDescription: "Follow the top runners, coaches, and content creators shaping the running community.",
     canonicalUrl: "https://running.services/influencers",
+    noindex: true,
   };
 };
 
@@ -463,6 +453,7 @@ const prefetchInfluencerDetail: PrefetchFn = async (qc, params) => {
       ogDescription: influencer.bio || `Follow ${influencer.name} on ${influencer.platform}`,
       ogType: "profile",
       canonicalUrl: `https://running.services/influencers/${params.slug}`,
+      noindex: true,
     };
   }
   return { title: "Influencer Not Found | running.services", description: "The requested influencer could not be found.", ogType: "website", is404: true, noindex: true };
@@ -477,6 +468,7 @@ const prefetchPodcasts: PrefetchFn = async (qc) => {
     description: "The best podcasts for runners — from training tips to elite athlete interviews.",
     ogTitle: "Running Podcasts",
     ogDescription: "The best podcasts for runners — from training tips to elite athlete interviews.",
+    noindex: true,
     canonicalUrl: "https://running.services/podcasts",
   };
 };
@@ -492,6 +484,7 @@ const prefetchPodcastDetail: PrefetchFn = async (qc, params) => {
       ogDescription: podcast.description || `Listen to ${podcast.name} hosted by ${podcast.host}`,
       ogType: "article",
       canonicalUrl: `https://running.services/podcasts/${params.slug}`,
+      noindex: true,
     };
   }
   return { title: "Podcast Not Found | running.services", description: "The requested podcast could not be found.", ogType: "website", is404: true, noindex: true };
@@ -507,6 +500,7 @@ const prefetchBooks: PrefetchFn = async (qc) => {
     ogTitle: "Running Books",
     ogDescription: "Essential reading for runners — from training science to inspiring memoirs.",
     canonicalUrl: "https://running.services/books",
+    noindex: true,
   };
 };
 
@@ -521,6 +515,7 @@ const prefetchBookDetail: PrefetchFn = async (qc, params) => {
       ogDescription: book.description || `${book.title} by ${book.author}`,
       ogType: "book",
       canonicalUrl: `https://running.services/books/${params.slug}`,
+      noindex: true,
     };
   }
   return { title: "Book Not Found | running.services", description: "The requested book could not be found.", ogType: "website", is404: true, noindex: true };
@@ -669,6 +664,7 @@ const prefetchBlog: PrefetchFn = async () => ({
   ogDescription: "Tips, guides, and race insights for runners of every level.",
   ogType: "website",
   canonicalUrl: "https://running.services/blog",
+  noindex: true,
 });
 
 const prefetchAuthVerify: PrefetchFn = async () => ({
@@ -688,6 +684,65 @@ const prefetchFavorites: PrefetchFn = async () => ({
   ogType: "website",
   canonicalUrl: "https://running.services/favorites",
 });
+
+const prefetchRaceShopper: PrefetchFn = async (_qc, params) => {
+  const goal = params.goal;
+  const title = goal ? `Race Shopper: ${goal} | running.services` : "Race Shopper | running.services";
+  return {
+    title,
+    description: "A goal-driven race picker — coming soon. Tell us what you want and we'll rank every upcoming race for it.",
+    ogType: "website",
+    canonicalUrl: goal ? `https://running.services/race-shopper/${goal}` : "https://running.services/race-shopper",
+    noindex: true,
+  };
+};
+
+const prefetchCompare: PrefetchFn = async () => ({
+  title: "Compare Races | running.services",
+  description: "Side-by-side race comparison — coming soon.",
+  ogType: "website",
+  canonicalUrl: "https://running.services/compare",
+  noindex: true,
+});
+
+const prefetchThisWeekendPage: PrefetchFn = async (qc) => {
+  try {
+    const list = await storage.getRacesThisWeekend();
+    qc.setQueryData(["/api/races/this-weekend"], list);
+  } catch {}
+  return {
+    title: "Races This Weekend | running.services",
+    description: "Races happening in the next 72 hours across the USA.",
+    ogType: "website",
+    canonicalUrl: "https://running.services/this-weekend",
+    noindex: true,
+  };
+};
+
+const prefetchPriceWatch: PrefetchFn = async (qc) => {
+  try {
+    const list = await storage.getPriceIncreasingSoon(21, 30);
+    qc.setQueryData(["/api/races/price-increase-soon", { days: 21, limit: 30 }], list);
+  } catch {}
+  return {
+    title: "Price Watch — Register Before Prices Rise | running.services",
+    description: "Races whose registration fee is about to increase.",
+    ogType: "website",
+    canonicalUrl: "https://running.services/price-watch",
+    noindex: true,
+  };
+};
+
+const prefetchOrganizers: PrefetchFn = async (_qc, params) => {
+  const slug = params.slug;
+  return {
+    title: slug ? `Race Organizer: ${slug} | running.services` : "Race Organizers | running.services",
+    description: "Profiles of race directors and organizers — coming soon.",
+    ogType: "website",
+    canonicalUrl: slug ? `https://running.services/organizers/${slug}` : "https://running.services/organizers",
+    noindex: true,
+  };
+};
 
 const routeMatches: RouteMatch[] = [
   { pattern: /^\/$/, prefetch: prefetchHome, paramNames: [] },
@@ -723,6 +778,13 @@ const routeMatches: RouteMatch[] = [
   { pattern: /^\/blog$/, prefetch: prefetchBlog, paramNames: [] },
   { pattern: /^\/auth\/verify$/, prefetch: prefetchAuthVerify, paramNames: [] },
   { pattern: /^\/favorites$/, prefetch: prefetchFavorites, paramNames: [] },
+  { pattern: /^\/race-shopper\/([^/]+)$/, prefetch: prefetchRaceShopper, paramNames: ["goal"] },
+  { pattern: /^\/race-shopper$/, prefetch: prefetchRaceShopper, paramNames: [] },
+  { pattern: /^\/compare$/, prefetch: prefetchCompare, paramNames: [] },
+  { pattern: /^\/this-weekend$/, prefetch: prefetchThisWeekendPage, paramNames: [] },
+  { pattern: /^\/price-watch$/, prefetch: prefetchPriceWatch, paramNames: [] },
+  { pattern: /^\/organizers\/([^/]+)$/, prefetch: prefetchOrganizers, paramNames: ["slug"] },
+  { pattern: /^\/organizers$/, prefetch: prefetchOrganizers, paramNames: [] },
 ];
 
 export function getSSRPrefetch(url: string): ((qc: QueryClient) => Promise<PageMeta>) | undefined {

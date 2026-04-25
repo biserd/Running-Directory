@@ -2,7 +2,17 @@
 
 ## Overview
 
-running.services is a data-driven running hub for the USA, serving as a comprehensive race calendar and route directory. Its primary purpose is programmatic SEO at scale, generating thousands of pages for races and routes across USA states and cities. The platform is designed to be a central repository of structured running data, not a user-generated content site.
+running.services is a **race decision engine** for runners in the USA. Tagline: **"Find the right race, not just the next race."** Rather than a generic race calendar, the platform helps runners pick the *right* race for their goal (PR, beginner, value, vibe, family) using deterministic 0-100 scores across difficulty, weather, vibe, value, beginner-friendliness, PR-potential, and overall quality. It still generates programmatic SEO pages at scale for races, routes, and state/city hubs, but the core product is comparison, filtering, and decision support — backed by structured race data ingested from external sources (RunSignUp).
+
+### Decision Engine Surfaces
+- **Race Shopper** (`/race-shopper`, `/race-shopper/:goal`): goal-driven race picker.
+- **Compare** (`/compare`): side-by-side race comparison.
+- **This Weekend** (`/this-weekend`): last-minute races in the next 72 hours.
+- **Price Watch** (`/price-watch`): races whose entry fee is about to increase.
+- **Race detail pages**: include score breakdowns, similar-race recommendations, and outbound-click tracking to organizer registration pages.
+
+### Deprecated (kept alive but removed from nav, sitemap, and indexed for noindex)
+Influencers, Podcasts, Books, Collections, Guides, and Blog routes still respond (so old links don't 404), but they are excluded from the sitemap, marked `noindex` via SSR meta, and `Disallow`ed in `robots.txt`.
 
 ## User Preferences
 

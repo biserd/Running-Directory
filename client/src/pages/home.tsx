@@ -7,40 +7,100 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Calendar, Users, Headphones, BookOpen } from "lucide-react";
+import { ArrowRight, Calendar, Sparkles, CalendarRange, Scale, AlarmClock, Trophy, Heart, Smile, DollarSign } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { apiGetRaces, apiGetRoutes, apiGetStates, apiGetInfluencers, apiGetPodcasts, apiGetBooks } from "@/lib/api";
+import { apiGetRaces, apiGetRoutes, apiGetStates } from "@/lib/api";
 import heroImage from "@/assets/images/hero-races.jpg";
+
+const SHOPPER_GOALS = [
+  { slug: "beginner", label: "Beginner-friendly", icon: Smile, blurb: "Flat, gentle, welcoming first races." },
+  { slug: "pr", label: "Built for a PR", icon: Trophy, blurb: "Fast, flat courses and ideal weather windows." },
+  { slug: "value", label: "Best value", icon: DollarSign, blurb: "Great races without the premium price tag." },
+  { slug: "vibe", label: "Big-vibe events", icon: Sparkles, blurb: "Crowds, music, costumes, and a party feel." },
+  { slug: "family", label: "Family & kids", icon: Heart, blurb: "Strollers, kids races, walker-friendly." },
+];
 
 export default function Home() {
   const { data: races, isLoading: racesLoading } = useQuery({ queryKey: ["/api/races", { limit: 4 }], queryFn: () => apiGetRaces({ limit: 4 }) });
   const { data: routes, isLoading: routesLoading } = useQuery({ queryKey: ["/api/routes", { limit: 4 }], queryFn: () => apiGetRoutes({ limit: 4 }) });
   const { data: allStates, isLoading: statesLoading } = useQuery({ queryKey: ["/api/states"], queryFn: apiGetStates });
-  const { data: influencers, isLoading: influencersLoading } = useQuery({ queryKey: ["/api/influencers", { limit: 4 }], queryFn: () => apiGetInfluencers(4) });
-  const { data: podcasts, isLoading: podcastsLoading } = useQuery({ queryKey: ["/api/podcasts", { limit: 4 }], queryFn: () => apiGetPodcasts({ limit: 4 }) });
-  const { data: books, isLoading: booksLoading } = useQuery({ queryKey: ["/api/books", { limit: 4 }], queryFn: () => apiGetBooks({ limit: 4 }) });
+  const { data: weekendRaces, isLoading: weekendLoading } = useQuery({
+    queryKey: ["/api/races/this-weekend"],
+    queryFn: async () => {
+      const r = await fetch("/api/races/this-weekend");
+      if (!r.ok) throw new Error("Failed");
+      return (await r.json()) as any[];
+    },
+  });
+  const { data: priceSoon, isLoading: priceSoonLoading } = useQuery({
+    queryKey: ["/api/races/price-increase-soon", { days: 21, limit: 4 }],
+    queryFn: async () => {
+      const r = await fetch("/api/races/price-increase-soon?days=21&limit=4");
+      if (!r.ok) throw new Error("Failed");
+      return (await r.json()) as any[];
+    },
+  });
 
   const topStates = allStates?.sort((a, b) => b.raceCount - a.raceCount).slice(0, 6) ?? [];
 
   return (
     <Layout>
-      <Hero 
-        title="Find your next race." 
-        subtitle="The comprehensive USA race calendar and route directory. Data-driven tools to help you train smarter."
+      <Hero
+        title="Find the right race, not just the next race."
+        subtitle="A decision engine for runners. Compare races by goal, weather, vibe, price, and difficulty — backed by real data, not hype."
         image={heroImage}
         showSearch={false}
         size="default"
       >
-        <div className="flex justify-center gap-4">
-          <Button size="lg" className="bg-primary hover:bg-primary/90 text-white font-semibold" asChild>
-            <Link href="/races">
-              <Calendar className="mr-2 h-4 w-4" />
-              Race Calendar
+        <div className="flex flex-wrap justify-center gap-3">
+          <Button size="lg" className="bg-primary hover:bg-primary/90 text-white font-semibold" asChild data-testid="button-hero-shopper">
+            <Link href="/race-shopper">
+              <Sparkles className="mr-2 h-4 w-4" />
+              Open Race Shopper
+            </Link>
+          </Button>
+          <Button size="lg" variant="outline" asChild data-testid="button-hero-this-weekend">
+            <Link href="/this-weekend">
+              <CalendarRange className="mr-2 h-4 w-4" />
+              Races This Weekend
+            </Link>
+          </Button>
+          <Button size="lg" variant="outline" asChild data-testid="button-hero-compare">
+            <Link href="/compare">
+              <Scale className="mr-2 h-4 w-4" />
+              Compare Races
             </Link>
           </Button>
         </div>
       </Hero>
+
+      <section className="py-16 bg-background border-b">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-heading font-bold mb-2" data-testid="text-shop-by-goal">Shop races by what you actually want</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">Pick a goal. We rank every upcoming race for it — from your first 5K to a Boston-qualifying marathon.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            {SHOPPER_GOALS.map(g => {
+              const Icon = g.icon;
+              return (
+                <Link key={g.slug} href={`/race-shopper/${g.slug}`} data-testid={`link-shopper-${g.slug}`}>
+                  <Card className="h-full hover:border-primary/50 transition-colors">
+                    <CardContent className="p-5">
+                      <div className="w-10 h-10 rounded-md bg-primary/10 text-primary flex items-center justify-center mb-3">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="font-heading font-bold mb-1">{g.label}</div>
+                      <div className="text-sm text-muted-foreground">{g.blurb}</div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
@@ -104,44 +164,31 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-3xl font-heading font-bold mb-2" data-testid="text-featured-influencers">
-                <Users className="inline-block mr-2 h-7 w-7" />Featured Influencers
+              <h2 className="text-3xl font-heading font-bold mb-2" data-testid="text-this-weekend">
+                <CalendarRange className="inline-block mr-2 h-7 w-7" />Races This Weekend
               </h2>
-              <p className="text-muted-foreground">Top running creators and coaches to follow.</p>
+              <p className="text-muted-foreground">Last-minute picks for the next 72 hours.</p>
             </div>
-            <Button variant="ghost" asChild data-testid="link-all-influencers">
-              <Link href="/influencers">View all influencers <ArrowRight className="ml-2 h-4 w-4" /></Link>
+            <Button variant="ghost" asChild data-testid="link-all-this-weekend">
+              <Link href="/this-weekend">See all <ArrowRight className="ml-2 h-4 w-4" /></Link>
             </Button>
           </div>
-          {influencersLoading ? (
+          {weekendLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[1,2,3,4].map(i => <Skeleton key={i} className="h-64 rounded-lg" />)}
             </div>
-          ) : (
+          ) : weekendRaces && weekendRaces.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {influencers?.map(influencer => (
-                <Link key={influencer.id} href={`/influencers/${influencer.slug}`} data-testid={`link-influencer-${influencer.id}`}>
-                  <Card className="hover:border-primary/50 transition-colors h-full">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
-                          {influencer.name.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="font-heading font-bold">{influencer.name}</div>
-                          <div className="text-sm text-muted-foreground">{influencer.handle}</div>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        <Badge variant="secondary">{influencer.platform}</Badge>
-                        <Badge variant="outline">{influencer.specialty}</Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground">{influencer.followers?.toLocaleString()} followers</div>
-                    </CardContent>
-                  </Card>
-                </Link>
+              {weekendRaces.slice(0, 4).map((race: any) => (
+                <RaceCard key={race.id} race={race} />
               ))}
             </div>
+          ) : (
+            <Card>
+              <CardContent className="p-8 text-center text-muted-foreground" data-testid="text-no-weekend-races">
+                No races in our directory this weekend yet — check back as our calendar grows.
+              </CardContent>
+            </Card>
           )}
         </div>
       </section>
@@ -150,88 +197,31 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-3xl font-heading font-bold mb-2" data-testid="text-popular-podcasts">
-                <Headphones className="inline-block mr-2 h-7 w-7" />Popular Podcasts
+              <h2 className="text-3xl font-heading font-bold mb-2" data-testid="text-price-watch">
+                <AlarmClock className="inline-block mr-2 h-7 w-7" />Register before the price goes up
               </h2>
-              <p className="text-muted-foreground">Listen and learn from the best in running.</p>
+              <p className="text-muted-foreground">Races whose entry fee is about to increase in the next few weeks.</p>
             </div>
-            <Button variant="ghost" asChild data-testid="link-all-podcasts">
-              <Link href="/podcasts">View all podcasts <ArrowRight className="ml-2 h-4 w-4" /></Link>
+            <Button variant="ghost" asChild data-testid="link-all-price-watch">
+              <Link href="/price-watch">All deadlines <ArrowRight className="ml-2 h-4 w-4" /></Link>
             </Button>
           </div>
-          {podcastsLoading ? (
+          {priceSoonLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[1,2,3,4].map(i => <Skeleton key={i} className="h-64 rounded-lg" />)}
             </div>
-          ) : (
+          ) : priceSoon && priceSoon.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {podcasts?.map(podcast => (
-                <Link key={podcast.id} href={`/podcasts/${podcast.slug}`} data-testid={`link-podcast-${podcast.id}`}>
-                  <Card className="hover:border-primary/50 transition-colors h-full">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                          <Headphones className="h-6 w-6" />
-                        </div>
-                        <div>
-                          <div className="font-heading font-bold">{podcast.name}</div>
-                          <div className="text-sm text-muted-foreground">{podcast.host}</div>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        <Badge variant="secondary">{podcast.category}</Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground">{podcast.episodeCount} episodes</div>
-                    </CardContent>
-                  </Card>
-                </Link>
+              {priceSoon.map((race: any) => (
+                <RaceCard key={race.id} race={race} />
               ))}
             </div>
-          )}
-        </div>
-      </section>
-
-      <section className="py-20 bg-secondary/30">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-3xl font-heading font-bold mb-2" data-testid="text-recommended-books">
-                <BookOpen className="inline-block mr-2 h-7 w-7" />Recommended Books
-              </h2>
-              <p className="text-muted-foreground">Essential reading for runners of all levels.</p>
-            </div>
-            <Button variant="ghost" asChild data-testid="link-all-books">
-              <Link href="/books">View all books <ArrowRight className="ml-2 h-4 w-4" /></Link>
-            </Button>
-          </div>
-          {booksLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[1,2,3,4].map(i => <Skeleton key={i} className="h-64 rounded-lg" />)}
-            </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {books?.map(book => (
-                <Link key={book.id} href={`/books/${book.slug}`} data-testid={`link-book-${book.id}`}>
-                  <Card className="hover:border-primary/50 transition-colors h-full">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                          <BookOpen className="h-6 w-6" />
-                        </div>
-                        <div>
-                          <div className="font-heading font-bold">{book.title}</div>
-                          <div className="text-sm text-muted-foreground">{book.author}</div>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        <Badge variant="secondary">{book.category}</Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground">{book.publishYear}</div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
+            <Card>
+              <CardContent className="p-8 text-center text-muted-foreground" data-testid="text-no-price-soon">
+                Nothing about to spike in price right now. We'll surface deadlines here as soon as we see them.
+              </CardContent>
+            </Card>
           )}
         </div>
       </section>

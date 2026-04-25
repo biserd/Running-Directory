@@ -21,29 +21,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <Link href="/races" className={cn("transition-colors hover:text-primary", location.startsWith("/races") && !location.startsWith("/races/nearby") ? "text-primary" : "text-foreground/80")}>
+            <Link href="/races" className={cn("transition-colors hover:text-primary", location.startsWith("/races") && !location.startsWith("/races/nearby") ? "text-primary" : "text-foreground/80")} data-testid="link-races">
                 Races
+            </Link>
+            <Link href="/race-shopper" className={cn("transition-colors hover:text-primary", location.startsWith("/race-shopper") ? "text-primary" : "text-foreground/80")} data-testid="link-race-shopper">
+                Race Shopper
+            </Link>
+            <Link href="/this-weekend" className={cn("transition-colors hover:text-primary", location.startsWith("/this-weekend") ? "text-primary" : "text-foreground/80")} data-testid="link-this-weekend">
+                This Weekend
+            </Link>
+            <Link href="/compare" className={cn("transition-colors hover:text-primary", location.startsWith("/compare") ? "text-primary" : "text-foreground/80")} data-testid="link-compare">
+                Compare
             </Link>
             <Link href="/races/nearby" className={cn("transition-colors hover:text-primary flex items-center gap-1", location.startsWith("/races/nearby") ? "text-primary" : "text-foreground/80")} data-testid="link-near-me">
                 <MapPin className="h-3.5 w-3.5" /> Near Me
             </Link>
-            <Link href="/routes" className={cn("transition-colors hover:text-primary", location.startsWith("/routes") ? "text-primary" : "text-foreground/80")}>
+            <Link href="/routes" className={cn("transition-colors hover:text-primary", location.startsWith("/routes") ? "text-primary" : "text-foreground/80")} data-testid="link-routes">
                 Routes
             </Link>
-            <Link href="/tools" className={cn("transition-colors hover:text-primary", location.startsWith("/tools") ? "text-primary" : "text-foreground/80")}>
+            <Link href="/tools" className={cn("transition-colors hover:text-primary", location.startsWith("/tools") ? "text-primary" : "text-foreground/80")} data-testid="link-tools">
                 Tools
-            </Link>
-            <Link href="/influencers" className={cn("transition-colors hover:text-primary", location.startsWith("/influencers") ? "text-primary" : "text-foreground/80")} data-testid="link-influencers">
-                Influencers
-            </Link>
-            <Link href="/podcasts" className={cn("transition-colors hover:text-primary", location.startsWith("/podcasts") ? "text-primary" : "text-foreground/80")} data-testid="link-podcasts">
-                Podcasts
-            </Link>
-            <Link href="/books" className={cn("transition-colors hover:text-primary", location.startsWith("/books") ? "text-primary" : "text-foreground/80")} data-testid="link-books">
-                Books
-            </Link>
-            <Link href="/guides" className={cn("transition-colors hover:text-primary", location.startsWith("/guides") ? "text-primary" : "text-foreground/80")}>
-                Guides
             </Link>
           </nav>
 
@@ -96,16 +93,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <SheetTitle className="sr-only">Menu</SheetTitle>
                 <div className="flex flex-col gap-4 mt-8">
                   <SmartSearch variant="mobile" className="mb-2" />
-                  <Link href="/races" className="text-lg font-medium py-2 border-b">Races</Link>
+                  <Link href="/races" className="text-lg font-medium py-2 border-b" data-testid="link-races-mobile">Races</Link>
+                  <Link href="/race-shopper" className="text-lg font-medium py-2 border-b" data-testid="link-race-shopper-mobile">Race Shopper</Link>
+                  <Link href="/this-weekend" className="text-lg font-medium py-2 border-b" data-testid="link-this-weekend-mobile">This Weekend</Link>
+                  <Link href="/compare" className="text-lg font-medium py-2 border-b" data-testid="link-compare-mobile">Compare Races</Link>
                   <Link href="/races/nearby" className="text-lg font-medium py-2 border-b flex items-center gap-2" data-testid="link-near-me-mobile">
                     <MapPin className="h-4 w-4" /> Races Near Me
                   </Link>
-                  <Link href="/routes" className="text-lg font-medium py-2 border-b">Routes</Link>
-                  <Link href="/tools" className="text-lg font-medium py-2 border-b">Tools</Link>
-                  <Link href="/influencers" className="text-lg font-medium py-2 border-b" data-testid="link-influencers-mobile">Influencers</Link>
-                  <Link href="/podcasts" className="text-lg font-medium py-2 border-b" data-testid="link-podcasts-mobile">Podcasts</Link>
-                  <Link href="/books" className="text-lg font-medium py-2 border-b" data-testid="link-books-mobile">Books</Link>
-                  <Link href="/guides" className="text-lg font-medium py-2 border-b">Guides</Link>
+                  <Link href="/routes" className="text-lg font-medium py-2 border-b" data-testid="link-routes-mobile">Routes</Link>
+                  <Link href="/tools" className="text-lg font-medium py-2 border-b" data-testid="link-tools-mobile">Tools</Link>
                   {user && (
                     <Link href="/favorites" className="text-lg font-medium py-2 border-b flex items-center gap-2" data-testid="link-favorites-mobile">
                       <Heart className="h-4 w-4" /> My Favorites
@@ -149,17 +145,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </p>
             </div>
             <div>
-              <h4 className="font-heading font-semibold mb-4">Discover</h4>
+              <h4 className="font-heading font-semibold mb-4">Find a Race</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><Link href="/race-shopper" className="hover:text-primary" data-testid="link-race-shopper-footer">Race Shopper</Link></li>
+                <li><Link href="/this-weekend" className="hover:text-primary" data-testid="link-this-weekend-footer">Races This Weekend</Link></li>
+                <li><Link href="/compare" className="hover:text-primary" data-testid="link-compare-footer">Compare Races</Link></li>
+                <li><Link href="/price-watch" className="hover:text-primary" data-testid="link-price-watch-footer">Price Watch</Link></li>
                 <li><Link href="/races" className="hover:text-primary">Race Calendar</Link></li>
                 <li><Link href="/races/nearby" className="hover:text-primary">Races Near Me</Link></li>
                 <li><Link href="/routes" className="hover:text-primary">Running Routes</Link></li>
                 <li><Link href="/tools" className="hover:text-primary">Runner Tools</Link></li>
-                <li><Link href="/influencers" className="hover:text-primary" data-testid="link-influencers-footer">Influencers</Link></li>
-                <li><Link href="/podcasts" className="hover:text-primary" data-testid="link-podcasts-footer">Podcasts</Link></li>
-                <li><Link href="/books" className="hover:text-primary" data-testid="link-books-footer">Books</Link></li>
-                <li><Link href="/guides" className="hover:text-primary">Training Guides</Link></li>
-                <li><Link href="/collections" className="hover:text-primary">Collections</Link></li>
                 <li><Link href="/races/usa" className="hover:text-primary">All 50 States</Link></li>
               </ul>
             </div>
