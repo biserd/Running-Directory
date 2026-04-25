@@ -64,7 +64,7 @@ function buildFieldGroups(): FieldGroup[] {
         {
           label: "Travel time",
           render: () => (
-            <span className="text-xs text-muted-foreground italic">Add a starting ZIP on the race page for an estimate.</span>
+            <span className="text-xs text-muted-foreground italic" data-testid="cell-travel-time-placeholder">Personalized estimate coming soon — set your starting location.</span>
           ),
         },
         { label: "Course type", render: r => r.courseType || "Not stated" },
@@ -81,8 +81,8 @@ function buildFieldGroups(): FieldGroup[] {
         {
           label: "Weather (typical)",
           render: r => (
-            <span className="text-xs text-muted-foreground">
-              Avg for {format(parseRaceDate(r.date), "MMMM")} in {r.state} — see race page.
+            <span className="text-xs text-muted-foreground" data-testid={`cell-weather-typical-${r.id}`}>
+              Typical {format(parseRaceDate(r.date), "MMMM")} weather in {r.state} — open the race page for averages.
             </span>
           ),
         },
