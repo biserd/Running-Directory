@@ -20,14 +20,14 @@ const prefetchHome: PrefetchFn = async (qc) => {
     storage.getRacesThisWeekend().catch(() => []),
     storage.getRacesAdvanced({ distance: "5K", sort: "value", limit: 4 }).catch(() => []),
     storage.getRacesAdvanced({ distance: "Half Marathon", sort: "beginner", limit: 4 }).catch(() => []),
-    storage.getRacesAdvanced({ isTurkeyTrot: true, limit: 3 }).catch(() => []),
+    storage.getRacesAdvanced({ isTurkeyTrot: true, month: 11, limit: 3 }).catch(() => []),
     storage.getStates(),
   ]);
 
   qc.setQueryData(["/api/races/this-weekend"], weekendRaces);
   qc.setQueryData(["/api/races/search", { distance: "5K", sort: "value", limit: 4 }], bestValue5K);
   qc.setQueryData(["/api/races/search", { distance: "Half Marathon", sort: "beginner", limit: 4 }], beginnerHalfs);
-  qc.setQueryData(["/api/races/search", { isTurkeyTrot: true, limit: 3 }], turkeyTrots);
+  qc.setQueryData(["/api/races/search", { isTurkeyTrot: true, month: 11, limit: 3 }], turkeyTrots);
   qc.setQueryData(["/api/states"], statesList);
 
   return {
@@ -867,10 +867,11 @@ const prefetchTurkeyTrots: PrefetchFn = async (qc, params) => {
       } as PageMeta;
     }
     qc.setQueryData([`/api/metros/${metroSlug}`], { city: metro, state: metro.state });
-    const search: BestSearchParams = { isTurkeyTrot: true, state: metro.state.abbreviation, city: metro.name, sort: "date", limit: 60 };
+    const search: BestSearchParams = { isTurkeyTrot: true, month: 11, state: metro.state.abbreviation, city: metro.name, sort: "date", limit: 60 };
     const apiQs = buildBestSearchQs(search);
     const races = await storage.getRacesAdvanced({
       isTurkeyTrot: true,
+      month: 11,
       state: metro.state.abbreviation,
       city: metro.name,
       sort: "date",
@@ -894,9 +895,9 @@ const prefetchTurkeyTrots: PrefetchFn = async (qc, params) => {
       ]),
     } as PageMeta;
   }
-  const search: BestSearchParams = { isTurkeyTrot: true, sort: "date", limit: 60 };
+  const search: BestSearchParams = { isTurkeyTrot: true, month: 11, sort: "date", limit: 60 };
   const apiQs = buildBestSearchQs(search);
-  const races = await storage.getRacesAdvanced({ isTurkeyTrot: true, sort: "date", limit: 60 }).catch(() => []);
+  const races = await storage.getRacesAdvanced({ isTurkeyTrot: true, month: 11, sort: "date", limit: 60 }).catch(() => []);
   qc.setQueryData(["/api/races/search", apiQs], races);
   const url = `${SITE_ORIGIN}/turkey-trots`;
   const title = "Turkey Trots in the USA — Thanksgiving 5K Calendar | running.services";

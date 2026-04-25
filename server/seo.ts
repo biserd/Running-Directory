@@ -203,9 +203,9 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
         console.warn("[sitemap-seo] series enumeration failed:", (err as Error).message);
       }
 
-      // National turkey-trots if there are enough
+      // National turkey-trots if there are enough (Thanksgiving 5K = November-only)
       try {
-        const turkeyNational = await storage.getRacesAdvanced({ isTurkeyTrot: true, limit: 60 });
+        const turkeyNational = await storage.getRacesAdvanced({ isTurkeyTrot: true, month: 11, limit: 60 });
         if (turkeyNational.length >= 5) {
           entries.push(urlEntry("/turkey-trots", { changefreq: "weekly", priority: "0.8", lastmod: today }));
         }
@@ -221,8 +221,15 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
           { slug: "marathons", distance: "Marathon" },
           { slug: "trail-races", surface: "Trail" },
         ];
+        const monthSlugList = [
+          "january", "february", "march", "april", "may", "june",
+          "july", "august", "september", "october", "november", "december",
+        ];
+        // Cap month-page enumeration to top metros to keep sitemap-build cost bounded.
+        const topMetrosForMonths = metros.slice(0, 25);
         for (const m of metros) {
           const metroSlug = `${m.city.slug}-${m.state.abbreviation.toLowerCase()}`;
+          const isTopMetro = topMetrosForMonths.includes(m);
 
           // city + distance — gated per-distance with ≥5 races
           for (const d of distanceSlugMap) {
@@ -232,18 +239,35 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
                 city: m.city.name,
                 distance: d.distance,
                 surface: d.surface,
-                limit: 5,
+                limit: 60,
               });
               if (r.length >= 5) {
                 entries.push(urlEntry(`/${metroSlug}/${d.slug}`, { changefreq: "weekly", priority: "0.6", lastmod: today }));
+
+                // city + distance + month — only for top metros, only months with ≥5 races.
+                if (isTopMetro) {
+                  const byMonth = new Map<number, number>();
+                  for (const race of r) {
+                    if (!race.date) continue;
+                    const monthIdx = new Date(race.date).getUTCMonth() + 1;
+                    byMonth.set(monthIdx, (byMonth.get(monthIdx) || 0) + 1);
+                  }
+                  byMonth.forEach((count, monthIdx) => {
+                    if (count >= 5) {
+                      const monthSlug = monthSlugList[monthIdx - 1];
+                      entries.push(urlEntry(`/${metroSlug}/${d.slug}/${monthSlug}`, { changefreq: "monthly", priority: "0.45", lastmod: today }));
+                    }
+                  });
+                }
               }
             } catch {}
           }
 
-          // turkey-trots per metro (gated on actual count)
+          // turkey-trots per metro (gated on actual count, November-only)
           try {
             const tt = await storage.getRacesAdvanced({
               isTurkeyTrot: true,
+              month: 11,
               state: m.state.abbreviation,
               city: m.city.name,
               limit: 5,
