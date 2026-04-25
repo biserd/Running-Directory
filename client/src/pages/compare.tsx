@@ -115,8 +115,23 @@ function CompareTable({ races, onRemove }: { races: Race[]; onRemove: (id: numbe
         <Section label="Date" cols={cols}>
           {races.map(r => <CellHighlight key={r.id} best={false}>{format(parseRaceDate(r.date), "EEE, MMM d, yyyy")}</CellHighlight>)}
         </Section>
+        <Section label="Start time" cols={cols}>
+          {races.map(r => <CellHighlight key={r.id} best={false}>{r.startTime || "TBA"}</CellHighlight>)}
+        </Section>
+        <Section label="Travel time" cols={cols}>
+          {races.map(r => <CellHighlight key={r.id} best={false}>{r.city}, {r.state}</CellHighlight>)}
+        </Section>
         <Section label="Surface" cols={cols}>
           {races.map(r => <CellHighlight key={r.id} best={false}>{r.terrain || r.surface || "—"}</CellHighlight>)}
+        </Section>
+        <Section label="Race-day weather" cols={cols}>
+          {races.map(r => (
+            <CellHighlight key={r.id} best={false}>
+              <Link href={`/races/${r.slug}#weather`} className="text-primary hover:underline" data-testid={`compare-weather-link-${r.id}`}>
+                See forecast & averages
+              </Link>
+            </CellHighlight>
+          ))}
         </Section>
         <Section label="Elevation" cols={cols}>
           {races.map(r => (
@@ -162,6 +177,29 @@ function CompareTable({ races, onRemove }: { races: Race[]; onRemove: (id: numbe
           {races.map(r => (
             <CellHighlight key={r.id} best={false}>
               {[r.walkerFriendly && "Walkers", r.strollerFriendly && "Strollers", r.dogFriendly && "Dogs", r.kidsRace && "Kids race"].filter(Boolean).join(" · ") || "—"}
+            </CellHighlight>
+          ))}
+        </Section>
+        <Section label="Refund policy" cols={cols}>
+          {races.map(r => (
+            <CellHighlight key={r.id} best={false}>
+              <span className="text-xs leading-snug">{r.refundPolicy || "Not stated"}</span>
+            </CellHighlight>
+          ))}
+        </Section>
+        <Section label="Deferral policy" cols={cols}>
+          {races.map(r => (
+            <CellHighlight key={r.id} best={false}>
+              <span className="text-xs leading-snug">{r.deferralPolicy || "Not stated"}</span>
+            </CellHighlight>
+          ))}
+        </Section>
+        <Section label="Reviews" cols={cols}>
+          {races.map(r => (
+            <CellHighlight key={r.id} best={false}>
+              <Link href={`/races/${r.slug}#reviews`} className="text-primary hover:underline" data-testid={`compare-reviews-link-${r.id}`}>
+                Read runner reviews
+              </Link>
             </CellHighlight>
           ))}
         </Section>

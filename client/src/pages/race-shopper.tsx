@@ -33,6 +33,14 @@ const MONTHS = [
   { v: "5", l: "May" }, { v: "6", l: "June" }, { v: "7", l: "July" }, { v: "8", l: "August" },
   { v: "9", l: "September" }, { v: "10", l: "October" }, { v: "11", l: "November" }, { v: "12", l: "December" },
 ];
+const TERRAINS = ["Road", "Trail", "Track", "Mixed"];
+const SURFACES = ["paved", "trail", "mixed", "track"];
+const DIFFICULTY: Array<{ v: "easy" | "moderate" | "hard"; l: string }> = [
+  { v: "easy", l: "Easy / flat" },
+  { v: "moderate", l: "Moderate" },
+  { v: "hard", l: "Hard / hilly" },
+];
+const RADIUS_OPTIONS = [25, 50, 100, 250, 500];
 
 function pickRationale(race: Race, goal: Goal): string {
   const parts: string[] = [];
@@ -168,7 +176,13 @@ export default function RaceShopperPage() {
   const [distance, setDistance] = useState<string>("");
   const [stateAbbr, setStateAbbr] = useState<string>("");
   const [month, setMonth] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
   const [budget, setBudget] = useState<string>("");
+  const [terrain, setTerrain] = useState<string>("");
+  const [surface, setSurface] = useState<string>("");
+  const [difficulty, setDifficulty] = useState<"easy" | "moderate" | "hard" | "">("");
+  const [radiusMiles, setRadiusMiles] = useState<string>("");
   const [walkerFriendly, setWalkerFriendly] = useState(false);
   const [strollerFriendly, setStrollerFriendly] = useState(false);
   const [bostonQualifier, setBostonQualifier] = useState(false);
@@ -178,7 +192,11 @@ export default function RaceShopperPage() {
 
   const input = useMemo<ShopperInput>(() => {
     const dateRange: { dateFrom?: string; dateTo?: string } = {};
-    if (month) {
+    // Explicit date range wins over month picker
+    if (dateFrom || dateTo) {
+      if (dateFrom) dateRange.dateFrom = dateFrom;
+      if (dateTo) dateRange.dateTo = dateTo;
+    } else if (month) {
       const m = parseInt(month, 10);
       const now = new Date();
       let year = now.getFullYear();
@@ -193,6 +211,11 @@ export default function RaceShopperPage() {
       goal,
       distance: distance || undefined,
       state: stateAbbr || undefined,
+      terrain: terrain || undefined,
+      surface: surface || undefined,
+      difficulty: difficulty || undefined,
+      // Radius only takes effect when paired with a state — server derives the centroid.
+      radiusMiles: radiusMiles && stateAbbr ? parseInt(radiusMiles, 10) : undefined,
       ...dateRange,
       budget: budget ? parseInt(budget, 10) : undefined,
       walkerFriendly: walkerFriendly || undefined,
@@ -200,7 +223,7 @@ export default function RaceShopperPage() {
       bostonQualifier: bostonQualifier || undefined,
       limit: 30,
     };
-  }, [goal, distance, stateAbbr, month, budget, walkerFriendly, strollerFriendly, bostonQualifier]);
+  }, [goal, distance, stateAbbr, month, dateFrom, dateTo, budget, terrain, surface, difficulty, radiusMiles, walkerFriendly, strollerFriendly, bostonQualifier]);
 
   const { data, isFetching, error } = useQuery({
     queryKey: ["/api/races/shopper", input, submitted],
@@ -281,7 +304,7 @@ export default function RaceShopperPage() {
                   </div>
                   <div>
                     <Label htmlFor="shopper-month" className="text-xs uppercase tracking-wider mb-1 block">Month</Label>
-                    <Select value={month || "any"} onValueChange={v => setMonth(v === "any" ? "" : v)}>
+                    <Select value={month || "any"} onValueChange={v => setMonth(v === "any" ? "" : v)} disabled={!!(dateFrom || dateTo)}>
                       <SelectTrigger id="shopper-month" data-testid="select-month"><SelectValue placeholder="Any month" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="any">Any month</SelectItem>
@@ -301,6 +324,73 @@ export default function RaceShopperPage() {
                       onChange={e => setBudget(e.target.value)}
                       data-testid="input-budget"
                     />
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <Label htmlFor="shopper-date-from" className="text-xs uppercase tracking-wider mb-1 block">Date from</Label>
+                    <Input
+                      id="shopper-date-from"
+                      type="date"
+                      value={dateFrom}
+                      onChange={e => setDateFrom(e.target.value)}
+                      data-testid="input-date-from"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="shopper-date-to" className="text-xs uppercase tracking-wider mb-1 block">Date to</Label>
+                    <Input
+                      id="shopper-date-to"
+                      type="date"
+                      value={dateTo}
+                      onChange={e => setDateTo(e.target.value)}
+                      data-testid="input-date-to"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="shopper-terrain" className="text-xs uppercase tracking-wider mb-1 block">Terrain</Label>
+                    <Select value={terrain || "any"} onValueChange={v => setTerrain(v === "any" ? "" : v)}>
+                      <SelectTrigger id="shopper-terrain" data-testid="select-terrain"><SelectValue placeholder="Any terrain" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Any terrain</SelectItem>
+                        {TERRAINS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="shopper-difficulty" className="text-xs uppercase tracking-wider mb-1 block">Effort</Label>
+                    <Select value={difficulty || "any"} onValueChange={v => setDifficulty(v === "any" ? "" : (v as "easy" | "moderate" | "hard"))}>
+                      <SelectTrigger id="shopper-difficulty" data-testid="select-difficulty"><SelectValue placeholder="Any effort" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Any effort</SelectItem>
+                        {DIFFICULTY.map(d => <SelectItem key={d.v} value={d.v}>{d.l}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <Label htmlFor="shopper-surface" className="text-xs uppercase tracking-wider mb-1 block">Surface</Label>
+                    <Select value={surface || "any"} onValueChange={v => setSurface(v === "any" ? "" : v)}>
+                      <SelectTrigger id="shopper-surface" data-testid="select-surface"><SelectValue placeholder="Any surface" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Any surface</SelectItem>
+                        {SURFACES.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="shopper-radius" className="text-xs uppercase tracking-wider mb-1 block">Travel radius (mi)</Label>
+                    <Select value={radiusMiles || "any"} onValueChange={v => setRadiusMiles(v === "any" ? "" : v)}>
+                      <SelectTrigger id="shopper-radius" data-testid="select-radius"><SelectValue placeholder="Any distance" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Any distance</SelectItem>
+                        {RADIUS_OPTIONS.map(r => <SelectItem key={r} value={String(r)}>{r} mi</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-muted-foreground mt-1">Pick a state above to anchor the radius.</p>
                   </div>
                 </div>
 

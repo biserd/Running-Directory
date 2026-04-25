@@ -851,6 +851,8 @@ const routeMatches: RouteMatch[] = [
   { pattern: /^\/favorites$/, prefetch: prefetchFavorites, paramNames: [] },
   { pattern: /^\/race-shopper\/([^/]+)$/, prefetch: prefetchRaceShopper, paramNames: ["goal"] },
   { pattern: /^\/race-shopper$/, prefetch: prefetchRaceShopper, paramNames: [] },
+  { pattern: /^\/shopper\/([^/]+)$/, prefetch: prefetchRaceShopper, paramNames: ["goal"] },
+  { pattern: /^\/shopper$/, prefetch: prefetchRaceShopper, paramNames: [] },
   { pattern: /^\/compare$/, prefetch: prefetchCompare, paramNames: [] },
   { pattern: /^\/this-weekend$/, prefetch: prefetchThisWeekendPage, paramNames: [] },
   { pattern: /^\/price-watch$/, prefetch: prefetchPriceWatch, paramNames: [] },

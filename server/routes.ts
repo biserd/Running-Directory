@@ -10,6 +10,7 @@ import { z } from "zod";
 import { insertOrganizerSchema, insertRaceClaimSchema, insertSavedSearchSchema, insertRaceAlertSchema, insertOutboundClickSchema } from "@shared/schema";
 import type { InsertRaceClaim, InsertOutboundClick } from "@shared/schema";
 import type { RaceSearchFilters } from "@shared/schema";
+import { getStateCentroid } from "@shared/states";
 import crypto from "crypto";
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -765,6 +766,10 @@ export async function registerRoutes(
     distance: z.string().optional(),
     distances: z.array(z.string()).optional(),
     state: z.string().optional(),
+    terrain: z.string().optional(),
+    surface: z.string().optional(),
+    difficulty: z.enum(["easy", "moderate", "hard"]).optional(),
+    radiusMiles: z.number().int().positive().max(5000).optional(),
     near: z.object({ lat: z.number(), lng: z.number(), radiusMiles: z.number().optional() }).optional(),
     dateFrom: z.string().optional(),
     dateTo: z.string().optional(),
@@ -787,6 +792,8 @@ export async function registerRoutes(
         distance: input.distance,
         distances: input.distances,
         state: input.state,
+        terrain: input.terrain,
+        surface: input.surface,
         dateFrom: input.dateFrom,
         dateTo: input.dateTo,
         priceMax: input.budget,
@@ -799,7 +806,13 @@ export async function registerRoutes(
         limit: input.limit ?? 20,
       };
       if (input.near) {
-        filters.near = { lat: input.near.lat, lng: input.near.lng, radiusMiles: input.near.radiusMiles ?? 100 };
+        filters.near = { lat: input.near.lat, lng: input.near.lng, radiusMiles: input.near.radiusMiles ?? input.radiusMiles ?? 100 };
+      } else if (input.radiusMiles && input.state) {
+        // Derive a coarse centroid from the picked state so the radius actually filters.
+        const centroid = getStateCentroid(input.state);
+        if (centroid) {
+          filters.near = { lat: centroid.lat, lng: centroid.lng, radiusMiles: input.radiusMiles };
+        }
       }
       switch (input.goal) {
         case "beginner": filters.minBeginnerScore = 40; break;
@@ -807,6 +820,12 @@ export async function registerRoutes(
         case "value": filters.minValueScore = 40; break;
         case "vibe": filters.minVibeScore = 40; break;
         case "family": filters.minFamilyScore = 40; break;
+      }
+      // Difficulty heuristic: nudge score thresholds when user specifies effort level
+      if (input.difficulty === "easy") {
+        filters.minBeginnerScore = Math.max(filters.minBeginnerScore ?? 0, 55);
+      } else if (input.difficulty === "hard") {
+        filters.minPrScore = Math.max(filters.minPrScore ?? 0, 50);
       }
       const results = await storage.getRacesAdvanced(filters);
       res.json({ goal: input.goal, count: results.length, races: results });

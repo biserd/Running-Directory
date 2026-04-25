@@ -3,7 +3,7 @@ import { Layout } from "@/components/layout";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import heroImage from "@/assets/images/hero-race-detail.jpg";
 import { FavoriteButton } from "@/components/favorite-button";
-import { useParams, Link } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import {
   MapPin, Calendar, Trophy, ExternalLink, CloudRain, Sun, CloudSun, Cloud, Snowflake, CloudFog,
   Wind, Droplets, Thermometer, Gauge, Mountain, BookOpen, Headphones, DollarSign, AlarmClock,
@@ -223,6 +223,7 @@ function ElevationProfileChart({ elevation }: { elevation: ElevationProfile }) {
 
 function ClaimRaceCard({ race }: { race: Race }) {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [email, setEmail] = useState("");
@@ -239,6 +240,8 @@ function ClaimRaceCard({ race }: { race: Race }) {
       const res = await apiSubmitRaceClaim(race.slug, { claimerEmail: email, claimerName: name || undefined, claimerRole: role || undefined, message: message || undefined });
       toast({ title: "Claim submitted", description: res.message });
       setDone(true);
+      // Redirect to the organizer hub so the claimer can see what's available next
+      setTimeout(() => setLocation("/organizers"), 1200);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Please try again.";
       toast({ title: "Couldn't submit claim", description: msg, variant: "destructive" });
@@ -252,9 +255,19 @@ function ClaimRaceCard({ race }: { race: Race }) {
       <h3 className="font-heading font-semibold mb-2 flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-blue-500" />Are you the organizer?</h3>
       <p className="text-sm text-muted-foreground mb-3">Claim this race to update details, fix data, set pricing, and reach our runners.</p>
       {done ? (
-        <p className="text-sm text-emerald-600 font-medium" data-testid="text-claim-success">Claim received — we'll be in touch within 2 business days.</p>
+        <div className="space-y-3">
+          <p className="text-sm text-emerald-600 font-medium" data-testid="text-claim-success">Claim received — taking you to the organizer hub…</p>
+          <Button asChild variant="outline" size="sm" className="w-full" data-testid="button-claim-organizer-hub">
+            <Link href="/organizers">Open organizer hub</Link>
+          </Button>
+        </div>
       ) : !open ? (
-        <Button variant="outline" className="w-full" onClick={() => setOpen(true)} data-testid="button-claim-open">Claim this race</Button>
+        <div className="space-y-2">
+          <Button variant="outline" className="w-full" onClick={() => setOpen(true)} data-testid="button-claim-open">Claim this race</Button>
+          <Button asChild variant="ghost" size="sm" className="w-full" data-testid="button-organizer-info">
+            <Link href="/organizers">Learn about organizer tools →</Link>
+          </Button>
+        </div>
       ) : (
         <form onSubmit={onSubmit} className="space-y-3">
           <div>
@@ -567,45 +580,65 @@ export default function RaceDetail() {
           </section>
 
           {/* Section 7: Accessibility & inclusion */}
-          {(race.walkerFriendly != null || race.strollerFriendly != null || race.dogFriendly != null || race.kidsRace != null) && (
-            <section data-testid="section-accessibility">
-              <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-pink-500 pl-3 flex items-center gap-2"><Users className="h-5 w-5" />Accessibility & inclusion</h2>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <AccessibilityRow label="Walker-friendly" value={race.walkerFriendly} />
-                <AccessibilityRow label="Stroller-friendly" value={race.strollerFriendly} />
-                <AccessibilityRow label="Dog-friendly" value={race.dogFriendly} />
-                <AccessibilityRow label="Kids race" value={race.kidsRace} />
-              </div>
-            </section>
-          )}
+          <section data-testid="section-accessibility">
+            <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-pink-500 pl-3 flex items-center gap-2"><Users className="h-5 w-5" />Accessibility & inclusion</h2>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <AccessibilityRow label="Walker-friendly" value={race.walkerFriendly} />
+              <AccessibilityRow label="Stroller-friendly" value={race.strollerFriendly} />
+              <AccessibilityRow label="Dog-friendly" value={race.dogFriendly} />
+              <AccessibilityRow label="Kids race" value={race.kidsRace} />
+            </div>
+          </section>
 
           {/* Section 8: Vibe & charity */}
-          {((race.vibeTags && race.vibeTags.length > 0) || race.charity || race.charityPartner) && (
-            <section data-testid="section-vibe">
-              <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-violet-500 pl-3 flex items-center gap-2"><PartyPopper className="h-5 w-5" />Vibe & community</h2>
-              {race.vibeTags && race.vibeTags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {race.vibeTags.map(t => (<Badge key={t} variant="secondary" className="capitalize" data-testid={`vibe-tag-${t}`}>{t.replace(/-/g, " ")}</Badge>))}
-                </div>
-              )}
-              {race.charity && (
-                <div className="text-sm text-muted-foreground" data-testid="text-charity">
-                  <Heart className="h-4 w-4 inline-block mr-1.5 text-rose-500" />Charity race{race.charityPartner ? ` benefiting ${race.charityPartner}` : ""}.
-                </div>
-              )}
-            </section>
-          )}
+          <section data-testid="section-vibe">
+            <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-violet-500 pl-3 flex items-center gap-2"><PartyPopper className="h-5 w-5" />Vibe & community</h2>
+            {race.vibeTags && race.vibeTags.length > 0 ? (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {race.vibeTags.map(t => (<Badge key={t} variant="secondary" className="capitalize" data-testid={`vibe-tag-${t}`}>{t.replace(/-/g, " ")}</Badge>))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground mb-3" data-testid="text-vibe-unknown">We don't have vibe tags for this race yet — organizers can claim the listing to add them.</p>
+            )}
+            {race.charity ? (
+              <div className="text-sm text-muted-foreground" data-testid="text-charity">
+                <Heart className="h-4 w-4 inline-block mr-1.5 text-rose-500" />Charity race{race.charityPartner ? ` benefiting ${race.charityPartner}` : ""}.
+              </div>
+            ) : (
+              <div className="text-xs text-muted-foreground/70" data-testid="text-no-charity">No charity partner listed.</div>
+            )}
+          </section>
 
-          {/* Section 9: Reviews */}
-          <ReviewSection itemType="race" itemId={race.id} />
+          {/* Section 9: History & past results */}
+          <section data-testid="section-history">
+            <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-amber-500 pl-3 flex items-center gap-2"><Trophy className="h-5 w-5" />History & past results</h2>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="rounded-lg border p-3" data-testid="history-years-running">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">Years running</div>
+                <div className="font-semibold text-sm mt-0.5">{race.yearsRunning ? `${race.yearsRunning} year${race.yearsRunning === 1 ? "" : "s"}` : "Unknown — claim to add"}</div>
+              </div>
+              <div className="rounded-lg border p-3" data-testid="history-recurrence">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">Recurrence</div>
+                <div className="font-semibold text-sm mt-0.5 capitalize">{race.recurrencePattern || "Annual (assumed)"}</div>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Past finisher times and year-over-year participation will appear here once the organizer publishes them.
+            </p>
+          </section>
 
-          {/* Section 10: Similar races */}
+          {/* Section 10: Reviews */}
+          <div id="reviews" className="scroll-mt-24">
+            <ReviewSection itemType="race" itemId={race.id} />
+          </div>
+
+          {/* Section 11: Similar races */}
           <section data-testid="section-similar-races">
             <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-orange-500 pl-3 flex items-center gap-2"><Lightbulb className="h-5 w-5" />Similar races worth a look</h2>
             <SimilarRacesGrid slug={race.slug} currentId={race.id} />
           </section>
 
-          {/* Section 11: Tools CTA */}
+          {/* Section 12: Tools CTA */}
           <section><ToolsCTA /></section>
         </div>
 
@@ -646,7 +679,16 @@ export default function RaceDetail() {
           <DifficultyCard race={race} weather={weather} />
 
           {/* Section 15: Weather */}
-          {weather && weather.type !== "unavailable" && (<WeatherCard weather={weather} />)}
+          <div id="weather" className="scroll-mt-24">
+            {weather && weather.type !== "unavailable" ? (
+              <WeatherCard weather={weather} />
+            ) : (
+              <div className="bg-gradient-to-b from-sky-50/50 to-transparent border border-t-4 border-sky-400 rounded-xl p-6 shadow-sm" data-testid="card-weather-unavailable">
+                <h3 className="font-heading font-semibold mb-1">Race Day Weather</h3>
+                <p className="text-xs text-muted-foreground">Weather data isn't available for this race yet — try checking back closer to race day.</p>
+              </div>
+            )}
+          </div>
 
           {/* Section 16: Organizer / Claim */}
           {race.organizerId ? (

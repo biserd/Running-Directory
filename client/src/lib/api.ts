@@ -123,6 +123,10 @@ export interface ShopperInput {
   distance?: string;
   distances?: string[];
   state?: string;
+  terrain?: string;
+  surface?: string;
+  difficulty?: "easy" | "moderate" | "hard";
+  radiusMiles?: number;
   near?: { lat: number; lng: number; radiusMiles?: number };
   dateFrom?: string;
   dateTo?: string;

@@ -79,6 +79,8 @@ function AppRouter() {
       <Route path="/blog" component={BlogPage} />
       <Route path="/race-shopper/:goal" component={RaceShopperPage} />
       <Route path="/race-shopper" component={RaceShopperPage} />
+      <Route path="/shopper/:goal" component={RaceShopperPage} />
+      <Route path="/shopper" component={RaceShopperPage} />
       <Route path="/compare" component={ComparePage} />
       <Route path="/this-weekend" component={ThisWeekendPage} />
       <Route path="/price-watch" component={PriceWatchPage} />
