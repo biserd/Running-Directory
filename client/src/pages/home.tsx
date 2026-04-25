@@ -152,7 +152,7 @@ export default function Home() {
             </div>
           ) : weekendRaces && weekendRaces.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {weekendRaces.slice(0, 4).map((race: any) => (
+              {weekendRaces.slice(0, 4).map(race => (
                 <RaceCard key={race.id} race={race} />
               ))}
             </div>
@@ -185,7 +185,7 @@ export default function Home() {
             </div>
           ) : priceSoon && priceSoon.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {priceSoon.map((race: any) => (
+              {priceSoon.map(race => (
                 <RaceCard key={race.id} race={race} />
               ))}
             </div>
