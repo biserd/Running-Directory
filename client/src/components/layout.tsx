@@ -1,11 +1,29 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Menu, X, ChevronRight, ArrowRight, MapPin, Heart, User, LogOut } from "lucide-react";
+import { Menu, ArrowRight, Heart, User, LogOut, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { SmartSearch } from "@/components/smart-search";
+
+const PRIMARY_NAV: { label: string; href: string; testId: string }[] = [
+  { label: "Find races", href: "/races", testId: "link-find-races" },
+  { label: "Turkey Trots", href: "/races?turkeyTrot=true", testId: "link-turkey-trots" },
+  { label: "5K", href: "/races?distance=5K", testId: "link-distance-5k" },
+  { label: "10K", href: "/races?distance=10K", testId: "link-distance-10k" },
+  { label: "Half", href: "/races?distance=Half+Marathon", testId: "link-distance-half" },
+  { label: "Marathon", href: "/races?distance=Marathon", testId: "link-distance-marathon" },
+  { label: "Trail", href: "/races?surface=Trail", testId: "link-surface-trail" },
+  { label: "For organizers", href: "/organizers", testId: "link-for-organizers" },
+];
+
+function isActive(location: string, href: string): boolean {
+  const path = href.split("?")[0];
+  if (path === "/races") return location === "/races" || location.startsWith("/races?");
+  if (path === "/organizers") return location.startsWith("/organizers");
+  return location === path;
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -14,31 +32,45 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="font-heading font-bold text-xl tracking-tighter flex items-center gap-1">
-              running<span className="text-primary">.services</span>
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
+          <Link href="/" className="font-heading font-bold text-xl tracking-tighter flex items-center gap-1 flex-shrink-0" data-testid="link-home-brand">
+            running<span className="text-primary">.services</span>
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <Link href="/races" className={cn("transition-colors hover:text-primary", location.startsWith("/races") && !location.startsWith("/races/nearby") ? "text-primary" : "text-foreground/80")} data-testid="link-races">
-                Races
-            </Link>
-            <Link href="/race-shopper" className={cn("transition-colors hover:text-primary", location.startsWith("/race-shopper") ? "text-primary" : "text-foreground/80")} data-testid="link-race-shopper">
-                Race Shopper
-            </Link>
-            <Link href="/this-weekend" className={cn("transition-colors hover:text-primary", location.startsWith("/this-weekend") ? "text-primary" : "text-foreground/80")} data-testid="link-this-weekend">
-                This Weekend
-            </Link>
-            <Link href="/compare" className={cn("transition-colors hover:text-primary", location.startsWith("/compare") ? "text-primary" : "text-foreground/80")} data-testid="link-compare">
-                Compare
-            </Link>
-            <Link href="/races/nearby" className={cn("transition-colors hover:text-primary flex items-center gap-1", location.startsWith("/races/nearby") ? "text-primary" : "text-foreground/80")} data-testid="link-near-me">
-                <MapPin className="h-3.5 w-3.5" /> Near Me
-            </Link>
-            <Link href="/tools" className={cn("transition-colors hover:text-primary", location.startsWith("/tools") ? "text-primary" : "text-foreground/80")} data-testid="link-tools">
-                Tools
-            </Link>
+          <nav className="hidden lg:flex items-center gap-5 text-sm font-medium">
+            {PRIMARY_NAV.map(item => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "transition-colors hover:text-primary",
+                  isActive(location, item.href) ? "text-primary" : "text-foreground/80"
+                )}
+                data-testid={item.testId}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+
+          {/* Condensed nav for medium screens */}
+          <nav className="hidden md:flex lg:hidden items-center gap-4 text-sm font-medium">
+            <Link href="/races" className={cn("hover:text-primary", isActive(location, "/races") ? "text-primary" : "text-foreground/80")} data-testid="link-find-races-md">Find races</Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-1 hover:text-primary outline-none" data-testid="button-distances-menu">
+                Distances <ChevronDown className="h-3.5 w-3.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild><Link href="/races?distance=5K" data-testid="link-distance-5k-md">5K</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/races?distance=10K" data-testid="link-distance-10k-md">10K</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/races?distance=Half+Marathon" data-testid="link-distance-half-md">Half Marathon</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/races?distance=Marathon" data-testid="link-distance-marathon-md">Marathon</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/races?surface=Trail" data-testid="link-surface-trail-md">Trail races</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/races?turkeyTrot=true" data-testid="link-turkey-trots-md">Turkey Trots</Link></DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Link href="/organizers" className={cn("hover:text-primary", isActive(location, "/organizers") ? "text-primary" : "text-foreground/80")} data-testid="link-for-organizers-md">For organizers</Link>
           </nav>
 
           <div className="flex items-center gap-2">
@@ -66,7 +98,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                       <Link href="/favorites" className="flex items-center gap-2 cursor-pointer" data-testid="link-favorites">
-                        <Heart className="h-4 w-4" /> My Favorites
+                        <Heart className="h-4 w-4" /> Saved races
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
@@ -77,33 +109,35 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </DropdownMenu>
               )}
             </div>
-            
+
             {/* Mobile Nav */}
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden">
+                <Button variant="ghost" size="icon" className="md:hidden" data-testid="button-mobile-menu">
                   <Menu className="h-5 w-5" />
                   <span className="sr-only">Toggle menu</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="right">
                 <SheetTitle className="sr-only">Menu</SheetTitle>
-                <div className="flex flex-col gap-4 mt-8">
-                  <SmartSearch variant="mobile" className="mb-2" />
-                  <Link href="/races" className="text-lg font-medium py-2 border-b" data-testid="link-races-mobile">Races</Link>
-                  <Link href="/race-shopper" className="text-lg font-medium py-2 border-b" data-testid="link-race-shopper-mobile">Race Shopper</Link>
-                  <Link href="/this-weekend" className="text-lg font-medium py-2 border-b" data-testid="link-this-weekend-mobile">This Weekend</Link>
-                  <Link href="/compare" className="text-lg font-medium py-2 border-b" data-testid="link-compare-mobile">Compare Races</Link>
-                  <Link href="/races/nearby" className="text-lg font-medium py-2 border-b flex items-center gap-2" data-testid="link-near-me-mobile">
-                    <MapPin className="h-4 w-4" /> Races Near Me
-                  </Link>
-                  <Link href="/tools" className="text-lg font-medium py-2 border-b" data-testid="link-tools-mobile">Tools</Link>
+                <div className="flex flex-col gap-1 mt-8">
+                  <SmartSearch variant="mobile" className="mb-4" />
+                  {PRIMARY_NAV.map(item => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="text-base font-medium py-3 border-b"
+                      data-testid={`${item.testId}-mobile`}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
                   {user && (
-                    <Link href="/favorites" className="text-lg font-medium py-2 border-b flex items-center gap-2" data-testid="link-favorites-mobile">
-                      <Heart className="h-4 w-4" /> My Favorites
+                    <Link href="/favorites" className="text-base font-medium py-3 border-b flex items-center gap-2" data-testid="link-favorites-mobile">
+                      <Heart className="h-4 w-4" /> Saved races
                     </Link>
                   )}
-                  <div className="pt-4 border-t">
+                  <div className="pt-6 border-t mt-4">
                     {!authLoading && !user && (
                       <Button onClick={openLogin} className="w-full" data-testid="button-sign-in-mobile">
                         Sign in
@@ -134,41 +168,40 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-2 md:col-span-1">
               <Link href="/" className="font-heading font-bold text-lg tracking-tighter">
-                  running<span className="text-primary">.services</span>
+                running<span className="text-primary">.services</span>
               </Link>
               <p className="mt-4 text-sm text-muted-foreground">
-                Data-driven race calendar and route directory for runners across the USA.
+                Find the right race, not just the next race. A decision engine for runners across the USA.
               </p>
             </div>
             <div>
-              <h4 className="font-heading font-semibold mb-4">Find a Race</h4>
+              <h4 className="font-heading font-semibold mb-4">Find a race</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><Link href="/races" className="hover:text-primary" data-testid="link-find-races-footer">Find races</Link></li>
+                <li><Link href="/races?turkeyTrot=true" className="hover:text-primary" data-testid="link-turkey-trots-footer">Turkey Trots</Link></li>
+                <li><Link href="/races?distance=5K" className="hover:text-primary" data-testid="link-5k-footer">5Ks</Link></li>
+                <li><Link href="/races?distance=10K" className="hover:text-primary" data-testid="link-10k-footer">10Ks</Link></li>
+                <li><Link href="/races?distance=Half+Marathon" className="hover:text-primary" data-testid="link-half-footer">Half marathons</Link></li>
+                <li><Link href="/races?distance=Marathon" className="hover:text-primary" data-testid="link-marathon-footer">Marathons</Link></li>
+                <li><Link href="/races?surface=Trail" className="hover:text-primary" data-testid="link-trail-footer">Trail races</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-heading font-semibold mb-4">Decide</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="/race-shopper" className="hover:text-primary" data-testid="link-race-shopper-footer">Race Shopper</Link></li>
-                <li><Link href="/this-weekend" className="hover:text-primary" data-testid="link-this-weekend-footer">Races This Weekend</Link></li>
-                <li><Link href="/compare" className="hover:text-primary" data-testid="link-compare-footer">Compare Races</Link></li>
-                <li><Link href="/price-watch" className="hover:text-primary" data-testid="link-price-watch-footer">Price Watch</Link></li>
-                <li><Link href="/races" className="hover:text-primary">Race Calendar</Link></li>
-                <li><Link href="/races/nearby" className="hover:text-primary">Races Near Me</Link></li>
-                <li><Link href="/organizers" className="hover:text-primary">Race Organizers</Link></li>
-                <li><Link href="/tools" className="hover:text-primary">Runner Tools</Link></li>
-                <li><Link href="/races/usa" className="hover:text-primary">All 50 States</Link></li>
+                <li><Link href="/this-weekend" className="hover:text-primary" data-testid="link-this-weekend-footer">Races this weekend</Link></li>
+                <li><Link href="/compare" className="hover:text-primary" data-testid="link-compare-footer">Compare races</Link></li>
+                <li><Link href="/price-watch" className="hover:text-primary" data-testid="link-price-watch-footer">Price watch</Link></li>
+                <li><Link href="/races/nearby" className="hover:text-primary" data-testid="link-near-me-footer">Races near me</Link></li>
+                <li><Link href="/races/usa" className="hover:text-primary">All 50 states</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-heading font-semibold mb-4">Top States</h4>
+              <h4 className="font-heading font-semibold mb-4">For organizers</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="/state/california" className="hover:text-primary">California</Link></li>
-                <li><Link href="/state/texas" className="hover:text-primary">Texas</Link></li>
-                <li><Link href="/state/florida" className="hover:text-primary">Florida</Link></li>
-                <li><Link href="/state/new-york" className="hover:text-primary">New York</Link></li>
-                <li><Link href="/races/usa" className="hover:text-primary">All 50 States</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-heading font-semibold mb-4">Tools</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="/tools/race-predictor" className="hover:text-primary flex items-center gap-1">Race Predictor <ArrowRight className="h-3 w-3" /></Link></li>
-                <li><Link href="/tools/pace-calculator" className="hover:text-primary flex items-center gap-1">Pace Calculator <ArrowRight className="h-3 w-3" /></Link></li>
+                <li><Link href="/organizers" className="hover:text-primary" data-testid="link-organizers-footer">Race organizers</Link></li>
+                <li><Link href="/organizers" className="hover:text-primary" data-testid="link-claim-footer">Claim your race</Link></li>
                 <li><a href="https://aitracker.run" target="_blank" rel="noopener noreferrer nofollow" className="hover:text-primary flex items-center gap-1 text-primary/80">AITracker.run <ArrowRight className="h-3 w-3" /></a></li>
               </ul>
             </div>
@@ -177,7 +210,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <p>© 2025 running.services. All rights reserved.</p>
             <div className="flex flex-wrap gap-4">
               <Link href="/about" className="hover:text-foreground" data-testid="link-about-footer">About</Link>
-              <Link href="/blog" className="hover:text-foreground" data-testid="link-blog-footer">Blog</Link>
               <Link href="/contact" className="hover:text-foreground" data-testid="link-contact-footer">Contact</Link>
               <Link href="/privacy" className="hover:text-foreground" data-testid="link-privacy-footer">Privacy</Link>
               <Link href="/terms" className="hover:text-foreground" data-testid="link-terms-footer">Terms</Link>
