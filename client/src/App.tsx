@@ -86,6 +86,7 @@ function AppRouter() {
       <Route path="/price-watch" component={PriceWatchPage} />
       <Route path="/organizers/:slug" component={OrganizerDetailPage} />
       <Route path="/organizers" component={OrganizersPage} />
+      <Route path="/for-organizers" component={OrganizersPage} />
       <Route component={NotFound} />
     </Switch>
   );

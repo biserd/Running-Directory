@@ -9,9 +9,7 @@ import type { Race } from "@shared/schema";
 import { apiCompareRaces, apiTrackOutbound } from "@/lib/api";
 import { format } from "date-fns";
 import { parseRaceDate } from "@/lib/dates";
-import { getStateName } from "@/lib/states";
 import { useCompareCart } from "@/hooks/use-compare-cart";
-import { ScoreBlock } from "@/components/score-block";
 import { BestForBadges } from "@/components/best-for-badges";
 import { cn } from "@/lib/utils";
 
@@ -31,18 +29,6 @@ function fmtPrice(min: number | null | undefined, max: number | null | undefined
   return `$${min ?? max}`;
 }
 
-const HIGHLIGHT_KEYS: Array<{ key: keyof Race; better: "lower" | "higher" }> = [
-  { key: "priceMin", better: "lower" },
-  { key: "elevationGainM", better: "lower" },
-  { key: "fieldSize", better: "higher" },
-  { key: "beginnerScore", better: "higher" },
-  { key: "prScore", better: "higher" },
-  { key: "valueScore", better: "higher" },
-  { key: "vibeScore", better: "higher" },
-  { key: "familyScore", better: "higher" },
-  { key: "urgencyScore", better: "higher" },
-];
-
 function bestIdsFor(races: Race[], key: keyof Race, better: "lower" | "higher"): Set<number> {
   const vals = races.map(r => {
     const v = r[key];
@@ -54,6 +40,115 @@ function bestIdsFor(races: Race[], key: keyof Race, better: "lower" | "higher"):
   const out = new Set<number>();
   races.forEach((r, i) => { if (vals[i] === target) out.add(r.id); });
   return out;
+}
+
+// Centralised field definitions so the desktop table and the mobile stacked
+// cards stay in sync. Each row describes its label, its renderer, and the
+// (optional) "best in row" highlighter.
+type FieldRow = {
+  label: string;
+  testId?: (raceId: number) => string;
+  highlight?: { key: keyof Race; better: "lower" | "higher" };
+  render: (race: Race) => React.ReactNode;
+};
+type FieldGroup = { heading?: string; rows: FieldRow[] };
+
+function buildFieldGroups(): FieldGroup[] {
+  return [
+    {
+      rows: [
+        { label: "Date", render: r => format(parseRaceDate(r.date), "EEE, MMM d, yyyy") },
+        { label: "Start time", render: r => r.startTime || "TBA" },
+        { label: "Location", render: r => `${r.city}, ${r.state}` },
+        {
+          label: "Travel time",
+          render: () => (
+            <span className="text-xs text-muted-foreground italic">Add a starting ZIP on the race page for an estimate.</span>
+          ),
+        },
+        { label: "Course type", render: r => r.courseType || "Not stated" },
+        { label: "Surface", render: r => r.terrain || r.surface || "—" },
+        {
+          label: "Race-day weather",
+          testId: id => `compare-weather-link-${id}`,
+          render: r => (
+            <Link href={`/races/${r.slug}#weather`} className="text-primary hover:underline" data-testid={`compare-weather-link-${r.id}`}>
+              See forecast & averages
+            </Link>
+          ),
+        },
+        {
+          label: "Weather (typical)",
+          render: r => (
+            <span className="text-xs text-muted-foreground">
+              Avg for {format(parseRaceDate(r.date), "MMMM")} in {r.state} — see race page.
+            </span>
+          ),
+        },
+        {
+          label: "Elevation",
+          highlight: { key: "elevationGainM", better: "lower" },
+          render: r => (r.elevationGainM != null ? `${r.elevationGainM}m gain` : r.elevation || "—"),
+        },
+        {
+          label: "Entry fee",
+          highlight: { key: "priceMin", better: "lower" },
+          render: r => fmtPrice(r.priceMin, r.priceMax),
+        },
+        {
+          label: "Field size",
+          highlight: { key: "fieldSize", better: "higher" },
+          render: r => (r.fieldSize ? r.fieldSize.toLocaleString() + " runners" : "—"),
+        },
+        {
+          label: "Registration closes",
+          render: r => (r.registrationDeadline ? format(parseRaceDate(r.registrationDeadline), "MMM d, yyyy") : "—"),
+        },
+        {
+          label: "Next price hike",
+          render: r => r.nextPriceIncreaseAt ? (
+            <span className="text-amber-700 inline-flex items-center gap-1">
+              <AlarmClock className="h-3.5 w-3.5" />
+              {format(parseRaceDate(r.nextPriceIncreaseAt), "MMM d")}
+              {r.nextPriceIncreaseAmount ? ` (+$${r.nextPriceIncreaseAmount})` : ""}
+            </span>
+          ) : "—",
+        },
+        { label: "Boston qualifier", render: r => r.bostonQualifier ? "Yes" : "No" },
+        {
+          label: "Walker / stroller",
+          render: r => [r.walkerFriendly && "Walkers", r.strollerFriendly && "Strollers", r.dogFriendly && "Dogs", r.kidsRace && "Kids race"].filter(Boolean).join(" · ") || "—",
+        },
+        { label: "Refund policy", render: r => <span className="text-xs leading-snug">{r.refundPolicy || "Not stated"}</span> },
+        { label: "Deferral policy", render: r => <span className="text-xs leading-snug">{r.deferralPolicy || "Not stated"}</span> },
+        {
+          label: "Reviews",
+          testId: id => `compare-reviews-link-${id}`,
+          render: r => (
+            <Link href={`/races/${r.slug}#reviews`} className="text-primary hover:underline" data-testid={`compare-reviews-link-${r.id}`}>
+              Read runner reviews
+            </Link>
+          ),
+        },
+      ],
+    },
+    {
+      heading: "Decision scores (0–100)",
+      rows: [
+        { label: "Beginner", highlight: { key: "beginnerScore", better: "higher" }, render: r => r.beginnerScore ?? "—" },
+        { label: "PR potential", highlight: { key: "prScore", better: "higher" }, render: r => r.prScore ?? "—" },
+        { label: "Value", highlight: { key: "valueScore", better: "higher" }, render: r => r.valueScore ?? "—" },
+        { label: "Vibe", highlight: { key: "vibeScore", better: "higher" }, render: r => r.vibeScore ?? "—" },
+        { label: "Family", highlight: { key: "familyScore", better: "higher" }, render: r => r.familyScore ?? "—" },
+      ],
+    },
+    {
+      heading: "Best fit",
+      rows: [
+        { label: "Race is great for", render: r => <BestForBadges race={r} testId={`compare-best-${r.id}`} /> },
+      ],
+    },
+  ];
 }
 
 function CellHighlight({ best, children }: { best: boolean; children: React.ReactNode }) {
@@ -90,20 +185,39 @@ function RaceColumnHeader({ race, onRemove }: { race: Race; onRemove: () => void
   );
 }
 
-function CompareTable({ races, onRemove }: { races: Race[]; onRemove: (id: number) => void }) {
-  const bestPrice = bestIdsFor(races, "priceMin", "lower");
-  const bestElev = bestIdsFor(races, "elevationGainM", "lower");
-  const bestField = bestIdsFor(races, "fieldSize", "higher");
-  const bestBeginner = bestIdsFor(races, "beginnerScore", "higher");
-  const bestPr = bestIdsFor(races, "prScore", "higher");
-  const bestValue = bestIdsFor(races, "valueScore", "higher");
-  const bestVibe = bestIdsFor(races, "vibeScore", "higher");
-  const bestFamily = bestIdsFor(races, "familyScore", "higher");
+function RegisterCTAs({ race }: { race: Race }) {
+  const url = race.registrationUrl || race.website;
+  return (
+    <div className="space-y-2">
+      {url ? (
+        <Button
+          asChild
+          className="w-full"
+          data-testid={`compare-button-register-${race.id}`}
+          onClick={() => apiTrackOutbound({ raceId: race.id, destination: race.registrationUrl ? "registration" : "website", targetUrl: url })}
+        >
+          <a href={url} target="_blank" rel="noopener noreferrer nofollow">
+            Register <ExternalLink className="ml-1 h-3.5 w-3.5" />
+          </a>
+        </Button>
+      ) : (
+        <Button asChild variant="outline" className="w-full" data-testid={`compare-button-details-${race.id}`}>
+          <Link href={`/races/${race.slug}`}>View details</Link>
+        </Button>
+      )}
+      <Button asChild variant="outline" className="w-full" data-testid={`compare-button-page-${race.id}`}>
+        <Link href={`/races/${race.slug}`}>Race page <ArrowRight className="ml-1 h-3.5 w-3.5" /></Link>
+      </Button>
+    </div>
+  );
+}
 
+function DesktopCompareTable({ races, groups, onRemove }: { races: Race[]; groups: FieldGroup[]; onRemove: (id: number) => void }) {
   const cols = `repeat(${races.length}, minmax(0, 1fr))`;
+  const colCount = races.length;
 
   return (
-    <div className="overflow-x-auto" data-testid="compare-table">
+    <div className="hidden md:block overflow-x-auto" data-testid="compare-table-desktop">
       <div className="min-w-[640px]">
         <div className="grid gap-3 mb-4 items-stretch" style={{ gridTemplateColumns: `180px ${cols}` }}>
           <div />
@@ -112,173 +226,97 @@ function CompareTable({ races, onRemove }: { races: Race[]; onRemove: (id: numbe
           ))}
         </div>
 
-        <Section label="Date" cols={cols}>
-          {races.map(r => <CellHighlight key={r.id} best={false}>{format(parseRaceDate(r.date), "EEE, MMM d, yyyy")}</CellHighlight>)}
-        </Section>
-        <Section label="Start time" cols={cols}>
-          {races.map(r => <CellHighlight key={r.id} best={false}>{r.startTime || "TBA"}</CellHighlight>)}
-        </Section>
-        <Section label="Travel time" cols={cols}>
-          {races.map(r => <CellHighlight key={r.id} best={false}>{r.city}, {r.state}</CellHighlight>)}
-        </Section>
-        <Section label="Surface" cols={cols}>
-          {races.map(r => <CellHighlight key={r.id} best={false}>{r.terrain || r.surface || "—"}</CellHighlight>)}
-        </Section>
-        <Section label="Race-day weather" cols={cols}>
-          {races.map(r => (
-            <CellHighlight key={r.id} best={false}>
-              <Link href={`/races/${r.slug}#weather`} className="text-primary hover:underline" data-testid={`compare-weather-link-${r.id}`}>
-                See forecast & averages
-              </Link>
-            </CellHighlight>
-          ))}
-        </Section>
-        <Section label="Elevation" cols={cols}>
-          {races.map(r => (
-            <CellHighlight key={r.id} best={bestElev.has(r.id)}>
-              {r.elevationGainM != null ? `${r.elevationGainM}m gain` : r.elevation || "—"}
-            </CellHighlight>
-          ))}
-        </Section>
-        <Section label="Entry fee" cols={cols}>
-          {races.map(r => (
-            <CellHighlight key={r.id} best={bestPrice.has(r.id)}>
-              {fmtPrice(r.priceMin, r.priceMax)}
-            </CellHighlight>
-          ))}
-        </Section>
-        <Section label="Field size" cols={cols}>
-          {races.map(r => (
-            <CellHighlight key={r.id} best={bestField.has(r.id)}>
-              {r.fieldSize ? r.fieldSize.toLocaleString() + " runners" : "—"}
-            </CellHighlight>
-          ))}
-        </Section>
-        <Section label="Registration closes" cols={cols}>
-          {races.map(r => (
-            <CellHighlight key={r.id} best={false}>
-              {r.registrationDeadline ? format(parseRaceDate(r.registrationDeadline), "MMM d, yyyy") : "—"}
-            </CellHighlight>
-          ))}
-        </Section>
-        <Section label="Next price hike" cols={cols}>
-          {races.map(r => (
-            <CellHighlight key={r.id} best={false}>
-              {r.nextPriceIncreaseAt ? (
-                <span className="text-amber-700 inline-flex items-center gap-1"><AlarmClock className="h-3.5 w-3.5" />{format(parseRaceDate(r.nextPriceIncreaseAt), "MMM d")}{r.nextPriceIncreaseAmount ? ` (+$${r.nextPriceIncreaseAmount})` : ""}</span>
-              ) : "—"}
-            </CellHighlight>
-          ))}
-        </Section>
-        <Section label="Boston qualifier" cols={cols}>
-          {races.map(r => <CellHighlight key={r.id} best={false}>{r.bostonQualifier ? "Yes" : "No"}</CellHighlight>)}
-        </Section>
-        <Section label="Walker / stroller" cols={cols}>
-          {races.map(r => (
-            <CellHighlight key={r.id} best={false}>
-              {[r.walkerFriendly && "Walkers", r.strollerFriendly && "Strollers", r.dogFriendly && "Dogs", r.kidsRace && "Kids race"].filter(Boolean).join(" · ") || "—"}
-            </CellHighlight>
-          ))}
-        </Section>
-        <Section label="Refund policy" cols={cols}>
-          {races.map(r => (
-            <CellHighlight key={r.id} best={false}>
-              <span className="text-xs leading-snug">{r.refundPolicy || "Not stated"}</span>
-            </CellHighlight>
-          ))}
-        </Section>
-        <Section label="Deferral policy" cols={cols}>
-          {races.map(r => (
-            <CellHighlight key={r.id} best={false}>
-              <span className="text-xs leading-snug">{r.deferralPolicy || "Not stated"}</span>
-            </CellHighlight>
-          ))}
-        </Section>
-        <Section label="Reviews" cols={cols}>
-          {races.map(r => (
-            <CellHighlight key={r.id} best={false}>
-              <Link href={`/races/${r.slug}#reviews`} className="text-primary hover:underline" data-testid={`compare-reviews-link-${r.id}`}>
-                Read runner reviews
-              </Link>
-            </CellHighlight>
-          ))}
-        </Section>
-
-        <SectionHeader label="Decision scores (0–100)" cols={cols} />
-        <Section label="Beginner" cols={cols}>
-          {races.map(r => <CellHighlight key={r.id} best={bestBeginner.has(r.id)}>{r.beginnerScore ?? "—"}</CellHighlight>)}
-        </Section>
-        <Section label="PR potential" cols={cols}>
-          {races.map(r => <CellHighlight key={r.id} best={bestPr.has(r.id)}>{r.prScore ?? "—"}</CellHighlight>)}
-        </Section>
-        <Section label="Value" cols={cols}>
-          {races.map(r => <CellHighlight key={r.id} best={bestValue.has(r.id)}>{r.valueScore ?? "—"}</CellHighlight>)}
-        </Section>
-        <Section label="Vibe" cols={cols}>
-          {races.map(r => <CellHighlight key={r.id} best={bestVibe.has(r.id)}>{r.vibeScore ?? "—"}</CellHighlight>)}
-        </Section>
-        <Section label="Family" cols={cols}>
-          {races.map(r => <CellHighlight key={r.id} best={bestFamily.has(r.id)}>{r.familyScore ?? "—"}</CellHighlight>)}
-        </Section>
-
-        <SectionHeader label="Best fit" cols={cols} />
-        <div className="grid gap-3 items-start mb-2" style={{ gridTemplateColumns: `180px ${cols}` }}>
-          <div className="text-xs font-semibold text-muted-foreground py-2">Race is great for</div>
-          {races.map(r => (
-            <div key={r.id} className="py-2 px-2">
-              <BestForBadges race={r} testId={`compare-best-${r.id}`} />
-            </div>
-          ))}
-        </div>
+        {groups.map((group, gi) => (
+          <div key={gi}>
+            {group.heading && (
+              <div className="grid gap-3 items-center mt-6 mb-1" style={{ gridTemplateColumns: `180px ${cols}` }}>
+                <div className="text-[11px] uppercase tracking-wider font-bold text-primary py-2">{group.heading}</div>
+                {Array.from({ length: colCount }).map((_, i) => <div key={i} />)}
+              </div>
+            )}
+            {group.rows.map(row => {
+              const bestSet = row.highlight ? bestIdsFor(races, row.highlight.key, row.highlight.better) : new Set<number>();
+              return (
+                <div key={row.label} className="grid gap-3 items-center border-t" style={{ gridTemplateColumns: `180px ${cols}` }}>
+                  <div className="text-xs font-semibold text-muted-foreground py-2 px-2">{row.label}</div>
+                  {races.map(r => (
+                    <CellHighlight key={r.id} best={bestSet.has(r.id)}>
+                      {row.render(r)}
+                    </CellHighlight>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        ))}
 
         <div className="grid gap-3 mt-6 items-start" style={{ gridTemplateColumns: `180px ${cols}` }}>
           <div />
-          {races.map(r => {
-            const url = r.registrationUrl || r.website;
-            return (
-              <div key={r.id} className="space-y-2">
-                {url ? (
-                  <Button
-                    asChild
-                    className="w-full"
-                    data-testid={`compare-button-register-${r.id}`}
-                    onClick={() => apiTrackOutbound({ raceId: r.id, destination: r.registrationUrl ? "registration" : "website", targetUrl: url })}
-                  >
-                    <a href={url} target="_blank" rel="noopener noreferrer nofollow">
-                      Register <ExternalLink className="ml-1 h-3.5 w-3.5" />
-                    </a>
-                  </Button>
-                ) : (
-                  <Button asChild variant="outline" className="w-full" data-testid={`compare-button-details-${r.id}`}>
-                    <Link href={`/races/${r.slug}`}>View details</Link>
-                  </Button>
-                )}
-                <Button asChild variant="outline" className="w-full" data-testid={`compare-button-page-${r.id}`}>
-                  <Link href={`/races/${r.slug}`}>Race page <ArrowRight className="ml-1 h-3.5 w-3.5" /></Link>
-                </Button>
-              </div>
-            );
-          })}
+          {races.map(r => <RegisterCTAs key={r.id} race={r} />)}
         </div>
       </div>
     </div>
   );
 }
 
-function Section({ label, cols, children }: { label: string; cols: string; children: React.ReactNode }) {
-  return (
-    <div className="grid gap-3 items-center border-t" style={{ gridTemplateColumns: `180px ${cols}` }}>
-      <div className="text-xs font-semibold text-muted-foreground py-2 px-2">{label}</div>
-      {children}
-    </div>
-  );
-}
+function MobileCompareCards({ races, groups, onRemove }: { races: Race[]; groups: FieldGroup[]; onRemove: (id: number) => void }) {
+  // Compute "best" sets once across all races so highlighting works the same
+  // on mobile as on desktop.
+  const bestSets = new Map<string, Set<number>>();
+  groups.forEach(g => g.rows.forEach(row => {
+    if (row.highlight) {
+      bestSets.set(row.label, bestIdsFor(races, row.highlight.key, row.highlight.better));
+    }
+  }));
 
-function SectionHeader({ label, cols }: { label: string; cols: string }) {
   return (
-    <div className="grid gap-3 items-center mt-6 mb-1" style={{ gridTemplateColumns: `180px ${cols}` }}>
-      <div className="text-[11px] uppercase tracking-wider font-bold text-primary py-2">{label}</div>
-      {Array.from({ length: cols.match(/repeat\((\d+)/)?.[1] ? parseInt(cols.match(/repeat\((\d+)/)![1]) : 0 }).map((_, i) => <div key={i} />)}
+    <div className="md:hidden space-y-6" data-testid="compare-table-mobile">
+      {races.map(race => (
+        <div key={race.id} className="bg-card border rounded-2xl shadow-sm overflow-hidden" data-testid={`compare-mobile-card-${race.id}`}>
+          <div className="p-4 border-b bg-muted/30">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <Badge variant="secondary" className="text-[10px] uppercase">{race.distance}</Badge>
+              <button
+                type="button"
+                onClick={() => onRemove(race.id)}
+                className="text-muted-foreground hover:text-destructive transition-colors"
+                aria-label={`Remove ${race.name} from compare`}
+                data-testid={`button-compare-mobile-remove-${race.id}`}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <Link href={`/races/${race.slug}`} className="font-heading font-bold text-lg leading-tight hover:text-primary block" data-testid={`compare-mobile-link-${race.id}`}>
+              {race.name}
+            </Link>
+            <div className="text-xs text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{format(parseRaceDate(race.date), "MMM d, yyyy")}</span>
+              <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{race.city}, {race.state}</span>
+            </div>
+          </div>
+          <div className="divide-y">
+            {groups.map((group, gi) => (
+              <div key={gi}>
+                {group.heading && (
+                  <div className="px-4 pt-3 pb-1 text-[10px] uppercase tracking-wider font-bold text-primary">{group.heading}</div>
+                )}
+                {group.rows.map(row => {
+                  const isBest = bestSets.get(row.label)?.has(race.id) ?? false;
+                  return (
+                    <div key={row.label} className={cn("px-4 py-2.5 grid grid-cols-2 gap-3 items-start text-sm", isBest && "bg-emerald-500/5")}>
+                      <div className="text-xs font-semibold text-muted-foreground">{row.label}</div>
+                      <div className={cn(isBest && "font-semibold text-emerald-700")}>{row.render(race)}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          <div className="p-4 border-t bg-muted/20">
+            <RegisterCTAs race={race} />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -309,6 +347,8 @@ export default function ComparePage() {
     clear();
     setLocation("/races");
   };
+
+  const groups = buildFieldGroups();
 
   return (
     <Layout>
@@ -353,7 +393,8 @@ export default function ComparePage() {
             <Card><CardContent className="p-10 text-center text-muted-foreground" data-testid="text-compare-not-found">Some of those races aren't in our database. Try picking different ones.</CardContent></Card>
           ) : (
             <>
-              <CompareTable races={races} onRemove={handleRemove} />
+              <DesktopCompareTable races={races} groups={groups} onRemove={handleRemove} />
+              <MobileCompareCards races={races} groups={groups} onRemove={handleRemove} />
               <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-muted-foreground">Highlighted cells show the strongest option in that category. "—" means we don't have that data yet.</p>
                 <div className="flex items-center gap-2">

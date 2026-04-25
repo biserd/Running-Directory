@@ -240,8 +240,8 @@ function ClaimRaceCard({ race }: { race: Race }) {
       const res = await apiSubmitRaceClaim(race.slug, { claimerEmail: email, claimerName: name || undefined, claimerRole: role || undefined, message: message || undefined });
       toast({ title: "Claim submitted", description: res.message });
       setDone(true);
-      // Redirect to the organizer hub so the claimer can see what's available next
-      setTimeout(() => setLocation("/organizers"), 1200);
+      // Redirect to the for-organizers hub so the claimer can see what's available next
+      setTimeout(() => setLocation("/for-organizers"), 1200);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Please try again.";
       toast({ title: "Couldn't submit claim", description: msg, variant: "destructive" });
@@ -258,14 +258,14 @@ function ClaimRaceCard({ race }: { race: Race }) {
         <div className="space-y-3">
           <p className="text-sm text-emerald-600 font-medium" data-testid="text-claim-success">Claim received — taking you to the organizer hub…</p>
           <Button asChild variant="outline" size="sm" className="w-full" data-testid="button-claim-organizer-hub">
-            <Link href="/organizers">Open organizer hub</Link>
+            <Link href="/for-organizers">Open organizer hub</Link>
           </Button>
         </div>
       ) : !open ? (
         <div className="space-y-2">
           <Button variant="outline" className="w-full" onClick={() => setOpen(true)} data-testid="button-claim-open">Claim this race</Button>
           <Button asChild variant="ghost" size="sm" className="w-full" data-testid="button-organizer-info">
-            <Link href="/organizers">Learn about organizer tools →</Link>
+            <Link href="/for-organizers">Learn about organizer tools →</Link>
           </Button>
         </div>
       ) : (

@@ -858,6 +858,7 @@ const routeMatches: RouteMatch[] = [
   { pattern: /^\/price-watch$/, prefetch: prefetchPriceWatch, paramNames: [] },
   { pattern: /^\/organizers\/([^/]+)$/, prefetch: prefetchOrganizers, paramNames: ["slug"] },
   { pattern: /^\/organizers$/, prefetch: prefetchOrganizers, paramNames: [] },
+  { pattern: /^\/for-organizers$/, prefetch: prefetchOrganizers, paramNames: [] },
 ];
 
 export function getSSRPrefetch(url: string): ((qc: QueryClient) => Promise<PageMeta>) | undefined {
