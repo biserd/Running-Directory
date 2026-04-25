@@ -163,6 +163,9 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
       try {
         const orgs = await storage.getOrganizers({ limit: SITEMAP_MAX });
         for (const o of orgs) {
+          // Gate organizer detail URLs to match the page-level noindex
+          // policy: skip thin/noindex pages (fewer than 5 races).
+          if ((o.raceCount ?? 0) < 5) continue;
           entries.push(urlEntry(`/organizers/${o.slug}`, {
             changefreq: "weekly",
             priority: "0.6",
