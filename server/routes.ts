@@ -1086,7 +1086,9 @@ export async function registerRoutes(
   app.post("/api/alerts", requireAuth, async (req, res) => {
     try {
       const data = insertRaceAlertSchema.omit({ userId: true }).parse(req.body);
-      const allowed = new Set(["price-drop", "price-increase", "registration-close", "registration-open", "reg-close"]);
+      // Allowlist matches dispatcher coverage. `registration-open` is intentionally
+      // omitted until a dispatcher exists (no `registrationOpensAt` source field yet).
+      const allowed = new Set(["price-drop", "price-increase", "registration-close", "reg-close"]);
       if (!allowed.has(data.alertType)) {
         return res.status(400).json({ message: "Invalid alertType" });
       }
@@ -1108,7 +1110,8 @@ export async function registerRoutes(
 
   app.patch("/api/alerts/:id", requireAuth, async (req, res) => {
     const id = parseInt(String(req.params.id));
-    const allowed = new Set(["price-drop", "price-increase", "registration-close", "registration-open"]);
+    // Keep in sync with POST /api/alerts allowlist and scheduler dispatchers.
+    const allowed = new Set(["price-drop", "price-increase", "registration-close"]);
     const alertType = typeof req.body?.alertType === "string" ? req.body.alertType : "";
     if (!allowed.has(alertType)) return res.status(400).json({ message: "Invalid alertType" });
     const updated = await storage.updateRaceAlertType(id, req.session.userId!, alertType);

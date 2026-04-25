@@ -33,6 +33,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "rec
 import type { Race, RaceAlert } from "@shared/schema";
 import { getStateSlug, getStateName } from "@/lib/states";
 import { useAuth } from "@/hooks/use-auth";
+import { setPendingAction } from "@/lib/pending-action";
 import { useToast } from "@/hooks/use-toast";
 import { useCompareCart } from "@/hooks/use-compare-cart";
 import { cn } from "@/lib/utils";
@@ -326,7 +327,12 @@ function AlertToggle({ race }: { race: Race }) {
   const myAlert = alerts?.find(a => a.raceId === race.id);
 
   const onClick = async () => {
-    if (!user) { openLogin(); return; }
+    if (!user) {
+      setPendingAction({ type: "race-alert", payload: { raceId: race.id, alertType: "price-drop" } });
+      toast({ title: "Sign in to set this alert", description: "We'll set your alert as soon as you're signed in." });
+      openLogin();
+      return;
+    }
     if (pending) return;
     setPending(true);
     try {

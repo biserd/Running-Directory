@@ -322,7 +322,6 @@ export default function AlertsPage() {
                         <option value="price-drop">Price changes</option>
                         <option value="price-increase">Price increase</option>
                         <option value="registration-close">Registration closing</option>
-                        <option value="registration-open">Registration opens</option>
                       </select>
                       <Link href={a.raceSlug ? `/races/${a.raceSlug}` : `/races`}>
                         <Button variant="ghost" size="icon" aria-label="Open race" data-testid={`link-race-alert-${a.id}`}>

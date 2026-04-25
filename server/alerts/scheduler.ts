@@ -322,7 +322,14 @@ async function dispatchThisWeekendDigest(): Promise<number> {
 
   for (const search of searches) {
     const filters = savedSearchToFilters(search.queryJson);
-    const races = await storage.getRacesAdvanced({ ...filters, limit: 30 });
+    let races = await storage.getRacesAdvanced({ ...filters, limit: 50 });
+    // Apply client-only buckets (elevation/size) the search engine doesn't honor —
+    // mirrors dispatchSavedSearchMatches so saved-search filter semantics agree.
+    const q = (search.queryJson || {}) as Record<string, unknown>;
+    const elevLabel = typeof q.elevationBucket === "string" ? q.elevationBucket : null;
+    const sizeLabel = typeof q.sizeBucket === "string" ? q.sizeBucket : null;
+    if (elevLabel) races = races.filter((r) => matchesBucket(r.elevationGainM ?? null, elevLabel, ELEVATION_BUCKETS));
+    if (sizeLabel) races = races.filter((r) => matchesBucket(r.fieldSize ?? null, sizeLabel, RACE_SIZE_BUCKETS));
     const weekend = races.filter(r => isWithinNext72h(r.date));
     if (weekend.length === 0) continue;
     const dispatchKey = `${todayKey("this-weekend")}:u${search.userId}:s${search.id}`;
