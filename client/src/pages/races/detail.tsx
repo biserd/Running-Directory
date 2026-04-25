@@ -558,23 +558,33 @@ export default function RaceDetail() {
           <section data-testid="section-course-features">
             <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-stone-500 pl-3 flex items-center gap-2"><MapIcon className="h-5 w-5" />Course features</h2>
             <div className="grid sm:grid-cols-2 gap-3">
-              {race.terrain && <FeatureRow label="Terrain" value={race.terrain} />}
-              {race.surface && <FeatureRow label="Surface" value={race.surface} />}
-              {race.elevationGainM != null && <FeatureRow label="Elevation gain" value={`${race.elevationGainM}m`} />}
-              {race.courseType && <FeatureRow label="Course type" value={race.courseType} />}
-              {race.fieldSize != null && <FeatureRow label="Field size" value={`${race.fieldSize.toLocaleString()} runners`} />}
-              {race.bostonQualifier != null && <FeatureRow label="Boston qualifier" value={race.bostonQualifier ? "Yes" : "No"} />}
-              {race.courseMapUrl && (
+              <FeatureRow label="Terrain" value={race.terrain || "Not stated"} />
+              <FeatureRow label="Surface" value={race.surface || "Not stated"} />
+              <FeatureRow label="Elevation gain" value={race.elevationGainM != null ? `${race.elevationGainM}m` : "Not measured"} />
+              <FeatureRow label="Course type" value={race.courseType || "Not stated"} />
+              <FeatureRow label="Field size" value={race.fieldSize != null ? `${race.fieldSize.toLocaleString()} runners` : "Unknown"} />
+              <FeatureRow label="Boston qualifier" value={race.bostonQualifier == null ? "Unknown" : (race.bostonQualifier ? "Yes" : "No")} />
+              {race.courseMapUrl ? (
                 <a href={race.courseMapUrl} target="_blank" rel="noopener noreferrer nofollow" className="rounded-lg border p-3 hover:border-primary/50 transition-colors" onClick={() => apiTrackOutbound({ raceId: race.id, destination: "course-map", targetUrl: race.courseMapUrl! })} data-testid="link-course-map">
                   <div className="text-xs uppercase tracking-wider text-muted-foreground">Course map</div>
                   <div className="font-semibold text-sm flex items-center gap-1.5 mt-0.5">View map <ExternalLink className="h-3 w-3" /></div>
                 </a>
+              ) : (
+                <div className="rounded-lg border border-dashed p-3 bg-muted/30" data-testid="placeholder-course-map">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground">Course map</div>
+                  <div className="font-medium text-sm text-muted-foreground italic mt-0.5">Not yet published</div>
+                </div>
               )}
-              {race.elevationProfileUrl && (
+              {race.elevationProfileUrl ? (
                 <a href={race.elevationProfileUrl} target="_blank" rel="noopener noreferrer nofollow" className="rounded-lg border p-3 hover:border-primary/50 transition-colors" onClick={() => apiTrackOutbound({ raceId: race.id, destination: "elevation", targetUrl: race.elevationProfileUrl! })} data-testid="link-elevation-profile-url">
                   <div className="text-xs uppercase tracking-wider text-muted-foreground">Elevation profile</div>
                   <div className="font-semibold text-sm flex items-center gap-1.5 mt-0.5">View profile <ExternalLink className="h-3 w-3" /></div>
                 </a>
+              ) : (
+                <div className="rounded-lg border border-dashed p-3 bg-muted/30" data-testid="placeholder-elevation-profile">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground">Elevation profile</div>
+                  <div className="font-medium text-sm text-muted-foreground italic mt-0.5">{race.elevationGainM != null ? "Profile not published" : "Not measured"}</div>
+                </div>
               )}
             </div>
           </section>
