@@ -1086,6 +1086,10 @@ export async function registerRoutes(
   app.post("/api/alerts", requireAuth, async (req, res) => {
     try {
       const data = insertRaceAlertSchema.omit({ userId: true }).parse(req.body);
+      const allowed = new Set(["price-drop", "price-increase", "registration-close", "registration-open", "reg-close"]);
+      if (!allowed.has(data.alertType)) {
+        return res.status(400).json({ message: "Invalid alertType" });
+      }
       const created = await storage.createRaceAlert({ ...data, userId: req.session.userId! });
       res.status(201).json(created);
     } catch (err) {
@@ -1100,6 +1104,16 @@ export async function registerRoutes(
     const id = parseInt(String(req.params.id));
     await storage.deleteRaceAlert(id, req.session.userId!);
     res.json({ ok: true });
+  });
+
+  app.patch("/api/alerts/:id", requireAuth, async (req, res) => {
+    const id = parseInt(String(req.params.id));
+    const allowed = new Set(["price-drop", "price-increase", "registration-close", "registration-open"]);
+    const alertType = typeof req.body?.alertType === "string" ? req.body.alertType : "";
+    if (!allowed.has(alertType)) return res.status(400).json({ message: "Invalid alertType" });
+    const updated = await storage.updateRaceAlertType(id, req.session.userId!, alertType);
+    if (!updated) return res.status(404).json({ message: "Not found" });
+    res.json(updated);
   });
 
   // ───────── Alert preferences, tracking, unsubscribe ─────────

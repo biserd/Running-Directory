@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Race, RaceAlert } from "@shared/schema";
+import { setPendingAction } from "@/lib/pending-action";
 import { Calendar, MapPin, Mountain, DollarSign, AlarmClock, Users, Heart, Scale, Bell, BellRing, ExternalLink, Check } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
@@ -88,6 +89,8 @@ export function RaceCard({ race, showCompare = true, showAlert = true }: RaceCar
     e.preventDefault();
     e.stopPropagation();
     if (!user) {
+      setPendingAction({ type: "race-alert", payload: { raceId: race.id, alertType: "price-drop" } });
+      toast({ title: "Sign in to set this alert", description: "We'll set your alert as soon as you're signed in." });
       openLogin();
       return;
     }

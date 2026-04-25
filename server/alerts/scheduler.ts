@@ -11,6 +11,7 @@ import {
   type EmailEnvelope,
 } from "./templates";
 import type { Race, RaceSearchFilters } from "@shared/schema";
+import { ELEVATION_BUCKETS, RACE_SIZE_BUCKETS, matchesBucket } from "@shared/race-buckets";
 
 const FROM_EMAIL = "running.services <hello@running.services>";
 
@@ -65,16 +66,30 @@ async function sendAlertEmail(params: {
 }): Promise<boolean> {
   if (!shouldDeliver(params.unsubAll, params.unsubTypes, params.alertType)) return false;
 
-  // Idempotency: if a successful dispatch row already exists for this key (today), skip.
-  const existing = await storage.findDispatchByKey(params.dispatchKey);
-  if (existing) return false;
-
   const unsubToken = token();
   const trackToken = token();
   const baseUrl = getBaseUrl();
   const envelope = params.build({ baseUrl, unsubToken, trackToken });
 
-  // Send first; only persist the dispatch row on success so failures don't suppress retries.
+  // Multi-instance-safe idempotency: reserve the dispatchKey via INSERT first so that
+  // exactly one worker claims it (DB unique constraint serializes). If the row already
+  // exists, another tick/process won — skip silently. Send the email second; if the
+  // send fails, delete the row so retries can succeed on the next tick.
+  const dispatch = await storage.recordAlertDispatch({
+    userId: params.userId,
+    alertType: params.alertType,
+    raceId: params.raceId ?? null,
+    savedSearchId: params.savedSearchId ?? null,
+    raceAlertId: params.raceAlertId ?? null,
+    dispatchKey: params.dispatchKey,
+    unsubToken,
+    trackToken,
+    emailSubject: envelope.subject,
+    emailTo: params.userEmail,
+    matchCount: params.matchCount ?? null,
+  });
+  if (!dispatch) return false; // someone else already claimed this dispatchKey
+
   if (resend) {
     try {
       const result = await resend.emails.send({
@@ -89,32 +104,24 @@ async function sendAlertEmail(params: {
         },
       });
       if (result.error) {
+        // Definitive provider rejection — safe to release the reservation so the next
+        // tick can retry without sending a duplicate.
         console.error("[alerts] Resend error", result.error, "for", envelope.subject);
+        await storage.deleteAlertDispatch(dispatch.id);
         return false;
       }
     } catch (err) {
-      console.error("[alerts] send failure", err);
+      // Network/timeout exceptions can be "phantom failures" where the email was
+      // actually delivered but we lost the response. Keep the reservation to avoid
+      // duplicate sends on retry; an operator can manually clear if needed.
+      console.error("[alerts] send threw (reservation kept to prevent dupes)", err);
       return false;
     }
   } else {
     console.log(`[alerts] (no Resend key) would send "${envelope.subject}" to ${params.userEmail}`);
   }
 
-  // Persist after a successful (or simulated) send so future ticks honor idempotency.
-  const dispatch = await storage.recordAlertDispatch({
-    userId: params.userId,
-    alertType: params.alertType,
-    raceId: params.raceId ?? null,
-    savedSearchId: params.savedSearchId ?? null,
-    raceAlertId: params.raceAlertId ?? null,
-    dispatchKey: params.dispatchKey,
-    unsubToken,
-    trackToken,
-    emailSubject: envelope.subject,
-    emailTo: params.userEmail,
-    matchCount: params.matchCount ?? null,
-  });
-  return !!dispatch;
+  return true;
 }
 
 async function dispatchPriceIncrease(): Promise<number> {
@@ -214,20 +221,81 @@ function savedSearchToFilters(query: unknown): RaceSearchFilters {
   if (!query || typeof query !== "object") return {};
   const q = query as Record<string, unknown>;
   const filters: RaceSearchFilters = {};
-  if (typeof q.distance === "string") filters.distance = q.distance;
-  if (typeof q.surface === "string") filters.surface = q.surface;
-  if (typeof q.terrain === "string") filters.terrain = q.terrain;
-  if (typeof q.state === "string") filters.state = q.state;
-  if (typeof q.priceMax === "string" && q.priceMax) filters.priceMax = Number(q.priceMax);
-  if (q.walkerFriendly === true) filters.walkerFriendly = true;
-  if (q.strollerFriendly === true) filters.strollerFriendly = true;
-  if (q.dogFriendly === true) filters.dogFriendly = true;
-  if (q.kidsRace === true) filters.kidsRace = true;
-  if (q.charity === true) filters.charity = true;
-  if (q.bostonQualifier === true) filters.bostonQualifier = true;
-  if (q.turkeyTrot === true) filters.isTurkeyTrot = true;
-  if (typeof q.vibeTag === "string" && q.vibeTag) filters.vibeTag = q.vibeTag;
-  if (typeof q.month === "string" && q.month) filters.month = Number(q.month);
+  const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+  const num = (v: unknown) => {
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string" && v.trim() && !Number.isNaN(Number(v))) return Number(v);
+    return undefined;
+  };
+  const trueish = (v: unknown) => v === true || v === "true" || v === 1 || v === "1";
+
+  // Location & query
+  if (str(q.state)) filters.state = str(q.state);
+  if (str(q.city)) filters.city = str(q.city);
+  if (num(q.cityId) !== undefined) filters.cityId = num(q.cityId);
+  // Note: free-text q isn't honored by the server search engine; preserved in queryJson
+  // for the click-through URL but not applied to scheduler match filtering.
+
+  // Distance(s)
+  if (str(q.distance)) filters.distance = str(q.distance);
+  if (Array.isArray(q.distances)) {
+    const ds = q.distances.filter((d): d is string => typeof d === "string" && d.length > 0);
+    if (ds.length) filters.distances = ds;
+  }
+
+  // Surface, terrain, vibe
+  if (str(q.surface)) filters.surface = str(q.surface);
+  if (str(q.terrain)) filters.terrain = str(q.terrain);
+  if (str(q.vibeTag)) filters.vibeTag = str(q.vibeTag);
+  if (str(q.elevationBucket)) (filters as Record<string, unknown>).elevationBucket = str(q.elevationBucket);
+  if (str(q.sizeBucket)) (filters as Record<string, unknown>).sizeBucket = str(q.sizeBucket);
+
+  // Time window
+  if (num(q.year) !== undefined) filters.year = num(q.year);
+  if (num(q.month) !== undefined) filters.month = num(q.month);
+  if (str(q.dateFrom)) filters.dateFrom = str(q.dateFrom);
+  if (str(q.dateTo)) filters.dateTo = str(q.dateTo);
+
+  // Price & score thresholds
+  if (num(q.priceMin) !== undefined) filters.priceMin = num(q.priceMin);
+  if (num(q.priceMax) !== undefined) filters.priceMax = num(q.priceMax);
+  if (num(q.minBeginnerScore) !== undefined) filters.minBeginnerScore = num(q.minBeginnerScore);
+  if (num(q.minPrScore) !== undefined) filters.minPrScore = num(q.minPrScore);
+  if (num(q.minValueScore) !== undefined) filters.minValueScore = num(q.minValueScore);
+  if (num(q.minVibeScore) !== undefined) filters.minVibeScore = num(q.minVibeScore);
+  if (num(q.minFamilyScore) !== undefined) filters.minFamilyScore = num(q.minFamilyScore);
+
+  // Boolean flags
+  if (trueish(q.walkerFriendly)) filters.walkerFriendly = true;
+  if (trueish(q.strollerFriendly)) filters.strollerFriendly = true;
+  if (trueish(q.dogFriendly)) filters.dogFriendly = true;
+  if (trueish(q.kidsRace)) filters.kidsRace = true;
+  if (trueish(q.charity)) filters.charity = true;
+  if (trueish(q.bostonQualifier)) filters.bostonQualifier = true;
+  if (trueish(q.turkeyTrot) || trueish(q.isTurkeyTrot)) filters.isTurkeyTrot = true;
+  if (trueish(q.registrationOpen)) filters.registrationOpen = true;
+  if (trueish(q.priceIncreaseSoon)) filters.priceIncreaseSoon = true;
+  if (trueish(q.transitFriendly)) filters.transitFriendly = true;
+
+  // Org / series
+  if (num(q.organizerId) !== undefined) filters.organizerId = num(q.organizerId);
+  if (num(q.seriesId) !== undefined) filters.seriesId = num(q.seriesId);
+
+  // Geo radius
+  if (q.near && typeof q.near === "object") {
+    const n = q.near as Record<string, unknown>;
+    const lat = num(n.lat);
+    const lng = num(n.lng);
+    const radius = num(n.radiusMiles);
+    if (
+      lat !== undefined && lng !== undefined && radius !== undefined &&
+      radius > 0 && radius <= 500 &&
+      lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180
+    ) {
+      filters.near = { lat, lng, radiusMiles: radius };
+    }
+  }
+
   filters.limit = 50;
   return filters;
 }
@@ -289,7 +357,14 @@ async function dispatchSavedSearchMatches(): Promise<number> {
 
   for (const search of searches) {
     const filters = savedSearchToFilters(search.queryJson);
-    const races = await storage.getRacesAdvanced({ ...filters, limit: 20 });
+    let races = await storage.getRacesAdvanced({ ...filters, limit: 50 });
+    // Apply client-only buckets (elevation/size) the search engine doesn't honor.
+    const q = (search.queryJson || {}) as Record<string, unknown>;
+    const elevLabel = typeof q.elevationBucket === "string" ? q.elevationBucket : null;
+    const sizeLabel = typeof q.sizeBucket === "string" ? q.sizeBucket : null;
+    if (elevLabel) races = races.filter((r) => matchesBucket(r.elevationGainM ?? null, elevLabel, ELEVATION_BUCKETS));
+    if (sizeLabel) races = races.filter((r) => matchesBucket(r.fieldSize ?? null, sizeLabel, RACE_SIZE_BUCKETS));
+    races = races.slice(0, 20);
     if (races.length === 0) continue;
     const dispatchKey = `${todayKey("ss-match")}:u${search.userId}:s${search.id}`;
     const destination = `${baseUrl}${buildSavedSearchUrl(search.queryJson)}`;

@@ -17,24 +17,14 @@ import { apiGetState } from "@/lib/api";
 import { Search, SlidersHorizontal, X, MapPin, List, Map as MapIcon, Crosshair, Loader2, BookmarkPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { setPendingAction } from "@/lib/pending-action";
+import { RACE_SIZE_BUCKETS, ELEVATION_BUCKETS } from "@shared/race-buckets";
 import type { Race } from "@shared/schema";
 import { CompareBar } from "@/components/compare-bar";
 
 const DISTANCES = ["5K", "10K", "Half Marathon", "Marathon", "Ultra"];
 const SURFACES = ["Road", "Trail", "Track"];
 const TERRAINS = ["Flat", "Rolling", "Hilly", "Mountainous"];
-const RACE_SIZE_BUCKETS: { label: string; min?: number; max?: number }[] = [
-  { label: "Small (<500)", max: 499 },
-  { label: "Mid (500–2,500)", min: 500, max: 2500 },
-  { label: "Large (2,500–10K)", min: 2500, max: 10000 },
-  { label: "Mega (10K+)", min: 10000 },
-];
-const ELEVATION_BUCKETS: { label: string; max?: number; min?: number }[] = [
-  { label: "Flat (<50m)", max: 50 },
-  { label: "Rolling (50–200m)", min: 50, max: 200 },
-  { label: "Hilly (200–500m)", min: 200, max: 500 },
-  { label: "Mountainous (500m+)", min: 500 },
-];
 const DIFFICULTY_BUCKETS: { label: string; value: string; minBeginnerScore: number }[] = [
   { label: "Easy (great for first timers)", value: "easy", minBeginnerScore: 80 },
   { label: "Moderate", value: "moderate", minBeginnerScore: 60 },
@@ -730,6 +720,15 @@ export default function RacesSearchPage() {
                 className="h-9"
                 onClick={() => {
                   if (!user) {
+                    setPendingAction({
+                      type: "save-search",
+                      payload: {
+                        name: buildDefaultSearchName(filters),
+                        queryJson: filtersToQueryJson(filters),
+                        alertEnabled: true,
+                      },
+                    });
+                    toast({ title: "Sign in to save", description: "We'll save this search and email you matches once you're signed in." });
                     openLogin();
                     return;
                   }

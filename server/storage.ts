@@ -127,6 +127,7 @@ export interface IStorage {
   getRaceAlertsWithRace(userId: number): Promise<(RaceAlert & { raceSlug: string | null; raceName: string | null })[]>;
   createRaceAlert(data: InsertRaceAlert): Promise<RaceAlert>;
   deleteRaceAlert(id: number, userId: number): Promise<void>;
+  updateRaceAlertType(id: number, userId: number, alertType: string): Promise<RaceAlert | undefined>;
 
   recordOutboundClick(data: InsertOutboundClick): Promise<OutboundClick>;
   getOutboundClickStats(raceId: number, sinceDays?: number): Promise<{ total: number; byDestination: Record<string, number> }>;
@@ -1067,6 +1068,14 @@ export class DatabaseStorage implements IStorage {
     await db.delete(raceAlerts).where(and(eq(raceAlerts.id, id), eq(raceAlerts.userId, userId)));
   }
 
+  async updateRaceAlertType(id: number, userId: number, alertType: string): Promise<RaceAlert | undefined> {
+    const [a] = await db.update(raceAlerts)
+      .set({ alertType })
+      .where(and(eq(raceAlerts.id, id), eq(raceAlerts.userId, userId)))
+      .returning();
+    return a;
+  }
+
   async recordOutboundClick(data: InsertOutboundClick): Promise<OutboundClick> {
     const [c] = await db.insert(outboundClicks).values(data).returning();
     return c;
@@ -1126,6 +1135,10 @@ export class DatabaseStorage implements IStorage {
   async recordAlertDispatch(data: InsertAlertDispatch): Promise<AlertDispatch | undefined> {
     const [d] = await db.insert(alertDispatches).values(data).onConflictDoNothing({ target: alertDispatches.dispatchKey }).returning();
     return d;
+  }
+
+  async deleteAlertDispatch(id: number): Promise<void> {
+    await db.delete(alertDispatches).where(eq(alertDispatches.id, id));
   }
 
   async markAlertOpened(trackToken: string): Promise<void> {

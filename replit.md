@@ -2,47 +2,15 @@
 
 ## Overview
 
-running.services is a **race decision engine** for runners in the USA. Tagline: **"Find the right race, not just the next race."** Rather than a generic race calendar, the platform helps runners pick the *right* race for their goal (PR, beginner, value, vibe, family) using deterministic 0-100 scores across difficulty, weather, vibe, value, beginner-friendliness, PR-potential, and overall quality. It still generates programmatic SEO pages at scale for races, routes, and state/city hubs, but the core product is comparison, filtering, and decision support — backed by structured race data ingested from external sources (RunSignUp).
+running.services is a race decision engine for runners in the USA. Its core purpose is to help runners find the *right* race for their specific goals (e.g., PR, beginner, value, vibe, family) by providing deterministic 0-100 scores across various criteria like difficulty, weather, vibe, value, beginner-friendliness, PR-potential, and overall quality. The platform also generates programmatic SEO pages at scale for races, routes, and state/city hubs, but its primary focus is on comparison, filtering, and decision support, backed by structured race data ingested from external sources.
 
-### Programmatic SEO Pages
-- **Turkey Trots** (`/turkey-trots`, `/turkey-trots/:metro`): national + per-metro Thanksgiving 5K calendar.
-- **City + Distance** (`/:metro/:distance`, `/:metro/:distance/:month`): metro-scoped distance landing pages. Distance slugs: `5k-races`, `10k-races`, `half-marathons`, `marathons`, `trail-races`. Optional month slug (`january`–`december`).
-- **State + Distance** (`/state/:state/:distance`): state-scoped distance landing pages.
-- **Best of** (`/best/:slug`): curated qualitative lists (`beginner-half-marathons`, `flat-fast-marathons`, `cheap-races`, `charity-races`, `family-friendly-5ks`, `scenic-10ks`, `dog-friendly-5ks`, `beer-runs`, `this-weekend`). Configs live in `shared/best-configs.ts` so client and SSR render identically.
-- **Constraint pages** (`/walker-friendly-5k/:metro`, `/stroller-friendly-5k/:metro`): accessibility-filtered 5K calendars per metro.
-- **Series** (`/series/:slug`): public race series detail pages.
-- All SEO pages share `client/src/components/seo/seo-listing.tsx` (breadcrumbs + hero + race grid + alert CTA + related links + noindex notice + empty fallback). All emit canonical URL, breadcrumb JSON-LD, and CollectionPage JSON-LD via SSR. Pages with fewer than 5 races automatically `noindex` to avoid thin-content penalties. Sitemap discipline lives in `/sitemap-seo.xml` (in `server/seo.ts`): only metros, states, and constraint variants with ≥5 future active races appear; series pages need ≥3.
-- Metro slug format: `{city-slug}-{state-abbr-lowercase}` (e.g., `seattle-wa`). Helpers in `shared/metro.ts` (parse + distance/month maps).
+Key capabilities include:
+- **Programmatic SEO Pages**: Generating dynamic content for various categories like Turkey Trots, city/state specific distances, curated "Best of" lists, constraint-based pages (e.g., walker-friendly), and race series detail pages.
+- **Decision Engine Surfaces**: Providing tools like a goal-driven Race Shopper, comprehensive race search with advanced filters, and a side-by-side race comparison feature.
+- **Race Detail Pages**: In-depth information for individual races, including decision scores, course profiles, logistics, pricing, and reviews.
+- **Alerts and Saved Searches**: Functionality for users to save races, create custom search alerts, and receive email digests for upcoming events and price changes.
 
-### Decision Engine Surfaces
-- **Homepage** (`/`): "Find the right race." hero with location/distance/month/goal search form, 8 goal chips (first race, PR, fun, family, trail, cheap, charity, Turkey Trot), this-weekend digest, best-value 5Ks, beginner-friendly halfs, popular metros, Turkey Trot teaser, Race Shopper invite, organizers callout, browse-by-state.
-- **Race search** (`/races`): comprehensive filter rail (distance, month, surface, terrain, elevation bucket, race-size bucket, max price, beginner/accessibility flags, vibe, logistics), sort by date/price/beginner/PR/value/vibe/family/urgency/quality, mobile-first chip filters with bottom-sheet, list/map view toggle (map placeholder), client-side compare cart with floating CompareBar.
-- **Race Shopper** (canonical `/race-shopper` and `/race-shopper/:goal`, plus convenience aliases `/shopper` and `/shopper/:goal` that share the same page and SSR prefetch): goal-driven race picker. Six goal chips (first race / PR / value / vibe / family / urgency), guided form (distance, state, month or explicit date range, budget, terrain, surface, effort/difficulty, travel radius, walker/stroller/BQ flags), POSTs to `/api/races/shopper`, then renders categorized recommendations (top picks for goal, best value, beginner-friendly, PR potential, big vibe, hidden gems, sign-up urgency) with plain-English rationale per pick.
-- **Compare** (`/compare`): side-by-side race comparison (reads `?ids=` from URL, max 4 races). Field rows are defined once via a shared `buildFieldGroups()` data structure that drives both layouts: a desktop table (`hidden md:block`, `data-testid="compare-table-desktop"`) and a mobile stacked card view (`md:hidden`, `data-testid="compare-table-mobile"`) so small screens never need horizontal scroll. Rows include date, start time, location (city/state), travel time, course type, surface, race-day weather link, weather (typical), elevation, entry fee, field size, registration deadline, next price hike, BQ status, walker/stroller flags, refund policy, deferral policy, runner reviews link, plus a "Decision scores (0–100)" block (beginner / PR / value / vibe / family) and a "Best fit" badge row. Highlights the best value in each comparable row. Register CTAs wired to outbound tracking. Removing a race uses wouter's in-app navigation (no full page reload).
-- **Race detail** (`/races/:slug`): full decision page with 18+ sections — hero with Register/Compare/Notify/Website CTAs, decision score strip (six 0–100 scores via `ScoreBlock`), best-for badges, about, course profile (elevation chart from Open-Meteo), course features grid, accessibility & inclusion (always rendered with placeholders for missing data), vibe & charity (always rendered with placeholders), history & past results (years running, recurrence pattern), reviews (`#reviews` anchor), similar races (`/api/races/:slug/similar`), tools CTA, and sidebar (logistics, pricing & registration with next-price-hike warning, difficulty card, weather card with `#weather` anchor and unavailable fallback, organizer/claim card that redirects to `/for-organizers` after submission, data source, explore-the-area links, nearby routes/books/podcasts). All outbound clicks tracked via `/api/outbound`. SSR JSON-LD includes Offer or AggregateOffer (price/lowPrice/highPrice, currency, availability, validThrough), Organization, GeoCoordinates, and additionalProperty (terrain, elevation gain, surface). The `/for-organizers` URL is an alias for the organizers hub (mounted in both the client router and SSR prefetch table) so claim CTAs land on a stable, contractual destination.
-- **This Weekend** (`/this-weekend`): last-minute races in the next 72 hours.
-- **Price Watch** (`/price-watch`): races whose entry fee is about to increase.
-
-### Race Card
-The shared `RaceCard` component (`client/src/components/race-card.tsx`) shows distance, name, date, city/state, price range, field size, terrain, elevation, registration deadline, next-price-increase warning, beginner/PR/value scores, vibe tags, and Save / Compare / Alert / Register actions. The Register button POSTs to `/api/outbound` for click tracking before opening the organizer URL.
-
-### Compare Cart
-A localStorage-backed `useCompareCart` hook (`client/src/hooks/use-compare-cart.ts`) stages up to 4 race IDs. The `CompareBar` component renders a floating bottom bar on the search page when 1+ races are staged and links to `/compare?ids=...`.
-
-### Shared decision components
-- `client/src/components/score-block.tsx` — renders the six 0–100 decision scores with tooltips reading rationale from `scoreBreakdown` jsonb. Used by race detail and (in compact form) by other surfaces.
-- `client/src/components/best-for-badges.tsx` — derives up to 9 "best for" badges (beginners, PR-friendly, walkers, families, value, vibe, destination, charity, trail/hill challenge) from race fields. Used by race detail, compare table, and Race Shopper picks.
-
-### Alerts, Saved Searches & Email Digests
-- **/alerts page** (`client/src/pages/alerts.tsx`, `noindex`): authenticated retention hub with three sections — Saved races (favorites typed `race`), Saved searches (with per-row alert toggle + delete), Race alerts (per-race subscriptions with per-type toggle and unsubscribe). Email preferences card has a master "Pause all emails" switch plus six per-family toggles (this-weekend digest, saved-search matches, price-increase, registration-close, saved-race reminder, turkey-trot watch).
-- **"Save this search"** button on `/races` opens a dialog (name + alerts toggle) and POSTs to `/api/saved-searches` with the current filter JSON via `filtersToQueryJson`. `buildDefaultSearchName(filters)` seeds a friendly default name (e.g., "5K · CA · March · ≤$50").
-- **Schema**: `alert_dispatches` (id, userId, alertType, raceId, savedSearchId, dispatchKey unique per-day idempotency, unsubToken, dispatchedAt, openedAt, clickedAt) plus `users.unsubscribedAll` (bool) and `users.unsubscribedAlertTypes` (text[]) for per-type opt-out.
-- **Email templates** (`server/alerts/templates.ts`): shared HTML shell with header/footer + tracking pixel + per-type unsubscribe link. Builders for price-increase, registration-close, saved-race reminder, this-weekend digest, saved-search matches, and turkey-trot watch.
-- **Scheduler** (`server/alerts/scheduler.ts`): hourly `setInterval` started 5 minutes after boot from `server/index.ts` (skipped when `NODE_ENV=test`). Per-process running lock + per-day `dispatchKey` prevents double sends. Cadence: this-weekend digest Friday UTC, saved-search matches Monday UTC, turkey-trot Wed Oct 15–Nov 5, price-increase 0–3 days out, reg-close 0–1 day out, saved-race reminder ~7 days out. Uses Resend (`RESEND_API_KEY`); from `running.services <hello@running.services>`.
-- **Routes**: `GET/PATCH /api/alerts/preferences` (master switch + per-type array), `GET /api/alerts/track/open?t=` (1×1 gif), `GET /api/alerts/track/click?t=&u=` (302 redirect, logs click), `GET /api/alerts/unsubscribe?t=` (one-click confirmation page that flips the per-type opt-out), `POST /api/admin/alerts/dispatch` (manual QA trigger), `GET /api/admin/alerts/stats` (sent/opened/clicked counts by type).
-
-### Deprecated (kept alive but removed from nav, sitemap, and indexed for noindex)
-Influencers, Podcasts, Books, Collections, Guides, and Blog routes still respond (so old links don't 404), but they are excluded from the sitemap, marked `noindex` via SSR meta, and `Disallow`ed in `robots.txt`.
+The business vision is to move beyond generic race calendars to offer a sophisticated decision support system, empowering runners to make informed choices.
 
 ## User Preferences
 
@@ -51,55 +19,34 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### Full-Stack Structure
-- **Monorepo**: Organized into `client/` (React frontend), `server/` (Express backend), and `shared/` (shared schema and types).
+The project is organized as a monorepo with `client/` for the React frontend, `server/` for the Express backend, and `shared/` for shared schema and types.
 
 ### Server-Side Rendering (SSR)
-- **Full SSR**: All pages are server-rendered for optimal SEO, providing complete HTML content.
-- **Data Prefetching**: Server prefetches data into React Query cache using `server/ssr-prefetch.ts`.
-- **React Query Hydration**: Uses `dehydrate`/`HydrationBoundary` to pass server-fetched data to the client.
-- **ISR-like Caching**: `server/ssr-cache.ts` implements in-memory TTL caching with stale-while-revalidate for SSR responses.
-- **Graceful Fallback**: If SSR fails, the server falls back to client-side rendering while still injecting dynamic meta tags.
+All pages are fully server-rendered for optimal SEO, with data prefetched into a React Query cache. The system uses React Query's `dehydrate`/`HydrationBoundary` for efficient data transfer to the client. An ISR-like caching mechanism (`server/ssr-cache.ts`) provides in-memory TTL caching with stale-while-revalidate for SSR responses, ensuring both performance and fresh content. If SSR fails, the system gracefully falls back to client-side rendering.
 
 ### SEO Infrastructure
-- **Comprehensive SEO**: Includes canonical URLs, dynamic meta tags (title, description, Open Graph, Twitter), and JSON-LD structured data (WebSite, CollectionPage, SportsEvent, Place).
-- **Sitemaps & Robots.txt**: Auto-generated split sitemaps and a properly configured `robots.txt` for crawler directives.
-- **Programmatic URL Structure**: Defined routes for races, routes, state/city hubs, tools, collections, influencers, podcasts, and books, all designed for programmatic SEO.
+Comprehensive SEO is a core design principle, implemented through canonical URLs, dynamic meta tags (title, description, Open Graph, Twitter), and JSON-LD structured data (WebSite, CollectionPage, SportsEvent, Place). Sitemaps are auto-generated and split, and `robots.txt` is configured for effective crawler directives. Programmatic URL structures support various content types for scalable SEO.
 
 ### Frontend
-- **Framework**: React 19 with TypeScript, bundled by Vite.
-- **Routing**: Lightweight Wouter v3 with SSR support.
-- **State/Data Fetching**: TanStack React Query v5 with SSR dehydration.
-- **UI Components**: shadcn/ui (new-york style) built on Radix UI primitives, styled with Tailwind CSS v4.
-- **Styling**: Tailwind CSS with custom fonts (Outfit, Inter) and CSS variables for theming.
+The frontend is built with **React 19** and **TypeScript**, bundled by **Vite**. It uses **Wouter v3** for routing with SSR support, and **TanStack React Query v5** for state management and data fetching with SSR dehydration. UI components are built using **shadcn/ui** (New York style) on top of **Radix UI** primitives, styled with **Tailwind CSS v4** and custom fonts.
 
 ### Backend
-- **Framework**: Express 5 on Node.js with TypeScript.
-- **API**: RESTful JSON API under `/api/` prefix, providing endpoints for states, cities, races, routes, collections, influencers, podcasts, books, authentication, user favorites, and reviews.
-- **Storage Layer**: `server/storage.ts` uses Drizzle ORM to interact with PostgreSQL.
-- **Session Management**: `express-session` with `connect-pg-simple` for PostgreSQL-backed sessions.
-- **Data Ingestion**: `server/ingestion/` handles race data ingestion from external APIs (e.g., RunSignUp), including normalization, deduplication, quality scoring, and periodic data refreshes.
-- **Admin Endpoints**: Protected endpoints for managing data ingestion.
+The backend utilizes **Express 5** on **Node.js** with **TypeScript**. It exposes a **RESTful JSON API** under the `/api/` prefix for various data entities and user interactions. The storage layer uses **Drizzle ORM** to interact with a **PostgreSQL** database. Session management is handled by `express-session` with `connect-pg-simple`. Data ingestion (`server/ingestion/`) is a critical component, handling normalization, deduplication, and quality scoring of race data from external APIs.
 
 ### Database
-- **ORM**: Drizzle ORM with PostgreSQL dialect.
-- **Schema**: Defines tables for `states`, `cities`, `races`, `race_occurrences`, `routes`, `sources`, `source_records`, `collections`, `influencers`, `podcasts`, `books`, `reviews`, `users`, `magic_link_tokens`, and `favorites`.
-- **Migrations**: Managed via `drizzle-kit push` for schema synchronization.
-- **Validation**: Zod schemas auto-generated from Drizzle schema.
+**PostgreSQL** is the chosen database, managed by **Drizzle ORM**. The schema defines tables for core entities like states, cities, races, users, and various content types. Migrations are handled via `drizzle-kit push`, and **Zod schemas** are auto-generated from the Drizzle schema for robust validation.
 
 ### Build System
-- **Development**: `npm run dev` starts the Express server with `tsx`, which in turn launches the Vite dev server for SSR.
-- **Production Build**: `npm run build` compiles the client, SSR bundle, and server bundle using Vite and esbuild.
-- **Deployment**: `npm start` executes the production server bundle.
+Development uses `npm run dev` to start the Express server via `tsx` and the Vite dev server for SSR. Production builds (`npm run build`) compile client, SSR, and server bundles using Vite and esbuild.
 
 ## External Dependencies
 
 ### Database
-- **PostgreSQL**: Essential database, connected via `DATABASE_URL` environment variable using `node-postgres` and Drizzle ORM.
+- **PostgreSQL**: Primary database.
 
 ### External Services
-- **aitracker.run**: External tools website linked from the platform, without direct API integration.
-- **Resend**: Used for sending magic link emails and new user notifications.
-- **RunSignUp API**: Primary source for ingesting race data into the platform.
+- **Resend**: Used for sending transactional emails (magic links, alerts, notifications).
+- **RunSignUp API**: Primary external source for ingesting race event data.
 
 ### Key NPM Packages
 - **Frontend**: React 19, Wouter v3, TanStack React Query v5, Radix UI, shadcn/ui, Tailwind CSS v4, date-fns.

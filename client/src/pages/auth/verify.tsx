@@ -5,11 +5,14 @@ import { apiVerifyToken } from "@/lib/api";
 import { Layout } from "@/components/layout";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { flushPendingAction } from "@/lib/pending-action";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AuthVerifyPage() {
   const search = useSearch();
   const [, navigate] = useLocation();
   const { refreshUser } = useAuth();
+  const { toast } = useToast();
   const [status, setStatus] = useState<"verifying" | "success" | "error">("verifying");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -24,16 +27,21 @@ export default function AuthVerifyPage() {
     }
 
     apiVerifyToken(token)
-      .then(() => {
+      .then(async () => {
         setStatus("success");
-        refreshUser();
-        setTimeout(() => navigate("/"), 2000);
+        await refreshUser();
+        // Finish any save-search / set-alert intent that the user started before signing in.
+        const result = await flushPendingAction();
+        if (result?.message) {
+          toast({ title: result.ok ? "All set" : "Heads up", description: result.message, variant: result.ok ? "default" : "destructive" });
+        }
+        setTimeout(() => navigate(result?.redirectTo || "/"), 1200);
       })
       .catch((err) => {
         setStatus("error");
         setErrorMessage(err.message || "Verification failed. The link may have expired.");
       });
-  }, [search, navigate, refreshUser]);
+  }, [search, navigate, refreshUser, toast]);
 
   return (
     <Layout>

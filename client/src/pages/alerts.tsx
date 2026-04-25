@@ -94,6 +94,19 @@ export default function AlertsPage() {
     },
   });
 
+  const updateAlertTypeM = useMutation({
+    mutationFn: async ({ id, alertType }: { id: number; alertType: string }) =>
+      jsonFetch(`/api/alerts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alertType }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/alerts"] });
+      toast({ title: "Alert updated" });
+    },
+  });
+
   const updatePrefsM = useMutation({
     mutationFn: async (next: Partial<AlertPreferences>) =>
       jsonFetch<AlertPreferences>("/api/alerts/preferences", {
@@ -295,11 +308,22 @@ export default function AlertsPage() {
                     <div className="min-w-0">
                       <div className="font-medium truncate">{a.raceName || `Race #${a.raceId}`}</div>
                       <div className="text-xs text-muted-foreground">
-                        <Badge variant="secondary" className="mr-2">{a.alertType}</Badge>
                         {a.lastNotifiedAt ? `Last sent ${new Date(a.lastNotifiedAt).toLocaleDateString()}` : "No emails sent yet"}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <select
+                        value={a.alertType}
+                        onChange={(e) => updateAlertTypeM.mutate({ id: a.id, alertType: e.target.value })}
+                        className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                        data-testid={`select-alert-type-${a.id}`}
+                        aria-label="Alert type"
+                      >
+                        <option value="price-drop">Price changes</option>
+                        <option value="price-increase">Price increase</option>
+                        <option value="registration-close">Registration closing</option>
+                        <option value="registration-open">Registration opens</option>
+                      </select>
                       <Link href={a.raceSlug ? `/races/${a.raceSlug}` : `/races`}>
                         <Button variant="ghost" size="icon" aria-label="Open race" data-testid={`link-race-alert-${a.id}`}>
                           <ExternalLink className="h-4 w-4" />
