@@ -103,6 +103,13 @@ export interface IStorage {
   updateOrganizer(id: number, data: Partial<InsertOrganizer>): Promise<Organizer | undefined>;
   getRacesByOrganizer(organizerId: number): Promise<Race[]>;
 
+  getRaceSeries(filters?: { limit?: number }): Promise<RaceSeries[]>;
+  getRaceSeriesBySlug(slug: string): Promise<RaceSeries | undefined>;
+  getRacesBySeries(seriesId: number): Promise<Race[]>;
+
+  getCityByMetroSlug(metroSlug: string): Promise<(City & { state: State }) | undefined>;
+  getMetrosWithRaceCount(minRaces?: number, limit?: number): Promise<{ city: City; state: State; raceCount: number }[]>;
+
   createRaceClaim(data: InsertRaceClaim): Promise<RaceClaim>;
   getRaceClaimByToken(token: string): Promise<RaceClaim | undefined>;
   getRaceClaimsByRace(raceId: number): Promise<RaceClaim[]>;
@@ -166,6 +173,17 @@ export class DatabaseStorage implements IStorage {
 
   async getCitiesByState(stateId: number): Promise<City[]> {
     return db.select().from(cities).where(eq(cities.stateId, stateId)).orderBy(cities.name);
+  }
+
+  async getCityById(id: number): Promise<(City & { state: State }) | undefined> {
+    const [row] = await db
+      .select({ city: cities, state: states })
+      .from(cities)
+      .innerJoin(states, eq(cities.stateId, states.id))
+      .where(eq(cities.id, id))
+      .limit(1);
+    if (!row) return undefined;
+    return { ...row.city, state: row.state };
   }
 
   async getRaces(filters?: { state?: string; distance?: string; surface?: string; city?: string; cityId?: number; year?: number; month?: number; limit?: number; includeAll?: boolean }): Promise<Race[]> {
@@ -896,6 +914,58 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(races)
       .where(and(eq(races.organizerId, organizerId), eq(races.isActive, true)))
       .orderBy(asc(races.date));
+  }
+
+  async getRaceSeries(filters?: { limit?: number }): Promise<RaceSeries[]> {
+    return db.select().from(raceSeries)
+      .orderBy(desc(raceSeries.raceCount), raceSeries.name)
+      .limit(filters?.limit ?? 100);
+  }
+
+  async getRaceSeriesBySlug(slug: string): Promise<RaceSeries | undefined> {
+    const [s] = await db.select().from(raceSeries).where(eq(raceSeries.slug, slug));
+    return s;
+  }
+
+  async getRacesBySeries(seriesId: number): Promise<Race[]> {
+    return db.select().from(races)
+      .where(and(eq(races.seriesId, seriesId), eq(races.isActive, true)))
+      .orderBy(asc(races.date));
+  }
+
+  async getCityByMetroSlug(metroSlug: string): Promise<(City & { state: State }) | undefined> {
+    const trimmed = metroSlug.trim().toLowerCase();
+    if (!trimmed.includes("-")) return undefined;
+    const idx = trimmed.lastIndexOf("-");
+    const citySlug = trimmed.slice(0, idx);
+    const stateAbbr = trimmed.slice(idx + 1);
+    if (!citySlug || stateAbbr.length !== 2) return undefined;
+    const [row] = await db
+      .select({ city: cities, state: states })
+      .from(cities)
+      .innerJoin(states, eq(cities.stateId, states.id))
+      .where(and(eq(cities.slug, citySlug), sql`LOWER(${states.abbreviation}) = ${stateAbbr}`))
+      .limit(1);
+    if (!row) return undefined;
+    return { ...row.city, state: row.state };
+  }
+
+  async getMetrosWithRaceCount(minRaces: number = 5, limit: number = 200): Promise<{ city: City; state: State; raceCount: number }[]> {
+    const rows = await db
+      .select({
+        city: cities,
+        state: states,
+        raceCount: sql<number>`COUNT(${races.id})::int`.as("race_count"),
+      })
+      .from(races)
+      .innerJoin(cities, eq(races.cityId, cities.id))
+      .innerJoin(states, eq(cities.stateId, states.id))
+      .where(and(eq(races.isActive, true), sql`${races.date} >= CURRENT_DATE::text`))
+      .groupBy(cities.id, states.id)
+      .having(sql`COUNT(${races.id}) >= ${minRaces}`)
+      .orderBy(sql`COUNT(${races.id}) DESC`, cities.name)
+      .limit(limit);
+    return rows.map(r => ({ city: r.city, state: r.state, raceCount: Number(r.raceCount) }));
   }
 
   async createRaceClaim(data: InsertRaceClaim): Promise<RaceClaim> {

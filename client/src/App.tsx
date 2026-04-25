@@ -40,6 +40,12 @@ import FavoritesPage from "@/pages/favorites";
 import RaceShopperPage from "@/pages/race-shopper";
 import ComparePage from "@/pages/compare";
 import { ThisWeekendPage, PriceWatchPage, OrganizersPage, OrganizerDetailPage } from "@/pages/coming-soon";
+import TurkeyTrotsPage from "@/pages/seo/turkey-trots";
+import CityDistancePage from "@/pages/seo/city-distance";
+import StateDistancePage from "@/pages/seo/state-distance";
+import BestPage from "@/pages/seo/best";
+import ConstraintPage from "@/pages/seo/constraint";
+import SeriesDetailPage from "@/pages/series/detail";
 
 function AppRouter() {
   return (
@@ -87,6 +93,15 @@ function AppRouter() {
       <Route path="/organizers/:slug" component={OrganizerDetailPage} />
       <Route path="/organizers" component={OrganizersPage} />
       <Route path="/for-organizers" component={OrganizersPage} />
+      <Route path="/series/:slug" component={SeriesDetailPage} />
+      <Route path="/turkey-trots/:metro" component={TurkeyTrotsPage} />
+      <Route path="/turkey-trots" component={TurkeyTrotsPage} />
+      <Route path="/best/:slug" component={BestPage} />
+      <Route path="/walker-friendly-5k/:metro" component={ConstraintPage} />
+      <Route path="/stroller-friendly-5k/:metro" component={ConstraintPage} />
+      <Route path="/state/:state/:distance" component={StateDistancePage} />
+      <Route path="/:metro/:distance/:month" component={CityDistancePage} />
+      <Route path="/:metro/:distance" component={CityDistancePage} />
       <Route component={NotFound} />
     </Switch>
   );

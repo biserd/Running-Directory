@@ -4,6 +4,16 @@
 
 running.services is a **race decision engine** for runners in the USA. Tagline: **"Find the right race, not just the next race."** Rather than a generic race calendar, the platform helps runners pick the *right* race for their goal (PR, beginner, value, vibe, family) using deterministic 0-100 scores across difficulty, weather, vibe, value, beginner-friendliness, PR-potential, and overall quality. It still generates programmatic SEO pages at scale for races, routes, and state/city hubs, but the core product is comparison, filtering, and decision support — backed by structured race data ingested from external sources (RunSignUp).
 
+### Programmatic SEO Pages
+- **Turkey Trots** (`/turkey-trots`, `/turkey-trots/:metro`): national + per-metro Thanksgiving 5K calendar.
+- **City + Distance** (`/:metro/:distance`, `/:metro/:distance/:month`): metro-scoped distance landing pages. Distance slugs: `5k-races`, `10k-races`, `half-marathons`, `marathons`, `trail-races`. Optional month slug (`january`–`december`).
+- **State + Distance** (`/state/:state/:distance`): state-scoped distance landing pages.
+- **Best of** (`/best/:slug`): curated qualitative lists (`beginner-half-marathons`, `flat-fast-marathons`, `cheap-races`, `charity-races`, `family-friendly-5ks`, `scenic-10ks`, `dog-friendly-5ks`, `beer-runs`, `this-weekend`). Configs live in `shared/best-configs.ts` so client and SSR render identically.
+- **Constraint pages** (`/walker-friendly-5k/:metro`, `/stroller-friendly-5k/:metro`): accessibility-filtered 5K calendars per metro.
+- **Series** (`/series/:slug`): public race series detail pages.
+- All SEO pages share `client/src/components/seo/seo-listing.tsx` (breadcrumbs + hero + race grid + alert CTA + related links + noindex notice + empty fallback). All emit canonical URL, breadcrumb JSON-LD, and CollectionPage JSON-LD via SSR. Pages with fewer than 5 races automatically `noindex` to avoid thin-content penalties. Sitemap discipline lives in `/sitemap-seo.xml` (in `server/seo.ts`): only metros, states, and constraint variants with ≥5 future active races appear; series pages need ≥3.
+- Metro slug format: `{city-slug}-{state-abbr-lowercase}` (e.g., `seattle-wa`). Helpers in `shared/metro.ts` (parse + distance/month maps).
+
 ### Decision Engine Surfaces
 - **Homepage** (`/`): "Find the right race." hero with location/distance/month/goal search form, 8 goal chips (first race, PR, fun, family, trail, cheap, charity, Turkey Trot), this-weekend digest, best-value 5Ks, beginner-friendly halfs, popular metros, Turkey Trot teaser, Race Shopper invite, organizers callout, browse-by-state.
 - **Race search** (`/races`): comprehensive filter rail (distance, month, surface, terrain, elevation bucket, race-size bucket, max price, beginner/accessibility flags, vibe, logistics), sort by date/price/beginner/PR/value/vibe/family/urgency/quality, mobile-first chip filters with bottom-sheet, list/map view toggle (map placeholder), client-side compare cart with floating CompareBar.

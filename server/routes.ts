@@ -256,7 +256,14 @@ export async function registerRoutes(
     if (RESERVED_RACE_ROUTES.has(req.params.slug)) return next();
     const race = await storage.getRaceBySlug(req.params.slug);
     if (!race) return res.status(404).json({ message: "Race not found" });
-    res.json(race);
+    let citySlug: string | null = null;
+    if (race.cityId) {
+      try {
+        const cityRow = await storage.getCityById(race.cityId);
+        citySlug = cityRow?.slug ?? null;
+      } catch {}
+    }
+    res.json({ ...race, citySlug });
   });
 
   app.get("/api/race-occurrences", async (req, res) => {
@@ -880,6 +887,25 @@ export async function registerRoutes(
     if (!org) return res.status(404).json({ message: "Organizer not found" });
     const races = await storage.getRacesByOrganizer(org.id);
     res.json({ organizer: org, races });
+  });
+
+  app.get("/api/series", async (req, res) => {
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const list = await storage.getRaceSeries({ limit });
+    res.json(list);
+  });
+
+  app.get("/api/series/:slug", async (req, res) => {
+    const series = await storage.getRaceSeriesBySlug(req.params.slug);
+    if (!series) return res.status(404).json({ message: "Series not found" });
+    const races = await storage.getRacesBySeries(series.id);
+    res.json({ series, races });
+  });
+
+  app.get("/api/metros/:slug", async (req, res) => {
+    const metro = await storage.getCityByMetroSlug(req.params.slug);
+    if (!metro) return res.status(404).json({ message: "Metro not found" });
+    res.json({ city: metro, state: metro.state });
   });
 
   app.post("/api/organizers", adminAuth, async (req, res) => {

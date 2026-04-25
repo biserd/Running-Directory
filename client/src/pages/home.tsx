@@ -195,7 +195,7 @@ export default function Home() {
                 <p className="text-muted-foreground">The biggest running day of the year. Lock in early.</p>
               </div>
               <Button variant="ghost" asChild data-testid="link-all-turkey-trots">
-                <Link href="/races?turkeyTrot=true">All Turkey Trots <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                <Link href="/turkey-trots">All Turkey Trots <ArrowRight className="ml-2 h-4 w-4" /></Link>
               </Button>
             </div>
             {turkeyLoading ? (

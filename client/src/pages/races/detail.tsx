@@ -646,6 +646,32 @@ export default function RaceDetail() {
           <section data-testid="section-similar-races">
             <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-orange-500 pl-3 flex items-center gap-2"><Lightbulb className="h-5 w-5" />Similar races worth a look</h2>
             <SimilarRacesGrid slug={race.slug} currentId={race.id} />
+            {(() => {
+              const distMap: Record<string, string> = {
+                "5K": "5k-races",
+                "10K": "10k-races",
+                "Half Marathon": "half-marathons",
+                "Marathon": "marathons",
+              };
+              const distSlug = race.surface === "Trail"
+                ? "trail-races"
+                : (race.distance && distMap[race.distance]);
+              const citySlug = (race as any).citySlug as string | null | undefined;
+              if (!distSlug || !citySlug || !race.state) return null;
+              const metroSlug = `${citySlug}-${race.state.toLowerCase()}`;
+              return (
+                <p className="text-sm text-muted-foreground mt-4">
+                  More like this:{" "}
+                  <Link
+                    href={`/${metroSlug}/${distSlug}`}
+                    className="text-primary hover:underline font-medium"
+                    data-testid="link-more-in-metro"
+                  >
+                    All {race.distance || race.surface} races in {race.city}, {race.state}
+                  </Link>
+                </p>
+              );
+            })()}
           </section>
 
           {/* Section 12: Tools CTA */}

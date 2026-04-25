@@ -109,6 +109,46 @@ export function apiGetRace(slug: string) {
   return fetchJSON<Race>(`/api/races/${slug}`);
 }
 
+export type RaceSearchParams = {
+  state?: string;
+  city?: string;
+  distance?: string;
+  surface?: string;
+  terrain?: string;
+  month?: number;
+  isTurkeyTrot?: boolean;
+  walkerFriendly?: boolean;
+  strollerFriendly?: boolean;
+  charity?: boolean;
+  kidsRace?: boolean;
+  bostonQualifier?: boolean;
+  organizerId?: number;
+  seriesId?: number;
+  priceMax?: number;
+  minBeginnerScore?: number;
+  minPrScore?: number;
+  minValueScore?: number;
+  minVibeScore?: number;
+  minFamilyScore?: number;
+  sort?: "date" | "price" | "beginner" | "pr" | "value" | "vibe" | "family" | "urgency" | "quality";
+  limit?: number;
+  offset?: number;
+};
+
+export function buildRaceSearchQs(params: RaceSearchParams): string {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v == null || v === "" || v === false) continue;
+    qs.set(k, String(v));
+  }
+  return qs.toString();
+}
+
+export function apiSearchRaces(params: RaceSearchParams) {
+  const qs = buildRaceSearchQs(params);
+  return fetchJSON<Race[]>(`/api/races/search${qs ? `?${qs}` : ""}`);
+}
+
 export function apiCompareRaces(ids: number[]) {
   const param = ids.filter(n => Number.isFinite(n)).join(",");
   return fetchJSON<Race[]>(`/api/races/compare?ids=${param}`);

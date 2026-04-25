@@ -58,6 +58,7 @@ Sitemap: ${BASE_URL}/sitemap.xml
         "/sitemap-states.xml",
         "/sitemap-cities.xml",
         "/sitemap-decision.xml",
+        "/sitemap-seo.xml",
       ];
 
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -170,6 +171,145 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
         }
       } catch (err) {
         console.warn("[sitemap-decision] organizer enumeration failed:", (err as Error).message);
+      }
+
+      res.set("Content-Type", "application/xml").send(wrapUrlset(entries));
+    } catch {
+      res.status(500).send("Error generating sitemap");
+    }
+  });
+
+  app.get("/sitemap-seo.xml", async (_req, res) => {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const entries: string[] = [];
+
+      // Curated "best of" pages
+      const { BEST_SLUGS } = await import("@shared/best-configs");
+      for (const slug of BEST_SLUGS) {
+        entries.push(urlEntry(`/best/${slug}`, { changefreq: "weekly", priority: "0.7", lastmod: today }));
+      }
+
+      // Series public pages
+      try {
+        const series = await storage.getRaceSeries({ limit: 200 });
+        for (const s of series) {
+          const seriesRaces = await storage.getRacesBySeries(s.id);
+          if (seriesRaces.length >= 3) {
+            entries.push(urlEntry(`/series/${s.slug}`, { changefreq: "weekly", priority: "0.6", lastmod: today }));
+          }
+        }
+      } catch (err) {
+        console.warn("[sitemap-seo] series enumeration failed:", (err as Error).message);
+      }
+
+      // National turkey-trots if there are enough
+      try {
+        const turkeyNational = await storage.getRacesAdvanced({ isTurkeyTrot: true, limit: 60 });
+        if (turkeyNational.length >= 5) {
+          entries.push(urlEntry("/turkey-trots", { changefreq: "weekly", priority: "0.8", lastmod: today }));
+        }
+      } catch {}
+
+      // Per-metro programmatic pages (only metros with ≥5 future active races)
+      try {
+        const metros = await storage.getMetrosWithRaceCount(5, 200);
+        const distanceSlugMap: Array<{ slug: string; distance?: string; surface?: string }> = [
+          { slug: "5k-races", distance: "5K" },
+          { slug: "10k-races", distance: "10K" },
+          { slug: "half-marathons", distance: "Half Marathon" },
+          { slug: "marathons", distance: "Marathon" },
+          { slug: "trail-races", surface: "Trail" },
+        ];
+        for (const m of metros) {
+          const metroSlug = `${m.city.slug}-${m.state.abbreviation.toLowerCase()}`;
+
+          // city + distance — gated per-distance with ≥5 races
+          for (const d of distanceSlugMap) {
+            try {
+              const r = await storage.getRacesAdvanced({
+                state: m.state.abbreviation,
+                city: m.city.name,
+                distance: d.distance,
+                surface: d.surface,
+                limit: 5,
+              });
+              if (r.length >= 5) {
+                entries.push(urlEntry(`/${metroSlug}/${d.slug}`, { changefreq: "weekly", priority: "0.6", lastmod: today }));
+              }
+            } catch {}
+          }
+
+          // turkey-trots per metro (gated on actual count)
+          try {
+            const tt = await storage.getRacesAdvanced({
+              isTurkeyTrot: true,
+              state: m.state.abbreviation,
+              city: m.city.name,
+              limit: 5,
+            });
+            if (tt.length >= 5) {
+              entries.push(urlEntry(`/turkey-trots/${metroSlug}`, { changefreq: "weekly", priority: "0.6", lastmod: today }));
+            }
+          } catch {}
+
+          // walker / stroller (gated)
+          try {
+            const walker = await storage.getRacesAdvanced({
+              walkerFriendly: true,
+              distance: "5K",
+              state: m.state.abbreviation,
+              city: m.city.name,
+              limit: 5,
+            });
+            if (walker.length >= 5) {
+              entries.push(urlEntry(`/walker-friendly-5k/${metroSlug}`, { changefreq: "weekly", priority: "0.55", lastmod: today }));
+            }
+          } catch {}
+          try {
+            const stroller = await storage.getRacesAdvanced({
+              strollerFriendly: true,
+              distance: "5K",
+              state: m.state.abbreviation,
+              city: m.city.name,
+              limit: 5,
+            });
+            if (stroller.length >= 5) {
+              entries.push(urlEntry(`/stroller-friendly-5k/${metroSlug}`, { changefreq: "weekly", priority: "0.55", lastmod: today }));
+            }
+          } catch {}
+        }
+      } catch (err) {
+        console.warn("[sitemap-seo] metro enumeration failed:", (err as Error).message);
+      }
+
+      // State + distance (only states with ≥5 races for that distance)
+      try {
+        const statesList = await storage.getStates();
+        const distanceSlugMap: Array<{ slug: string; distance?: string; surface?: string }> = [
+          { slug: "5k-races", distance: "5K" },
+          { slug: "10k-races", distance: "10K" },
+          { slug: "half-marathons", distance: "Half Marathon" },
+          { slug: "marathons", distance: "Marathon" },
+          { slug: "trail-races", surface: "Trail" },
+        ];
+        for (const s of statesList) {
+          for (const d of distanceSlugMap) {
+            try {
+              const r = await storage.getRacesAdvanced({
+                state: s.abbreviation,
+                distance: d.distance,
+                surface: d.surface,
+                limit: 5,
+              });
+              if (r.length >= 5) {
+                entries.push(urlEntry(`/state/${s.slug}/${d.slug}`, { changefreq: "weekly", priority: "0.65", lastmod: today }));
+              }
+            } catch {}
+          }
+        }
+      } catch (err) {
+        console.warn("[sitemap-seo] state-distance enumeration failed:", (err as Error).message);
       }
 
       res.set("Content-Type", "application/xml").send(wrapUrlset(entries));

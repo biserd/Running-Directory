@@ -2,6 +2,8 @@ import { QueryClient } from "@tanstack/react-query";
 import { storage } from "./storage";
 import type { PageMeta } from "../client/src/entry-server";
 import { getStateName } from "@shared/states";
+import { DISTANCE_SLUG_TO_LABEL, isValidDistanceSlug, isValidMonthSlug, MONTH_NAMES as METRO_MONTH_NAMES, MONTH_SLUG_TO_NUM, buildMetroSlug } from "@shared/metro";
+import { BEST_CONFIGS, buildBestSearchQs, type BestSearchParams } from "@shared/best-configs";
 
 type PrefetchFn = (queryClient: QueryClient, params: Record<string, string>) => Promise<PageMeta>;
 
@@ -815,6 +817,415 @@ const prefetchOrganizers: PrefetchFn = async (qc, params) => {
   };
 };
 
+const SITE_ORIGIN = "https://running.services";
+
+function buildBreadcrumbJsonLd(items: Array<{ name: string; href?: string }>) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((it, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: it.name,
+      ...(it.href ? { item: `${SITE_ORIGIN}${it.href}` } : {}),
+    })),
+  };
+}
+
+function buildCollectionJsonLd(name: string, description: string, url: string, races: Array<{ name: string; slug: string }>) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name,
+    description,
+    url,
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: races.length,
+      itemListElement: races.slice(0, 25).map((r, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name: r.name,
+        url: `${SITE_ORIGIN}/races/${r.slug}`,
+      })),
+    },
+  };
+}
+
+const prefetchTurkeyTrots: PrefetchFn = async (qc, params) => {
+  const metroSlug = params.metro;
+  if (metroSlug) {
+    const metro = await storage.getCityByMetroSlug(metroSlug).catch(() => undefined);
+    if (!metro) {
+      return {
+        title: "Turkey Trot metro not found | running.services",
+        description: "We don't recognize that metro.",
+        ogType: "website",
+        canonicalUrl: `${SITE_ORIGIN}/turkey-trots/${metroSlug}`,
+        is404: true,
+        noindex: true,
+      } as PageMeta;
+    }
+    qc.setQueryData([`/api/metros/${metroSlug}`], { city: metro, state: metro.state });
+    const search: BestSearchParams = { isTurkeyTrot: true, state: metro.state.abbreviation, city: metro.name, sort: "date", limit: 60 };
+    const apiQs = buildBestSearchQs(search);
+    const races = await storage.getRacesAdvanced({
+      isTurkeyTrot: true,
+      state: metro.state.abbreviation,
+      city: metro.name,
+      sort: "date",
+      limit: 60,
+    }).catch(() => []);
+    qc.setQueryData(["/api/races/search", apiQs], races);
+    const url = `${SITE_ORIGIN}/turkey-trots/${metroSlug}`;
+    const title = `Turkey Trots near ${metro.name}, ${metro.state.abbreviation} | running.services`;
+    const description = `Thanksgiving Turkey Trots in or near ${metro.name}, ${metro.state.name}. Sort by date and pick a 5K that fits your morning.`;
+    return {
+      title,
+      description,
+      ogType: "website",
+      canonicalUrl: url,
+      noindex: races.length < 5,
+      jsonLd: buildCollectionJsonLd(`Turkey Trots in ${metro.name}`, description, url, races),
+      breadcrumbJsonLd: buildBreadcrumbJsonLd([
+        { name: "Home", href: "/" },
+        { name: "Turkey Trots", href: "/turkey-trots" },
+        { name: `${metro.name}, ${metro.state.abbreviation}` },
+      ]),
+    } as PageMeta;
+  }
+  const search: BestSearchParams = { isTurkeyTrot: true, sort: "date", limit: 60 };
+  const apiQs = buildBestSearchQs(search);
+  const races = await storage.getRacesAdvanced({ isTurkeyTrot: true, sort: "date", limit: 60 }).catch(() => []);
+  qc.setQueryData(["/api/races/search", apiQs], races);
+  const url = `${SITE_ORIGIN}/turkey-trots`;
+  const title = "Turkey Trots in the USA — Thanksgiving 5K Calendar | running.services";
+  const description = "Every Turkey Trot we know about across the USA. Lock in your Thanksgiving 5K before it sells out.";
+  return {
+    title,
+    description,
+    ogType: "website",
+    canonicalUrl: url,
+    noindex: races.length < 5,
+    jsonLd: buildCollectionJsonLd("Turkey Trots in the USA", description, url, races),
+    breadcrumbJsonLd: buildBreadcrumbJsonLd([
+      { name: "Home", href: "/" },
+      { name: "Turkey Trots" },
+    ]),
+  } as PageMeta;
+};
+
+const prefetchCityDistance: PrefetchFn = async (qc, params) => {
+  const { metro: metroSlug, distance: distanceSlug, month: monthSlug } = params;
+  if (!isValidDistanceSlug(distanceSlug)) {
+    return {
+      title: "Distance not found | running.services",
+      description: "Unknown distance shortcut.",
+      ogType: "website",
+      is404: true,
+      noindex: true,
+    } as PageMeta;
+  }
+  const distanceCfg = DISTANCE_SLUG_TO_LABEL[distanceSlug];
+  const metro = await storage.getCityByMetroSlug(metroSlug).catch(() => undefined);
+  if (!metro) {
+    return {
+      title: "Metro not found | running.services",
+      description: "We don't recognize that metro.",
+      ogType: "website",
+      is404: true,
+      noindex: true,
+    } as PageMeta;
+  }
+  qc.setQueryData([`/api/metros/${metroSlug}`], { city: metro, state: metro.state });
+
+  const monthNum = monthSlug && isValidMonthSlug(monthSlug.toLowerCase())
+    ? MONTH_SLUG_TO_NUM[monthSlug.toLowerCase()]
+    : undefined;
+  if (monthSlug && monthNum === undefined) {
+    return {
+      title: "Month not recognized | running.services",
+      description: "Try a month name.",
+      ogType: "website",
+      is404: true,
+      noindex: true,
+    } as PageMeta;
+  }
+
+  const search: BestSearchParams = {
+    state: metro.state.abbreviation,
+    city: metro.name,
+    distance: distanceCfg.distance || undefined,
+    surface: distanceCfg.surface || undefined,
+    month: monthNum,
+    sort: "date",
+    limit: 60,
+  };
+  const apiQs = buildBestSearchQs(search);
+  const races = await storage.getRacesAdvanced({
+    state: metro.state.abbreviation,
+    city: metro.name,
+    distance: distanceCfg.distance || undefined,
+    surface: distanceCfg.surface || undefined,
+    month: monthNum,
+    sort: "date",
+    limit: 60,
+  }).catch(() => []);
+  qc.setQueryData(["/api/races/search", apiQs], races);
+
+  const monthLabel = monthNum ? METRO_MONTH_NAMES[monthNum] : null;
+  const titleSuffix = monthLabel ? ` in ${monthLabel}` : "";
+  const url = monthSlug
+    ? `${SITE_ORIGIN}/${metroSlug}/${distanceSlug}/${monthSlug.toLowerCase()}`
+    : `${SITE_ORIGIN}/${metroSlug}/${distanceSlug}`;
+  const title = `${distanceCfg.plural} in ${metro.name}, ${metro.state.abbreviation}${titleSuffix} | running.services`;
+  const description = monthLabel
+    ? `${distanceCfg.plural} in ${metro.name} during ${monthLabel}. Sorted by date with deterministic 0–100 scores.`
+    : `Every ${distanceCfg.label.toLowerCase()} happening in or near ${metro.name}, ${metro.state.name}. Sorted by date with deterministic 0–100 scores.`;
+
+  return {
+    title,
+    description,
+    ogType: "website",
+    canonicalUrl: url,
+    noindex: races.length < 5,
+    jsonLd: buildCollectionJsonLd(title.replace(" | running.services", ""), description, url, races),
+    breadcrumbJsonLd: buildBreadcrumbJsonLd([
+      { name: "Home", href: "/" },
+      { name: "Races", href: "/races" },
+      { name: metro.state.name, href: `/races/state/${metro.state.slug}` },
+      { name: metro.name, href: `/races/state/${metro.state.slug}/city/${metro.slug}` },
+      { name: monthLabel ? `${distanceCfg.plural} (${monthLabel})` : distanceCfg.plural },
+    ]),
+  } as PageMeta;
+};
+
+const prefetchStateDistance: PrefetchFn = async (qc, params) => {
+  const { state: stateSlug, distance: distanceSlug } = params;
+  if (!isValidDistanceSlug(distanceSlug)) {
+    return {
+      title: "Distance not found | running.services",
+      description: "Unknown distance shortcut.",
+      ogType: "website",
+      is404: true,
+      noindex: true,
+    } as PageMeta;
+  }
+  const distanceCfg = DISTANCE_SLUG_TO_LABEL[distanceSlug];
+  const state = await storage.getStateBySlug(stateSlug).catch(() => undefined);
+  if (!state) {
+    return {
+      title: "State not found | running.services",
+      description: "Unknown state.",
+      ogType: "website",
+      is404: true,
+      noindex: true,
+    } as PageMeta;
+  }
+  qc.setQueryData(["/api/states", stateSlug], state);
+
+  const search: BestSearchParams = {
+    state: state.abbreviation,
+    distance: distanceCfg.distance || undefined,
+    surface: distanceCfg.surface || undefined,
+    sort: "date",
+    limit: 60,
+  };
+  const apiQs = buildBestSearchQs(search);
+  const races = await storage.getRacesAdvanced({
+    state: state.abbreviation,
+    distance: distanceCfg.distance || undefined,
+    surface: distanceCfg.surface || undefined,
+    sort: "date",
+    limit: 60,
+  }).catch(() => []);
+  qc.setQueryData(["/api/races/search", apiQs], races);
+
+  const url = `${SITE_ORIGIN}/state/${stateSlug}/${distanceSlug}`;
+  const title = `${distanceCfg.plural} in ${state.name} | running.services`;
+  const description = `Every ${distanceCfg.label.toLowerCase()} we track across ${state.name}, sorted by date.`;
+
+  return {
+    title,
+    description,
+    ogType: "website",
+    canonicalUrl: url,
+    noindex: races.length < 5,
+    jsonLd: buildCollectionJsonLd(title.replace(" | running.services", ""), description, url, races),
+    breadcrumbJsonLd: buildBreadcrumbJsonLd([
+      { name: "Home", href: "/" },
+      { name: "Races", href: "/races" },
+      { name: state.name, href: `/races/state/${stateSlug}` },
+      { name: distanceCfg.plural },
+    ]),
+  } as PageMeta;
+};
+
+const prefetchBest: PrefetchFn = async (qc, params) => {
+  const slug = params.slug;
+  const cfg = BEST_CONFIGS[slug];
+  if (!cfg) {
+    return {
+      title: "Best-of list not found | running.services",
+      description: "Unknown curated list.",
+      ogType: "website",
+      is404: true,
+      noindex: true,
+    } as PageMeta;
+  }
+  const apiQs = buildBestSearchQs(cfg.search);
+  const races = await storage.getRacesAdvanced(cfg.search as Parameters<typeof storage.getRacesAdvanced>[0]).catch(() => []);
+  qc.setQueryData(["/api/races/search", apiQs], races);
+
+  const url = `${SITE_ORIGIN}/best/${slug}`;
+  const title = `${cfg.title} | running.services`;
+  return {
+    title,
+    description: cfg.intro,
+    ogType: "website",
+    canonicalUrl: url,
+    noindex: races.length < 5,
+    jsonLd: buildCollectionJsonLd(cfg.title, cfg.intro, url, races),
+    breadcrumbJsonLd: buildBreadcrumbJsonLd([
+      { name: "Home", href: "/" },
+      { name: "Best of" },
+      { name: cfg.title },
+    ]),
+  } as PageMeta;
+};
+
+const prefetchConstraint: PrefetchFn = async (qc, params) => {
+  const metroSlug = params.metro;
+  const constraint = params.kind === "walker" ? "walker" : "stroller";
+  const metro = await storage.getCityByMetroSlug(metroSlug).catch(() => undefined);
+  if (!metro) {
+    return {
+      title: "Metro not found | running.services",
+      description: "Unknown metro.",
+      ogType: "website",
+      is404: true,
+      noindex: true,
+    } as PageMeta;
+  }
+  qc.setQueryData([`/api/metros/${metroSlug}`], { city: metro, state: metro.state });
+
+  const search: BestSearchParams = {
+    state: metro.state.abbreviation,
+    city: metro.name,
+    distance: "5K",
+    walkerFriendly: constraint === "walker" ? true : undefined,
+    strollerFriendly: constraint === "stroller" ? true : undefined,
+    sort: "date",
+    limit: 60,
+  };
+  const apiQs = buildBestSearchQs(search);
+  const races = await storage.getRacesAdvanced({
+    state: metro.state.abbreviation,
+    city: metro.name,
+    distance: "5K",
+    walkerFriendly: constraint === "walker" ? true : undefined,
+    strollerFriendly: constraint === "stroller" ? true : undefined,
+    sort: "date",
+    limit: 60,
+  }).catch(() => []);
+  qc.setQueryData(["/api/races/search", apiQs], races);
+
+  const constraintLabel = constraint === "walker" ? "Walker-friendly" : "Stroller-friendly";
+  const url = `${SITE_ORIGIN}/${constraint}-friendly-5k/${metroSlug}`;
+  const title = `${constraintLabel} 5Ks in ${metro.name}, ${metro.state.abbreviation} | running.services`;
+  const description = `${constraintLabel} 5Ks in or near ${metro.name}, ${metro.state.name}. Each event is flagged for its accessibility, time limit, and family options.`;
+
+  return {
+    title,
+    description,
+    ogType: "website",
+    canonicalUrl: url,
+    noindex: races.length < 5,
+    jsonLd: buildCollectionJsonLd(title.replace(" | running.services", ""), description, url, races),
+    breadcrumbJsonLd: buildBreadcrumbJsonLd([
+      { name: "Home", href: "/" },
+      { name: "Races", href: "/races" },
+      { name: metro.state.name, href: `/races/state/${metro.state.slug}` },
+      { name: metro.name, href: `/races/state/${metro.state.slug}/city/${metro.slug}` },
+      { name: `${constraintLabel} 5Ks` },
+    ]),
+  } as PageMeta;
+};
+
+const prefetchSeries: PrefetchFn = async (qc, params) => {
+  const slug = params.slug;
+  const series = await storage.getRaceSeriesBySlug(slug).catch(() => undefined);
+  if (!series) {
+    return {
+      title: "Series not found | running.services",
+      description: "Unknown race series.",
+      ogType: "website",
+      is404: true,
+      noindex: true,
+    } as PageMeta;
+  }
+  const races = await storage.getRacesBySeries(series.id).catch(() => []);
+  qc.setQueryData([`/api/series/${slug}`], { series, races });
+
+  const url = `${SITE_ORIGIN}/series/${slug}`;
+  const title = `${series.name} — Race Series | running.services`;
+  const description = series.description || `All upcoming races in the ${series.name} race series.`;
+  return {
+    title,
+    description,
+    ogType: "website",
+    canonicalUrl: url,
+    noindex: races.length < 3,
+    jsonLd: buildCollectionJsonLd(series.name, description, url, races),
+    breadcrumbJsonLd: buildBreadcrumbJsonLd([
+      { name: "Home", href: "/" },
+      { name: "Races", href: "/races" },
+      { name: "Series" },
+      { name: series.name },
+    ]),
+  } as PageMeta;
+};
+
+const prefetchOrganizerDetail: PrefetchFn = async (qc, params) => {
+  const slug = params.slug;
+  const org = await storage.getOrganizerBySlug(slug).catch(() => undefined);
+  if (!org) {
+    return {
+      title: "Organizer not found | running.services",
+      description: "Unknown organizer.",
+      ogType: "website",
+      is404: true,
+      noindex: true,
+    } as PageMeta;
+  }
+  const races = await storage.getRacesByOrganizer(org.id).catch(() => []);
+  qc.setQueryData([`/api/organizers/${slug}`], { organizer: org, races });
+
+  const url = `${SITE_ORIGIN}/organizers/${slug}`;
+  const title = `${org.name} — Race Organizer | running.services`;
+  const description = org.description || `Every race put on by ${org.name}.`;
+  return {
+    title,
+    description,
+    ogType: "website",
+    canonicalUrl: url,
+    noindex: races.length < 3,
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: org.name,
+      url,
+      ...(org.website ? { sameAs: [org.website] } : {}),
+      ...(org.description ? { description: org.description } : {}),
+    },
+    breadcrumbJsonLd: buildBreadcrumbJsonLd([
+      { name: "Home", href: "/" },
+      { name: "Organizers", href: "/organizers" },
+      { name: org.name },
+    ]),
+  } as PageMeta;
+};
+
 const routeMatches: RouteMatch[] = [
   { pattern: /^\/$/, prefetch: prefetchHome, paramNames: [] },
   { pattern: /^\/races$/, prefetch: prefetchRaces, paramNames: [] },
@@ -856,9 +1267,26 @@ const routeMatches: RouteMatch[] = [
   { pattern: /^\/compare$/, prefetch: prefetchCompare, paramNames: [] },
   { pattern: /^\/this-weekend$/, prefetch: prefetchThisWeekendPage, paramNames: [] },
   { pattern: /^\/price-watch$/, prefetch: prefetchPriceWatch, paramNames: [] },
-  { pattern: /^\/organizers\/([^/]+)$/, prefetch: prefetchOrganizers, paramNames: ["slug"] },
+  { pattern: /^\/organizers\/([^/]+)$/, prefetch: prefetchOrganizerDetail, paramNames: ["slug"] },
   { pattern: /^\/organizers$/, prefetch: prefetchOrganizers, paramNames: [] },
   { pattern: /^\/for-organizers$/, prefetch: prefetchOrganizers, paramNames: [] },
+  { pattern: /^\/series\/([^/]+)$/, prefetch: prefetchSeries, paramNames: ["slug"] },
+  { pattern: /^\/turkey-trots\/([^/]+)$/, prefetch: prefetchTurkeyTrots, paramNames: ["metro"] },
+  { pattern: /^\/turkey-trots$/, prefetch: prefetchTurkeyTrots, paramNames: [] },
+  { pattern: /^\/best\/([^/]+)$/, prefetch: prefetchBest, paramNames: ["slug"] },
+  {
+    pattern: /^\/walker-friendly-5k\/([^/]+)$/,
+    prefetch: (qc, p) => prefetchConstraint(qc, { ...p, kind: "walker" }),
+    paramNames: ["metro"],
+  },
+  {
+    pattern: /^\/stroller-friendly-5k\/([^/]+)$/,
+    prefetch: (qc, p) => prefetchConstraint(qc, { ...p, kind: "stroller" }),
+    paramNames: ["metro"],
+  },
+  { pattern: /^\/state\/([^/]+)\/(5k-races|10k-races|half-marathons|marathons|trail-races)$/, prefetch: prefetchStateDistance, paramNames: ["state", "distance"] },
+  { pattern: /^\/([^/]+)\/([^/]+)\/([^/]+)$/, prefetch: prefetchCityDistance, paramNames: ["metro", "distance", "month"] },
+  { pattern: /^\/([^/]+)\/([^/]+)$/, prefetch: prefetchCityDistance, paramNames: ["metro", "distance"] },
 ];
 
 export function getSSRPrefetch(url: string): ((qc: QueryClient) => Promise<PageMeta>) | undefined {
