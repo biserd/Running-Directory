@@ -195,7 +195,7 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
         const series = await storage.getRaceSeries({ limit: 200 });
         for (const s of series) {
           const seriesRaces = await storage.getRacesBySeries(s.id);
-          if (seriesRaces.length >= 3) {
+          if (seriesRaces.length >= 5) {
             entries.push(urlEntry(`/series/${s.slug}`, { changefreq: "weekly", priority: "0.6", lastmod: today }));
           }
         }

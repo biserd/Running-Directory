@@ -3,7 +3,7 @@ import { storage } from "./storage";
 import type { PageMeta } from "../client/src/entry-server";
 import { getStateName } from "@shared/states";
 import { DISTANCE_SLUG_TO_LABEL, isValidDistanceSlug, isValidMonthSlug, MONTH_NAMES as METRO_MONTH_NAMES, MONTH_SLUG_TO_NUM, buildMetroSlug } from "@shared/metro";
-import { BEST_CONFIGS, buildBestSearchQs, type BestSearchParams } from "@shared/best-configs";
+import { BEST_CONFIGS, buildBestSearchQs, resolveBestSearch, type BestSearchParams } from "@shared/best-configs";
 
 type PrefetchFn = (queryClient: QueryClient, params: Record<string, string>) => Promise<PageMeta>;
 
@@ -1073,8 +1073,9 @@ const prefetchBest: PrefetchFn = async (qc, params) => {
       noindex: true,
     } as PageMeta;
   }
-  const apiQs = buildBestSearchQs(cfg.search);
-  const races = await storage.getRacesAdvanced(cfg.search as Parameters<typeof storage.getRacesAdvanced>[0]).catch(() => []);
+  const search = resolveBestSearch(slug, cfg);
+  const apiQs = buildBestSearchQs(search);
+  const races = await storage.getRacesAdvanced(search as Parameters<typeof storage.getRacesAdvanced>[0]).catch(() => []);
   qc.setQueryData(["/api/races/search", apiQs], races);
 
   const url = `${SITE_ORIGIN}/best/${slug}`;
@@ -1175,7 +1176,7 @@ const prefetchSeries: PrefetchFn = async (qc, params) => {
     description,
     ogType: "website",
     canonicalUrl: url,
-    noindex: races.length < 3,
+    noindex: races.length < 5,
     jsonLd: buildCollectionJsonLd(series.name, description, url, races),
     breadcrumbJsonLd: buildBreadcrumbJsonLd([
       { name: "Home", href: "/" },
@@ -1209,7 +1210,7 @@ const prefetchOrganizerDetail: PrefetchFn = async (qc, params) => {
     description,
     ogType: "website",
     canonicalUrl: url,
-    noindex: races.length < 3,
+    noindex: races.length < 5,
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "Organization",

@@ -14,6 +14,7 @@ export type BestSearchParams = {
   isTurkeyTrot?: boolean;
   walkerFriendly?: boolean;
   strollerFriendly?: boolean;
+  dogFriendly?: boolean;
   charity?: boolean;
   kidsRace?: boolean;
   bostonQualifier?: boolean;
@@ -25,6 +26,8 @@ export type BestSearchParams = {
   minValueScore?: number;
   minVibeScore?: number;
   minFamilyScore?: number;
+  dateFrom?: string;
+  dateTo?: string;
   sort?: "date" | "price" | "beginner" | "pr" | "value" | "vibe" | "family" | "urgency" | "quality";
   limit?: number;
   offset?: number;
@@ -111,7 +114,7 @@ export const BEST_CONFIGS: Record<string, BestConfig> = {
     title: "Dog-Friendly 5Ks",
     intro: "5Ks where you can bring your four-legged training partner.",
     eyebrow: "Bring the dog",
-    search: { distance: "5K", sort: "date", limit: 60 },
+    search: { distance: "5K", dogFriendly: true, sort: "date", limit: 60 },
     emptyBody: "We don't have dog-friendly 5Ks tagged yet — let us know if you've raced one.",
     related: [
       { label: "All 5Ks", href: "/races?distance=5K" },
@@ -151,4 +154,20 @@ export function buildBestSearchQs(params: BestSearchParams): string {
     qs.set(k, String(v));
   }
   return qs.toString();
+}
+
+/**
+ * Some "best of" pages need a dynamic date window (e.g. this-weekend = next 72 hours).
+ * Returns a finalised search params object with date constraints injected for the slug.
+ */
+export function resolveBestSearch(slug: string, cfg: BestConfig, now: Date = new Date()): BestSearchParams {
+  if (slug === "this-weekend") {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 3);
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    return { ...cfg.search, dateFrom: fmt(start), dateTo: fmt(end) };
+  }
+  return cfg.search;
 }

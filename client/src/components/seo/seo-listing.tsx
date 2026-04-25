@@ -33,6 +33,7 @@ interface SeoListingProps {
   noindex?: boolean;
   testIdPrefix?: string;
   children?: ReactNode;
+  toolbar?: ReactNode;
 }
 
 export function SeoListing({
@@ -49,6 +50,7 @@ export function SeoListing({
   noindex,
   testIdPrefix = "seo",
   children,
+  toolbar,
 }: SeoListingProps) {
   const hasRaces = races.length > 0;
   return (
@@ -78,6 +80,11 @@ export function SeoListing({
         </div>
 
         <div className="container mx-auto px-4 pb-12">
+          {toolbar && (
+            <div className="mb-6" data-testid={`${testIdPrefix}-toolbar`}>
+              {toolbar}
+            </div>
+          )}
           {isLoading && (
             <p className="text-muted-foreground" data-testid={`${testIdPrefix}-loading`}>Loading races…</p>
           )}

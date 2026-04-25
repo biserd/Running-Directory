@@ -2,7 +2,7 @@ import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { SeoListing } from "@/components/seo/seo-listing";
 import { apiSearchRaces, buildRaceSearchQs } from "@/lib/api";
-import { BEST_CONFIGS } from "@shared/best-configs";
+import { BEST_CONFIGS, resolveBestSearch } from "@shared/best-configs";
 import type { Race } from "@shared/schema";
 
 
@@ -11,11 +11,12 @@ export default function BestPage() {
   const slug = params.slug;
   const cfg = BEST_CONFIGS[slug];
 
-  const apiQs = cfg ? buildRaceSearchQs(cfg.search) : "";
+  const search = cfg ? resolveBestSearch(slug, cfg) : null;
+  const apiQs = search ? buildRaceSearchQs(search) : "";
   const { data: races, isLoading } = useQuery<Race[]>({
     queryKey: ["/api/races/search", apiQs],
-    queryFn: () => apiSearchRaces(cfg!.search),
-    enabled: !!cfg,
+    queryFn: () => apiSearchRaces(search!),
+    enabled: !!search,
   });
 
   if (!cfg) {

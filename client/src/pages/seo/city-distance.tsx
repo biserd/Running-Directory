@@ -1,13 +1,15 @@
-import { useParams } from "wouter";
+import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { SeoListing } from "@/components/seo/seo-listing";
 import { apiSearchRaces, buildRaceSearchQs } from "@/lib/api";
 import {
   DISTANCE_SLUG_TO_LABEL,
+  DISTANCE_SLUGS,
   isValidDistanceSlug,
   isValidMonthSlug,
   MONTH_NAMES,
   MONTH_SLUG_TO_NUM,
+  MONTH_SLUGS,
 } from "@shared/metro";
 import type { Race, City, State } from "@shared/schema";
 
@@ -123,6 +125,65 @@ export default function CityDistancePage() {
     ...(monthLabel ? [{ label: `${distanceCfg.plural} in ${metro.city.name} (all months)`, href: `/${metroSlug}/${distanceSlug}` }] : []),
   ];
 
+  const toolbar = (
+    <div className="space-y-3">
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Distance</div>
+        <div className="flex flex-wrap gap-1.5">
+          {DISTANCE_SLUGS.map((s) => {
+            const cfg = DISTANCE_SLUG_TO_LABEL[s];
+            const active = s === distanceSlug;
+            const href = monthSlug ? `/${metroSlug}/${s}/${monthSlug}` : `/${metroSlug}/${s}`;
+            return (
+              <Link
+                key={s}
+                href={href}
+                className={`px-2.5 py-1 rounded-full text-xs border ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background hover-elevate"}`}
+                data-testid={`chip-distance-${s}`}
+              >
+                {cfg.plural}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Month</div>
+        <div className="flex flex-wrap gap-1.5">
+          <Link
+            href={`/${metroSlug}/${distanceSlug}`}
+            className={`px-2.5 py-1 rounded-full text-xs border ${!monthSlug ? "bg-primary text-primary-foreground border-primary" : "bg-background hover-elevate"}`}
+            data-testid="chip-month-all"
+          >
+            All months
+          </Link>
+          {MONTH_SLUGS.map((m) => {
+            const active = m === monthSlug;
+            return (
+              <Link
+                key={m}
+                href={`/${metroSlug}/${distanceSlug}/${m}`}
+                className={`px-2.5 py-1 rounded-full text-xs border capitalize ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background hover-elevate"}`}
+                data-testid={`chip-month-${m}`}
+              >
+                {MONTH_NAMES[MONTH_SLUG_TO_NUM[m]].slice(0, 3)}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+      <div className="text-xs">
+        <Link
+          href={`/races?state=${metro.state.abbreviation}&city=${encodeURIComponent(metro.city.name)}${distanceCfg.distance ? `&distance=${encodeURIComponent(distanceCfg.distance)}` : ""}${distanceCfg.surface ? `&surface=${encodeURIComponent(distanceCfg.surface)}` : ""}${monthNum ? `&month=${monthNum}` : ""}`}
+          className="text-primary hover:underline"
+          data-testid="link-open-in-search"
+        >
+          Open in race search for full filters →
+        </Link>
+      </div>
+    </div>
+  );
+
   return (
     <SeoListing
       breadcrumbs={[
@@ -137,6 +198,7 @@ export default function CityDistancePage() {
       races={list}
       isLoading={isLoading}
       relatedLinks={relatedLinks}
+      toolbar={toolbar}
       emptyState={{
         title: monthLabel ? `No ${distanceCfg.plural} in ${monthLabel}` : `No ${distanceCfg.plural} listed yet`,
         body: monthLabel

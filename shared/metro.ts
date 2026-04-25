@@ -55,6 +55,8 @@ export const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ];
 
+export const MONTH_SLUGS = Object.keys(MONTH_SLUG_TO_NUM);
+
 export function isValidMonthSlug(slug: string): boolean {
   return slug.toLowerCase() in MONTH_SLUG_TO_NUM;
 }

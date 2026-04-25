@@ -1,8 +1,8 @@
-import { useParams } from "wouter";
+import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { SeoListing } from "@/components/seo/seo-listing";
 import { apiGetState, apiSearchRaces, buildRaceSearchQs } from "@/lib/api";
-import { DISTANCE_SLUG_TO_LABEL, isValidDistanceSlug } from "@shared/metro";
+import { DISTANCE_SLUG_TO_LABEL, DISTANCE_SLUGS, isValidDistanceSlug } from "@shared/metro";
 import type { Race, State } from "@shared/schema";
 
 export default function StateDistancePage() {
@@ -72,6 +72,39 @@ export default function StateDistancePage() {
     .filter(([slug]) => slug !== distanceSlug)
     .map(([slug, cfg]) => ({ label: `${cfg.plural} in ${state.name}`, href: `/state/${stateSlug}/${slug}` }));
 
+  const toolbar = (
+    <div className="space-y-3">
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Distance</div>
+        <div className="flex flex-wrap gap-1.5">
+          {DISTANCE_SLUGS.map((s) => {
+            const cfg = DISTANCE_SLUG_TO_LABEL[s];
+            const active = s === distanceSlug;
+            return (
+              <Link
+                key={s}
+                href={`/state/${stateSlug}/${s}`}
+                className={`px-2.5 py-1 rounded-full text-xs border ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background hover-elevate"}`}
+                data-testid={`chip-distance-${s}`}
+              >
+                {cfg.plural}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+      <div className="text-xs">
+        <Link
+          href={`/races?state=${state.abbreviation}${distanceCfg.distance ? `&distance=${encodeURIComponent(distanceCfg.distance)}` : ""}${distanceCfg.surface ? `&surface=${encodeURIComponent(distanceCfg.surface)}` : ""}`}
+          className="text-primary hover:underline"
+          data-testid="link-open-in-search"
+        >
+          Open in race search for full filters →
+        </Link>
+      </div>
+    </div>
+  );
+
   return (
     <SeoListing
       breadcrumbs={[
@@ -84,6 +117,7 @@ export default function StateDistancePage() {
       intro={`Every ${distanceCfg.label.toLowerCase()} we track across ${state.name}, sorted by date. Each card shows deterministic 0–100 scores for beginner-friendliness, PR potential, value, vibe, and family appeal.`}
       races={list}
       isLoading={isLoading}
+      toolbar={toolbar}
       relatedLinks={[
         ...otherDistances,
         { label: `All races in ${state.name}`, href: `/races/state/${stateSlug}` },
