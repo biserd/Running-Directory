@@ -245,6 +245,7 @@ const prefetchRoutes: PrefetchFn = async (qc) => {
     description: "Explore the best running paths, trails, and track loops across the USA. Find routes near you with distance, elevation, and difficulty info.",
     ogType: "website",
     canonicalUrl: "https://running.services/routes",
+    noindex: true,
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
@@ -269,6 +270,7 @@ const prefetchRoutesState: PrefetchFn = async (qc, params) => {
       description: `Discover the best running paths, trails, and loops in ${stateData.name}. ${stateData.routeCount} routes available.`,
       ogType: "website",
       canonicalUrl: `https://running.services/routes/state/${stateSlug}`,
+      noindex: true,
       jsonLd: {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
@@ -302,6 +304,7 @@ const prefetchRoutesCity: PrefetchFn = async (qc, params) => {
       description: `Explore running routes in ${cityData.name}, ${stateName}. Find paths, trails, and loops.`,
       ogType: "website",
       canonicalUrl: `https://running.services/routes/state/${stateSlug}/city/${citySlug}`,
+      noindex: true,
     };
   }
 

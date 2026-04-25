@@ -838,15 +838,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPriceIncreasingSoon(days: number = 14, limit: number = 30): Promise<Race[]> {
+    const safeDays = Number.isFinite(days) && days > 0 ? Math.min(Math.floor(days), 365) : 14;
+    const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 200) : 30;
     return db.select().from(races)
       .where(and(
         eq(races.isActive, true),
         isNotNull(races.nextPriceIncreaseAt),
-        sql`${races.nextPriceIncreaseAt}::date <= (CURRENT_DATE + INTERVAL '${sql.raw(String(days))} days')::date`,
+        sql`${races.nextPriceIncreaseAt}::date <= (CURRENT_DATE + INTERVAL '1 day' * ${safeDays})::date`,
         sql`${races.nextPriceIncreaseAt}::date >= CURRENT_DATE`,
       ))
       .orderBy(asc(races.nextPriceIncreaseAt))
-      .limit(limit);
+      .limit(safeLimit);
   }
 
   async updateRaceScores(raceId: number, scores: { beginnerScore: number; prScore: number; valueScore: number; vibeScore: number; familyScore: number; urgencyScore: number; scoreBreakdown: Record<string, unknown> }): Promise<void> {
