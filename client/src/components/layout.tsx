@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { SmartSearch } from "@/components/smart-search";
 
 const PRIMARY_NAV: { label: string; href: string; testId: string }[] = [
-  { label: "Find races", href: "/races", testId: "link-find-races" },
+  { label: "Find races", href: "/races", testId: "link-races" },
   { label: "Turkey Trots", href: "/races?turkeyTrot=true", testId: "link-turkey-trots" },
   { label: "5K", href: "/races?distance=5K", testId: "link-distance-5k" },
   { label: "10K", href: "/races?distance=10K", testId: "link-distance-10k" },
@@ -165,7 +165,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       <footer className="border-t bg-muted/30 pt-16 pb-8">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-8 mb-12">
             <div className="col-span-2 md:col-span-1">
               <Link href="/" className="font-heading font-bold text-lg tracking-tighter">
                 running<span className="text-primary">.services</span>
@@ -187,22 +187,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </ul>
             </div>
             <div>
-              <h4 className="font-heading font-semibold mb-4">Decide</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="/race-shopper" className="hover:text-primary" data-testid="link-race-shopper-footer">Race Shopper</Link></li>
-                <li><Link href="/this-weekend" className="hover:text-primary" data-testid="link-this-weekend-footer">Races this weekend</Link></li>
-                <li><Link href="/compare" className="hover:text-primary" data-testid="link-compare-footer">Compare races</Link></li>
-                <li><Link href="/price-watch" className="hover:text-primary" data-testid="link-price-watch-footer">Price watch</Link></li>
-                <li><Link href="/races/nearby" className="hover:text-primary" data-testid="link-near-me-footer">Races near me</Link></li>
-                <li><Link href="/races/usa" className="hover:text-primary">All 50 states</Link></li>
-              </ul>
-            </div>
-            <div>
               <h4 className="font-heading font-semibold mb-4">For organizers</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="/organizers" className="hover:text-primary" data-testid="link-organizers-footer">Race organizers</Link></li>
                 <li><Link href="/organizers" className="hover:text-primary" data-testid="link-claim-footer">Claim your race</Link></li>
-                <li><a href="https://aitracker.run" target="_blank" rel="noopener noreferrer nofollow" className="hover:text-primary flex items-center gap-1 text-primary/80">AITracker.run <ArrowRight className="h-3 w-3" /></a></li>
               </ul>
             </div>
           </div>

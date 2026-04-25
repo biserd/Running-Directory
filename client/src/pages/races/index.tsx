@@ -88,7 +88,10 @@ type FilterState = {
   lng: number | null;
   sort: string;
   near: boolean;
+  page: number;
 };
+
+const PAGE_SIZE = 24;
 
 const EMPTY_FILTERS: FilterState = {
   q: "",
@@ -118,6 +121,7 @@ const EMPTY_FILTERS: FilterState = {
   lng: null,
   sort: "date",
   near: false,
+  page: 1,
 };
 
 function parseFiltersFromUrl(search: string, stateAbbr?: string): FilterState {
@@ -153,6 +157,7 @@ function parseFiltersFromUrl(search: string, stateAbbr?: string): FilterState {
     lng: lng ? Number(lng) : null,
     sort: params.get("sort") || "date",
     near: params.get("near") === "1",
+    page: Math.max(1, Number(params.get("page")) || 1),
   };
 }
 
@@ -185,7 +190,9 @@ function filtersToApiQs(f: FilterState): string {
     qs.set("radiusMiles", String(f.radiusMiles));
   }
   if (f.sort) qs.set("sort", f.sort);
-  qs.set("limit", "60");
+  // Request PAGE_SIZE+1 so we can detect a "next page" without a separate count query.
+  qs.set("limit", String(PAGE_SIZE + 1));
+  qs.set("offset", String((f.page - 1) * PAGE_SIZE));
   return qs.toString();
 }
 
@@ -218,6 +225,7 @@ function filtersToUrlQs(f: FilterState): string {
     if (f.radiusMiles && f.radiusMiles !== 50) qs.set("radiusMiles", String(f.radiusMiles));
   }
   if (f.sort && f.sort !== "date") qs.set("sort", f.sort);
+  if (f.page && f.page > 1) qs.set("page", String(f.page));
   return qs.toString();
 }
 
@@ -542,7 +550,9 @@ export default function RacesSearchPage() {
   };
 
   const setFilter = <K extends keyof FilterState>(key: K, value: FilterState[K]) => {
-    updateFilters(prev => ({ ...prev, [key]: value }));
+    // Reset back to page 1 whenever any non-pagination filter changes so users don't
+    // end up stranded on a deep page that no longer has results.
+    updateFilters(prev => ({ ...prev, [key]: value, page: key === "page" ? (value as number) : 1 }));
   };
 
   const reset = () => {
@@ -560,7 +570,20 @@ export default function RacesSearchPage() {
     },
   });
 
-  const filtered = useMemo(() => clientSideFilter(races ?? [], filters), [races, filters]);
+  // Server returns up to PAGE_SIZE+1 rows so we can detect if there's a next page
+  // without a separate count query. The +1 sentinel never renders.
+  const pageRaces = useMemo(() => (races ?? []).slice(0, PAGE_SIZE), [races]);
+  const hasNextPage = (races?.length ?? 0) > PAGE_SIZE;
+  const hasPrevPage = filters.page > 1;
+  const filtered = useMemo(() => clientSideFilter(pageRaces, filters), [pageRaces, filters]);
+
+  const goToPage = (nextPage: number) => {
+    if (nextPage < 1) return;
+    updateFilters(prev => ({ ...prev, page: nextPage }));
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
   const activeCount = activeChipCount(filters);
 
   const heading = stateData ? `${stateData.name} race calendar` : "All USA races";
@@ -733,9 +756,42 @@ export default function RacesSearchPage() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filtered.map(race => <RaceCard key={race.id} race={race} />)}
-              </div>
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {filtered.map(race => <RaceCard key={race.id} race={race} />)}
+                </div>
+
+                {(hasPrevPage || hasNextPage) && (
+                  <nav
+                    className="mt-8 flex items-center justify-between gap-4"
+                    aria-label="Race results pagination"
+                    data-testid="pagination-controls"
+                  >
+                    <Button
+                      variant="outline"
+                      onClick={() => goToPage(filters.page - 1)}
+                      disabled={!hasPrevPage}
+                      data-testid="button-pagination-prev"
+                    >
+                      ← Previous
+                    </Button>
+                    <span
+                      className="text-sm text-muted-foreground"
+                      data-testid="text-pagination-page"
+                    >
+                      Page {filters.page}
+                    </span>
+                    <Button
+                      variant="outline"
+                      onClick={() => goToPage(filters.page + 1)}
+                      disabled={!hasNextPage}
+                      data-testid="button-pagination-next"
+                    >
+                      Next →
+                    </Button>
+                  </nav>
+                )}
+              </>
             )}
 
             <div className="mt-8 p-6 border rounded-lg bg-muted/30 flex flex-col md:flex-row items-center justify-between gap-4">

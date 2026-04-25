@@ -199,7 +199,7 @@ export function HomeHero() {
               <span className="text-left text-xs">Browse Turkey Trots</span>
             </Link>
           </Button>
-          <Button asChild variant="ghost" className="h-auto py-3 bg-white/5 border border-white/10 hover:bg-white/15 text-white justify-start" data-testid="button-secondary-beginner">
+          <Button asChild variant="ghost" className="h-auto py-3 bg-white/5 border border-white/10 hover:bg-white/15 text-white justify-start" data-testid="button-hero-shopper">
             <Link href="/race-shopper/beginner">
               <ListChecks className="mr-2 h-4 w-4 flex-shrink-0" />
               <span className="text-left text-xs">Beginner-friendly races</span>

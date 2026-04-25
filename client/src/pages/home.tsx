@@ -68,7 +68,7 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-3xl font-heading font-bold mb-2" data-testid="text-this-weekend-heading">
+              <h2 className="text-3xl font-heading font-bold mb-2" data-testid="text-this-weekend">
                 <CalendarRange className="inline-block mr-2 h-7 w-7" />Races this weekend
               </h2>
               <p className="text-muted-foreground">Last-minute picks for the next 72 hours.</p>
@@ -216,7 +216,7 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto bg-primary/5 border border-primary/20 rounded-2xl p-8 md:p-12 text-center">
             <Sparkles className="h-10 w-10 text-primary mx-auto mb-4" />
-            <h2 className="text-3xl font-heading font-bold mb-3" data-testid="text-shopper-invite-heading">Not sure what you want?</h2>
+            <h2 className="text-3xl font-heading font-bold mb-3" data-testid="text-shop-by-goal">Not sure what you want?</h2>
             <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
               Open the Race Shopper. Tell us what matters — a PR, your first 5K, a fun weekend with friends, the cheapest option — and we'll rank every upcoming race for it.
             </p>

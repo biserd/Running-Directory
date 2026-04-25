@@ -49,9 +49,10 @@ const prefetchHome: PrefetchFn = async (qc) => {
 const prefetchRaces: PrefetchFn = async (qc) => {
   // The race search page first renders with EMPTY_FILTERS, which produces this exact API qs.
   // Seed that key so SSR HTML matches the first client render.
-  const defaultApiQs = "sort=date&limit=60";
+  // Matches the client's PAGE_SIZE=24 + sentinel (limit=25, offset=0) on first render.
+  const defaultApiQs = "sort=date&limit=25&offset=0";
   const [races, statesList] = await Promise.all([
-    storage.getRacesAdvanced({ sort: "date", limit: 60 }),
+    storage.getRacesAdvanced({ sort: "date", limit: 25, offset: 0 }),
     storage.getStates(),
   ]);
 
@@ -106,8 +107,8 @@ const prefetchRacesState: PrefetchFn = async (qc, params) => {
     // The /races/state/:state page reuses RacesSearchPage which queries ["/api/races/search", apiQs]
     // with apiQs derived from EMPTY_FILTERS + the state abbreviation. Seed that exact key so
     // SSR HTML matches the first client render and there's no hydration cache miss.
-    const stateApiQs = `state=${encodeURIComponent(stateData.abbreviation)}&sort=date&limit=60`;
-    const races = await storage.getRacesAdvanced({ state: stateData.abbreviation, sort: "date", limit: 60 });
+    const stateApiQs = `state=${encodeURIComponent(stateData.abbreviation)}&sort=date&limit=25&offset=0`;
+    const races = await storage.getRacesAdvanced({ state: stateData.abbreviation, sort: "date", limit: 25, offset: 0 });
     qc.setQueryData(["/api/races/search", stateApiQs], races);
 
     return {
