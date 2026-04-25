@@ -36,9 +36,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Link href="/races/nearby" className={cn("transition-colors hover:text-primary flex items-center gap-1", location.startsWith("/races/nearby") ? "text-primary" : "text-foreground/80")} data-testid="link-near-me">
                 <MapPin className="h-3.5 w-3.5" /> Near Me
             </Link>
-            <Link href="/routes" className={cn("transition-colors hover:text-primary", location.startsWith("/routes") ? "text-primary" : "text-foreground/80")} data-testid="link-routes">
-                Routes
-            </Link>
             <Link href="/tools" className={cn("transition-colors hover:text-primary", location.startsWith("/tools") ? "text-primary" : "text-foreground/80")} data-testid="link-tools">
                 Tools
             </Link>
@@ -100,7 +97,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <Link href="/races/nearby" className="text-lg font-medium py-2 border-b flex items-center gap-2" data-testid="link-near-me-mobile">
                     <MapPin className="h-4 w-4" /> Races Near Me
                   </Link>
-                  <Link href="/routes" className="text-lg font-medium py-2 border-b" data-testid="link-routes-mobile">Routes</Link>
                   <Link href="/tools" className="text-lg font-medium py-2 border-b" data-testid="link-tools-mobile">Tools</Link>
                   {user && (
                     <Link href="/favorites" className="text-lg font-medium py-2 border-b flex items-center gap-2" data-testid="link-favorites-mobile">
@@ -153,7 +149,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <li><Link href="/price-watch" className="hover:text-primary" data-testid="link-price-watch-footer">Price Watch</Link></li>
                 <li><Link href="/races" className="hover:text-primary">Race Calendar</Link></li>
                 <li><Link href="/races/nearby" className="hover:text-primary">Races Near Me</Link></li>
-                <li><Link href="/routes" className="hover:text-primary">Running Routes</Link></li>
+                <li><Link href="/organizers" className="hover:text-primary">Race Organizers</Link></li>
                 <li><Link href="/tools" className="hover:text-primary">Runner Tools</Link></li>
                 <li><Link href="/races/usa" className="hover:text-primary">All 50 States</Link></li>
               </ul>

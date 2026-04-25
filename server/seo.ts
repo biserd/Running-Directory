@@ -42,6 +42,8 @@ Disallow: /blog
 Disallow: /blog/
 Disallow: /guides
 Disallow: /guides/
+Disallow: /routes
+Disallow: /routes/
 
 Sitemap: ${BASE_URL}/sitemap.xml
 `;
@@ -53,7 +55,6 @@ Sitemap: ${BASE_URL}/sitemap.xml
       const sitemaps = [
         "/sitemap-pages.xml",
         "/sitemap-races.xml",
-        "/sitemap-routes.xml",
         "/sitemap-states.xml",
         "/sitemap-cities.xml",
         "/sitemap-decision.xml",
@@ -76,7 +77,6 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
       urlEntry("/", { changefreq: "daily", priority: "1.0", lastmod: today }),
       urlEntry("/races", { changefreq: "daily", priority: "0.9", lastmod: today }),
       urlEntry("/races/usa", { changefreq: "weekly", priority: "0.9", lastmod: today }),
-      urlEntry("/routes", { changefreq: "weekly", priority: "0.9", lastmod: today }),
       urlEntry("/tools", { changefreq: "monthly", priority: "0.8" }),
       urlEntry("/races/year/2026", { changefreq: "daily", priority: "0.8", lastmod: today }),
       urlEntry("/races/year/2027", { changefreq: "daily", priority: "0.7", lastmod: today }),
@@ -112,22 +112,6 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
     }
   });
 
-  app.get("/sitemap-routes.xml", async (_req, res) => {
-    try {
-      const routes = await storage.getRoutes({ limit: SITEMAP_MAX });
-      const entries = routes.map(r =>
-        urlEntry(`/routes/${r.slug}`, {
-          changefreq: "monthly",
-          priority: "0.6",
-          lastmod: toISODate(r.lastSeenAt),
-        })
-      );
-      res.set("Content-Type", "application/xml").send(wrapUrlset(entries));
-    } catch {
-      res.status(500).send("Error generating sitemap");
-    }
-  });
-
   app.get("/sitemap-states.xml", async (_req, res) => {
     try {
       const statesList = await storage.getStates();
@@ -137,7 +121,6 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
       for (const s of statesList) {
         entries.push(urlEntry(`/state/${s.slug}`, { changefreq: "weekly", priority: "0.9", lastmod: today }));
         entries.push(urlEntry(`/races/state/${s.slug}`, { changefreq: "weekly", priority: "0.8", lastmod: today }));
-        entries.push(urlEntry(`/routes/state/${s.slug}`, { changefreq: "weekly", priority: "0.7", lastmod: today }));
       }
 
       res.set("Content-Type", "application/xml").send(wrapUrlset(entries));
@@ -156,7 +139,6 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
         for (const c of citiesList) {
           entries.push(urlEntry(`/state/${s.slug}/city/${c.slug}`, { changefreq: "weekly", priority: "0.7" }));
           entries.push(urlEntry(`/races/state/${s.slug}/city/${c.slug}`, { changefreq: "weekly", priority: "0.6" }));
-          entries.push(urlEntry(`/routes/state/${s.slug}/city/${c.slug}`, { changefreq: "weekly", priority: "0.5" }));
         }
       }
 

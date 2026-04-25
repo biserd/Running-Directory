@@ -1,7 +1,6 @@
 import { Layout } from "@/components/layout";
 import { Hero } from "@/components/hero";
 import { RaceCard } from "@/components/race-card";
-import { RouteCard } from "@/components/route-card";
 import { ToolsCTA } from "@/components/tools-cta";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Calendar, Sparkles, CalendarRange, Scale, AlarmClock, Trophy, Heart, Smile, DollarSign } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { apiGetRaces, apiGetRoutes, apiGetStates } from "@/lib/api";
+import { apiGetRaces, apiGetStates } from "@/lib/api";
+import type { Race } from "@shared/schema";
 import heroImage from "@/assets/images/hero-races.jpg";
 
 const SHOPPER_GOALS = [
@@ -23,22 +23,21 @@ const SHOPPER_GOALS = [
 
 export default function Home() {
   const { data: races, isLoading: racesLoading } = useQuery({ queryKey: ["/api/races", { limit: 4 }], queryFn: () => apiGetRaces({ limit: 4 }) });
-  const { data: routes, isLoading: routesLoading } = useQuery({ queryKey: ["/api/routes", { limit: 4 }], queryFn: () => apiGetRoutes({ limit: 4 }) });
   const { data: allStates, isLoading: statesLoading } = useQuery({ queryKey: ["/api/states"], queryFn: apiGetStates });
-  const { data: weekendRaces, isLoading: weekendLoading } = useQuery({
+  const { data: weekendRaces, isLoading: weekendLoading } = useQuery<Race[]>({
     queryKey: ["/api/races/this-weekend"],
     queryFn: async () => {
       const r = await fetch("/api/races/this-weekend");
       if (!r.ok) throw new Error("Failed");
-      return (await r.json()) as any[];
+      return r.json() as Promise<Race[]>;
     },
   });
-  const { data: priceSoon, isLoading: priceSoonLoading } = useQuery({
+  const { data: priceSoon, isLoading: priceSoonLoading } = useQuery<Race[]>({
     queryKey: ["/api/races/price-increase-soon", { days: 21, limit: 4 }],
     queryFn: async () => {
       const r = await fetch("/api/races/price-increase-soon?days=21&limit=4");
       if (!r.ok) throw new Error("Failed");
-      return (await r.json()) as any[];
+      return r.json() as Promise<Race[]>;
     },
   });
 
@@ -122,32 +121,6 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {races?.map(race => (
                 <RaceCard key={race.id} race={race} />
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="py-20 bg-secondary/30">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-3xl font-heading font-bold mb-2" data-testid="text-popular-routes">Popular Routes</h2>
-              <p className="text-muted-foreground">Top-rated running paths and trails near you.</p>
-            </div>
-            <Button variant="ghost" asChild data-testid="link-all-routes">
-              <Link href="/routes">View all routes <ArrowRight className="ml-2 h-4 w-4" /></Link>
-            </Button>
-          </div>
-          
-          {routesLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[1,2,3,4].map(i => <Skeleton key={i} className="h-64 rounded-lg" />)}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {routes?.map(route => (
-                <RouteCard key={route.id} route={route} />
               ))}
             </div>
           )}

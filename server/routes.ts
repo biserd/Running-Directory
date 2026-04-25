@@ -170,7 +170,7 @@ export async function registerRoutes(
   app.get("/api/search", async (req, res) => {
     const q = (req.query.q as string || "").trim();
     if (!q || q.length < 2) {
-      return res.json({ races: [], routes: [], states: [], cities: [] });
+      return res.json({ races: [], states: [], cities: [] });
     }
     try {
       const results = await storage.search(q, 5);

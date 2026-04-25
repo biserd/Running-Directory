@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
-import { Search, MapPin, Route, Trophy, Building2, X, Loader2 } from "lucide-react";
+import { Search, MapPin, Trophy, Building2, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SearchResults {
   races: { id: number; name: string; slug: string; city: string | null; state: string | null; distance: string | null; date: string | null }[];
-  routes: { id: number; name: string; slug: string; city: string | null; state: string | null; distance: string | null; surface: string | null }[];
   states: { id: number; name: string; slug: string; abbreviation: string | null; raceCount: number }[];
   cities: { id: number; name: string; slug: string; stateSlug: string; stateName: string }[];
 }
@@ -48,16 +47,6 @@ function flattenResults(results: SearchResults): SearchItem[] {
       sublabel: [r.city, r.state, r.distance].filter(Boolean).join(" · "),
       href: `/races/${r.slug}`,
       icon: <Trophy className="h-4 w-4 text-amber-500" />,
-    });
-  }
-
-  for (const r of results.routes) {
-    items.push({
-      type: "Routes",
-      label: r.name,
-      sublabel: [r.city, r.state, r.surface].filter(Boolean).join(" · "),
-      href: `/routes/${r.slug}`,
-      icon: <Route className="h-4 w-4 text-green-500" />,
     });
   }
 

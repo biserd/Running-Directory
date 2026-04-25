@@ -128,7 +128,6 @@ export interface IStorage {
 
 export type SearchResult = {
   races: { id: number; name: string; slug: string; city: string | null; state: string | null; distance: string | null; date: string | null }[];
-  routes: { id: number; name: string; slug: string; city: string | null; state: string | null; distance: number | null; surface: string | null }[];
   states: { id: number; name: string; slug: string; abbreviation: string | null; raceCount: number }[];
   cities: { id: number; name: string; slug: string; stateSlug: string; stateName: string }[];
 };
@@ -626,19 +625,12 @@ export class DatabaseStorage implements IStorage {
   async search(query: string, limit: number = 5): Promise<SearchResult> {
     const pattern = `%${query}%`;
 
-    const [raceResults, routeResults, stateResults, cityResults] = await Promise.all([
+    const [raceResults, stateResults, cityResults] = await Promise.all([
       db.select({
         id: races.id, name: races.name, slug: races.slug, city: races.city, state: races.state, distance: races.distance, date: races.date
       }).from(races)
         .where(and(eq(races.isActive, true), sql`(${races.name} ILIKE ${pattern} OR ${races.city} ILIKE ${pattern})`))
         .orderBy(desc(races.qualityScore))
-        .limit(limit),
-
-      db.select({
-        id: routes.id, name: routes.name, slug: routes.slug, city: routes.city, state: routes.state, distance: routes.distance, surface: routes.surface
-      }).from(routes)
-        .where(and(eq(routes.isActive, true), sql`(${routes.name} ILIKE ${pattern} OR ${routes.city} ILIKE ${pattern})`))
-        .orderBy(desc(routes.qualityScore))
         .limit(limit),
 
       db.select({
@@ -660,7 +652,6 @@ export class DatabaseStorage implements IStorage {
 
     return {
       races: raceResults,
-      routes: routeResults,
       states: stateResults,
       cities: cityResults,
     };
