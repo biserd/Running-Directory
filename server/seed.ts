@@ -490,7 +490,11 @@ export async function seedDatabase() {
 
   setImmediate(async () => {
     try {
-      const { backfillRaceScores } = await import("./scoring-backfill");
+      const { backfillPricingFromOccurrences, backfillRaceScores } = await import("./scoring-backfill");
+      const pricing = await backfillPricingFromOccurrences();
+      if (pricing.updated > 0) {
+        console.log(`[scoring] Backfilled pricing/elevation from race_occurrences for ${pricing.updated} races.`);
+      }
       const result = await backfillRaceScores({ batchSize: 500, force: false });
       if (result.updated > 0) {
         console.log(`[scoring] Backfilled scores for ${result.updated} of ${result.processed} races.`);

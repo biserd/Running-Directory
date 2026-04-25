@@ -690,19 +690,18 @@ const prefetchRaceShopper: PrefetchFn = async (_qc, params) => {
   const title = goal ? `Race Shopper: ${goal} | running.services` : "Race Shopper | running.services";
   return {
     title,
-    description: "A goal-driven race picker — coming soon. Tell us what you want and we'll rank every upcoming race for it.",
+    description: "A goal-driven race picker. Tell us what you want — a PR, your first 5K, the best value, or a big-vibe event — and we'll rank every upcoming race for it.",
     ogType: "website",
     canonicalUrl: goal ? `https://running.services/race-shopper/${goal}` : "https://running.services/race-shopper",
-    noindex: true,
+    noindex: !!goal,
   };
 };
 
 const prefetchCompare: PrefetchFn = async () => ({
   title: "Compare Races | running.services",
-  description: "Side-by-side race comparison — coming soon.",
+  description: "Side-by-side race comparison on weather, difficulty, vibe, value, and PR potential.",
   ogType: "website",
   canonicalUrl: "https://running.services/compare",
-  noindex: true,
 });
 
 const prefetchThisWeekendPage: PrefetchFn = async (qc) => {
@@ -712,10 +711,9 @@ const prefetchThisWeekendPage: PrefetchFn = async (qc) => {
   } catch {}
   return {
     title: "Races This Weekend | running.services",
-    description: "Races happening in the next 72 hours across the USA.",
+    description: "Every race happening in the USA in the next 72 hours. Last-minute signups, walk-up registrations, and last-call entries.",
     ogType: "website",
     canonicalUrl: "https://running.services/this-weekend",
-    noindex: true,
   };
 };
 
@@ -726,21 +724,31 @@ const prefetchPriceWatch: PrefetchFn = async (qc) => {
   } catch {}
   return {
     title: "Price Watch — Register Before Prices Rise | running.services",
-    description: "Races whose registration fee is about to increase.",
+    description: "Races whose registration fee is about to increase. Sign up early to lock in the lower price.",
     ogType: "website",
     canonicalUrl: "https://running.services/price-watch",
-    noindex: true,
   };
 };
 
-const prefetchOrganizers: PrefetchFn = async (_qc, params) => {
+const prefetchOrganizers: PrefetchFn = async (qc, params) => {
   const slug = params.slug;
+  if (!slug) {
+    try {
+      const list = await storage.getOrganizers({ limit: 100 });
+      qc.setQueryData(["/api/organizers"], list);
+    } catch {}
+    return {
+      title: "Race Organizers | running.services",
+      description: "Race directors and organizations behind the events. See every race a given organizer puts on.",
+      ogType: "website",
+      canonicalUrl: "https://running.services/organizers",
+    };
+  }
   return {
-    title: slug ? `Race Organizer: ${slug} | running.services` : "Race Organizers | running.services",
-    description: "Profiles of race directors and organizers — coming soon.",
+    title: `Race Organizer: ${slug} | running.services`,
+    description: "Race organizer profile.",
     ogType: "website",
-    canonicalUrl: slug ? `https://running.services/organizers/${slug}` : "https://running.services/organizers",
-    noindex: true,
+    canonicalUrl: `https://running.services/organizers/${slug}`,
   };
 };
 

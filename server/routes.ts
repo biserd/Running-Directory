@@ -8,6 +8,7 @@ import { computeRaceScores } from "./scoring";
 import { backfillRaceScores, recomputeUrgencyScores } from "./scoring-backfill";
 import { z } from "zod";
 import { insertOrganizerSchema, insertRaceClaimSchema, insertSavedSearchSchema, insertRaceAlertSchema, insertOutboundClickSchema } from "@shared/schema";
+import type { InsertRaceClaim, InsertOutboundClick } from "@shared/schema";
 import type { RaceSearchFilters } from "@shared/schema";
 import crypto from "crypto";
 
@@ -169,7 +170,7 @@ export async function registerRoutes(
   app.get("/api/search", async (req, res) => {
     const q = (req.query.q as string || "").trim();
     if (!q || q.length < 2) {
-      return res.json({ races: [], routes: [], states: [], cities: [], influencers: [], podcasts: [], books: [] });
+      return res.json({ races: [], routes: [], states: [], cities: [] });
     }
     try {
       const results = await storage.search(q, 5);
@@ -799,15 +800,13 @@ export async function registerRoutes(
       if (input.near) {
         filters.near = { lat: input.near.lat, lng: input.near.lng, radiusMiles: input.near.radiusMiles ?? 100 };
       }
-      const goalToMin: Record<string, keyof RaceSearchFilters> = {
-        beginner: "minBeginnerScore",
-        pr: "minPrScore",
-        value: "minValueScore",
-        vibe: "minVibeScore",
-        family: "minFamilyScore",
-      };
-      const minKey = goalToMin[input.goal];
-      if (minKey) (filters as any)[minKey] = 40;
+      switch (input.goal) {
+        case "beginner": filters.minBeginnerScore = 40; break;
+        case "pr": filters.minPrScore = 40; break;
+        case "value": filters.minValueScore = 40; break;
+        case "vibe": filters.minVibeScore = 40; break;
+        case "family": filters.minFamilyScore = 40; break;
+      }
       const results = await storage.getRacesAdvanced(filters);
       res.json({ goal: input.goal, count: results.length, races: results });
     } catch (err) {
@@ -892,32 +891,74 @@ export async function registerRoutes(
     message: z.string().max(2000).optional(),
   });
 
-  app.post("/api/races/:slug/claim", async (req, res) => {
+  async function handleClaimSubmission(raceSlug: string, body: unknown): Promise<{ status: number; payload: object }> {
     try {
-      const input = claimSchema.parse({ ...req.body, raceSlug: req.params.slug });
+      const input = claimSchema.parse({ ...(body as object), raceSlug });
       const race = await storage.getRaceBySlug(input.raceSlug);
-      if (!race) return res.status(404).json({ message: "Race not found" });
+      if (!race) return { status: 404, payload: { message: "Race not found" } };
 
       const verificationToken = crypto.randomBytes(32).toString("hex");
-      const claim = await storage.createRaceClaim({
+      const claimData: InsertRaceClaim = {
         raceId: race.id,
+        organizerId: race.organizerId ?? null,
         claimerEmail: input.claimerEmail.toLowerCase(),
         claimerName: input.claimerName,
         claimerRole: input.claimerRole,
         message: input.message,
         verificationToken,
         status: "pending",
-      } as any);
+      };
+      const claim = await storage.createRaceClaim(claimData);
 
-      res.status(201).json({
-        message: "Claim submitted. Our team will review and reach out within 2 business days.",
-        claimId: claim.id,
-      });
+      return {
+        status: 201,
+        payload: {
+          message: "Claim submitted. Our team will review and reach out within 2 business days.",
+          claimId: claim.id,
+        },
+      };
     } catch (err) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid input", errors: err.errors });
+        return { status: 400, payload: { message: "Invalid input", errors: err.errors } };
       }
       console.error("Claim error:", err);
+      return { status: 500, payload: { message: "Claim failed" } };
+    }
+  }
+
+  app.post("/api/races/:slug/claim", async (req, res) => {
+    const { status, payload } = await handleClaimSubmission(req.params.slug, req.body);
+    res.status(status).json(payload);
+  });
+
+  app.post("/api/organizers/:slug/claim", async (req, res) => {
+    try {
+      const organizer = await storage.getOrganizerBySlug(req.params.slug);
+      if (!organizer) {
+        res.status(404).json({ message: "Organizer not found" });
+        return;
+      }
+      let raceSlug: string;
+      const bodyRaceSlug = req.body && typeof req.body.raceSlug === "string" ? req.body.raceSlug.trim() : "";
+      if (bodyRaceSlug) {
+        const race = await storage.getRaceBySlug(bodyRaceSlug);
+        if (!race || race.organizerId !== organizer.id) {
+          res.status(400).json({ message: "raceSlug does not belong to this organizer" });
+          return;
+        }
+        raceSlug = bodyRaceSlug;
+      } else {
+        const orgRaces = await storage.getRacesByOrganizer(organizer.id);
+        if (orgRaces.length === 0) {
+          res.status(400).json({ message: "Organizer has no races to claim. Provide raceSlug in body." });
+          return;
+        }
+        raceSlug = orgRaces[0].slug;
+      }
+      const { status, payload } = await handleClaimSubmission(raceSlug, req.body);
+      res.status(status).json(payload);
+    } catch (err) {
+      console.error("Organizer claim error:", err);
       res.status(500).json({ message: "Claim failed" });
     }
   });
@@ -950,8 +991,8 @@ export async function registerRoutes(
 
   app.post("/api/saved-searches", requireAuth, async (req, res) => {
     try {
-      const data = insertSavedSearchSchema.omit({ userId: true } as any).parse(req.body);
-      const created = await storage.createSavedSearch({ ...data, userId: req.session.userId! } as any);
+      const data = insertSavedSearchSchema.omit({ userId: true }).parse(req.body);
+      const created = await storage.createSavedSearch({ ...data, userId: req.session.userId! });
       res.status(201).json(created);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -982,8 +1023,8 @@ export async function registerRoutes(
 
   app.post("/api/alerts", requireAuth, async (req, res) => {
     try {
-      const data = insertRaceAlertSchema.omit({ userId: true } as any).parse(req.body);
-      const created = await storage.createRaceAlert({ ...data, userId: req.session.userId! } as any);
+      const data = insertRaceAlertSchema.omit({ userId: true }).parse(req.body);
+      const created = await storage.createRaceAlert({ ...data, userId: req.session.userId! });
       res.status(201).json(created);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -1009,16 +1050,17 @@ export async function registerRoutes(
   app.post("/api/outbound", async (req, res) => {
     try {
       const input = outboundSchema.parse(req.body);
-      const click = await storage.recordOutboundClick({
-        raceId: input.raceId,
-        organizerId: input.organizerId,
+      const clickData: InsertOutboundClick = {
+        raceId: input.raceId ?? null,
+        organizerId: input.organizerId ?? null,
         destination: input.destination,
         targetUrl: input.targetUrl,
-        userId: req.session?.userId,
-        sessionId: req.sessionID,
-        referer: req.get("referer"),
-        userAgent: req.get("user-agent"),
-      } as any);
+        userId: req.session?.userId ?? null,
+        sessionId: req.sessionID ?? null,
+        referer: req.get("referer") ?? null,
+        userAgent: req.get("user-agent") ?? null,
+      };
+      const click = await storage.recordOutboundClick(clickData);
       res.json({ ok: true, id: click.id });
     } catch (err) {
       if (err instanceof z.ZodError) {

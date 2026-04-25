@@ -123,16 +123,15 @@ export interface IStorage {
   recordOutboundClick(data: InsertOutboundClick): Promise<OutboundClick>;
   getOutboundClickStats(raceId: number, sinceDays?: number): Promise<{ total: number; byDestination: Record<string, number> }>;
 
-  search(query: string, limit?: number): Promise<{
-    races: { id: number; name: string; slug: string; city: string | null; state: string | null; distance: string | null; date: string | null }[];
-    routes: { id: number; name: string; slug: string; city: string | null; state: string | null; distance: string | null; surface: string | null }[];
-    states: { id: number; name: string; slug: string; abbreviation: string | null; raceCount: number }[];
-    cities: { id: number; name: string; slug: string; stateSlug: string; stateName: string }[];
-    influencers: { id: number; name: string; slug: string; platform: string | null; handle: string | null }[];
-    podcasts: { id: number; name: string; slug: string; host: string | null }[];
-    books: { id: number; title: string; slug: string; author: string | null }[];
-  }>;
+  search(query: string, limit?: number): Promise<SearchResult>;
 }
+
+export type SearchResult = {
+  races: { id: number; name: string; slug: string; city: string | null; state: string | null; distance: string | null; date: string | null }[];
+  routes: { id: number; name: string; slug: string; city: string | null; state: string | null; distance: number | null; surface: string | null }[];
+  states: { id: number; name: string; slug: string; abbreviation: string | null; raceCount: number }[];
+  cities: { id: number; name: string; slug: string; stateSlug: string; stateName: string }[];
+};
 
 export class DatabaseStorage implements IStorage {
   async getStates(): Promise<State[]> {
@@ -425,15 +424,17 @@ export class DatabaseStorage implements IStorage {
       LIMIT ${limit}
     `);
 
-    return (results.rows as any[]).map(row => {
-      const camel: Record<string, any> = {};
+    return (results.rows as Record<string, unknown>[]).map(row => {
+      const camel: Record<string, unknown> = {};
       for (const k of Object.keys(row)) {
         const ck = k.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
         camel[ck] = row[k];
       }
+      const distRaw = row.distance_miles;
+      const distNum = typeof distRaw === "string" ? parseFloat(distRaw) : (typeof distRaw === "number" ? distRaw : 0);
       return {
-        ...(camel as Race),
-        distanceMiles: row.distance_miles ? Math.round(parseFloat(row.distance_miles) * 10) / 10 : 0,
+        ...(camel as unknown as Race),
+        distanceMiles: distNum ? Math.round(distNum * 10) / 10 : 0,
       };
     });
   }
@@ -622,10 +623,10 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(favorites.createdAt));
   }
 
-  async search(query: string, limit: number = 5) {
+  async search(query: string, limit: number = 5): Promise<SearchResult> {
     const pattern = `%${query}%`;
 
-    const [raceResults, routeResults, stateResults, cityResults, influencerResults, podcastResults, bookResults] = await Promise.all([
+    const [raceResults, routeResults, stateResults, cityResults] = await Promise.all([
       db.select({
         id: races.id, name: races.name, slug: races.slug, city: races.city, state: races.state, distance: races.distance, date: races.date
       }).from(races)
@@ -655,24 +656,6 @@ export class DatabaseStorage implements IStorage {
         .where(sql`${cities.name} ILIKE ${pattern}`)
         .orderBy(desc(cities.population))
         .limit(limit),
-
-      db.select({
-        id: influencers.id, name: influencers.name, slug: influencers.slug, platform: influencers.platform, handle: influencers.handle
-      }).from(influencers)
-        .where(and(eq(influencers.isActive, true), sql`(${influencers.name} ILIKE ${pattern} OR ${influencers.handle} ILIKE ${pattern})`))
-        .limit(limit),
-
-      db.select({
-        id: podcasts.id, name: podcasts.name, slug: podcasts.slug, host: podcasts.host
-      }).from(podcasts)
-        .where(and(eq(podcasts.isActive, true), sql`(${podcasts.name} ILIKE ${pattern} OR ${podcasts.host} ILIKE ${pattern})`))
-        .limit(limit),
-
-      db.select({
-        id: books.id, title: books.title, slug: books.slug, author: books.author
-      }).from(books)
-        .where(and(eq(books.isActive, true), sql`(${books.title} ILIKE ${pattern} OR ${books.author} ILIKE ${pattern})`))
-        .limit(limit),
     ]);
 
     return {
@@ -680,10 +663,7 @@ export class DatabaseStorage implements IStorage {
       routes: routeResults,
       states: stateResults,
       cities: cityResults,
-      influencers: influencerResults,
-      podcasts: podcastResults,
-      books: bookResults,
-    } as any;
+    };
   }
 
   async getReviews(itemType: string, itemId: number): Promise<(Review & { userName: string | null })[]> {
@@ -878,7 +858,7 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  async updateRaceScores(raceId: number, scores: { beginnerScore: number; prScore: number; valueScore: number; vibeScore: number; familyScore: number; urgencyScore: number; scoreBreakdown: unknown }): Promise<void> {
+  async updateRaceScores(raceId: number, scores: { beginnerScore: number; prScore: number; valueScore: number; vibeScore: number; familyScore: number; urgencyScore: number; scoreBreakdown: Record<string, unknown> }): Promise<void> {
     await db.update(races).set({
       beginnerScore: scores.beginnerScore,
       prScore: scores.prScore,
@@ -886,7 +866,7 @@ export class DatabaseStorage implements IStorage {
       vibeScore: scores.vibeScore,
       familyScore: scores.familyScore,
       urgencyScore: scores.urgencyScore,
-      scoreBreakdown: scores.scoreBreakdown as any,
+      scoreBreakdown: scores.scoreBreakdown,
       scoresUpdatedAt: new Date(),
     }).where(eq(races.id, raceId));
   }

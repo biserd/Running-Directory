@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
-import { Search, MapPin, Route, Trophy, Building2, Users, Mic, BookOpen, X, Loader2 } from "lucide-react";
+import { Search, MapPin, Route, Trophy, Building2, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SearchResults {
@@ -8,9 +8,6 @@ interface SearchResults {
   routes: { id: number; name: string; slug: string; city: string | null; state: string | null; distance: string | null; surface: string | null }[];
   states: { id: number; name: string; slug: string; abbreviation: string | null; raceCount: number }[];
   cities: { id: number; name: string; slug: string; stateSlug: string; stateName: string }[];
-  influencers: { id: number; name: string; slug: string; platform: string | null; handle: string | null }[];
-  podcasts: { id: number; name: string; slug: string; host: string | null }[];
-  books: { id: number; title: string; slug: string; author: string | null }[];
 }
 
 interface SearchItem {
@@ -61,36 +58,6 @@ function flattenResults(results: SearchResults): SearchItem[] {
       sublabel: [r.city, r.state, r.surface].filter(Boolean).join(" · "),
       href: `/routes/${r.slug}`,
       icon: <Route className="h-4 w-4 text-green-500" />,
-    });
-  }
-
-  for (const i of results.influencers) {
-    items.push({
-      type: "Influencers",
-      label: i.name,
-      sublabel: [i.handle, i.platform].filter(Boolean).join(" · "),
-      href: `/influencers/${i.slug}`,
-      icon: <Users className="h-4 w-4 text-pink-500" />,
-    });
-  }
-
-  for (const p of results.podcasts) {
-    items.push({
-      type: "Podcasts",
-      label: p.name,
-      sublabel: p.host ? `by ${p.host}` : "",
-      href: `/podcasts/${p.slug}`,
-      icon: <Mic className="h-4 w-4 text-orange-500" />,
-    });
-  }
-
-  for (const b of results.books) {
-    items.push({
-      type: "Books",
-      label: b.title,
-      sublabel: b.author ? `by ${b.author}` : "",
-      href: `/books/${b.slug}`,
-      icon: <BookOpen className="h-4 w-4 text-teal-500" />,
     });
   }
 

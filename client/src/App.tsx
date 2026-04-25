@@ -37,7 +37,7 @@ import ContactPage from "@/pages/contact";
 import BlogPage from "@/pages/blog";
 import AuthVerifyPage from "@/pages/auth/verify";
 import FavoritesPage from "@/pages/favorites";
-import { RaceShopperPage, ComparePage, ThisWeekendPage, PriceWatchPage, OrganizersPage } from "@/pages/coming-soon";
+import { RaceShopperPage, ComparePage, ThisWeekendPage, PriceWatchPage, OrganizersPage, OrganizerDetailPage } from "@/pages/coming-soon";
 
 function AppRouter() {
   return (
@@ -80,7 +80,7 @@ function AppRouter() {
       <Route path="/compare" component={ComparePage} />
       <Route path="/this-weekend" component={ThisWeekendPage} />
       <Route path="/price-watch" component={PriceWatchPage} />
-      <Route path="/organizers/:slug" component={OrganizersPage} />
+      <Route path="/organizers/:slug" component={OrganizerDetailPage} />
       <Route path="/organizers" component={OrganizersPage} />
       <Route component={NotFound} />
     </Switch>
