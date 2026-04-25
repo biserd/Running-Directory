@@ -204,7 +204,18 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
     storage.getRoutes({ limit: 3 }),
   ]);
 
-  qc.setQueryData(["/api/races", slug], race);
+  // Enrich race with citySlug to match the /api/races/:slug response shape,
+  // so client components (e.g. "More like this" metro link) work on SSR loads.
+  let citySlug: string | null = null;
+  if (race?.cityId) {
+    try {
+      const cityRow = await storage.getCityById(race.cityId);
+      citySlug = cityRow?.slug ?? null;
+    } catch { /* non-critical */ }
+  }
+  const enrichedRace = race ? { ...race, citySlug } : race;
+
+  qc.setQueryData(["/api/races", slug], enrichedRace);
   qc.setQueryData(["/api/routes", { limit: 3 }], nearbyRoutes);
 
   if (race) {
@@ -1214,11 +1225,26 @@ const prefetchOrganizerDetail: PrefetchFn = async (qc, params) => {
     noindex: races.length < 5,
     jsonLd: {
       "@context": "https://schema.org",
-      "@type": "Organization",
-      name: org.name,
+      "@type": "CollectionPage",
+      name: `${org.name} — Races`,
       url,
-      ...(org.website ? { sameAs: [org.website] } : {}),
       ...(org.description ? { description: org.description } : {}),
+      about: {
+        "@type": "Organization",
+        name: org.name,
+        ...(org.website ? { sameAs: [org.website] } : {}),
+        ...(org.description ? { description: org.description } : {}),
+      },
+      mainEntity: {
+        "@type": "ItemList",
+        numberOfItems: races.length,
+        itemListElement: races.slice(0, 25).map((r, idx) => ({
+          "@type": "ListItem",
+          position: idx + 1,
+          url: `${SITE_ORIGIN}/races/${r.slug}`,
+          name: r.name,
+        })),
+      },
     },
     breadcrumbJsonLd: buildBreadcrumbJsonLd([
       { name: "Home", href: "/" },
