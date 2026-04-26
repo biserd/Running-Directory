@@ -1,0 +1,1342 @@
+# Running.Services Directory Rebuild Report
+
+## Executive Summary
+
+Running.Services should be rebuilt as a race decision engine, not a generic race calendar. The current category opportunity is real: the U.S. endurance race market is large, fragmented, mobile-driven, and still growing, but generic race listings are already commoditized by RunSignup, RunGuides, Find a Race, RaceRaves, Ahotu, Runner’s World, timing companies, and local clubs.
+
+The winning thesis is simple:
+
+> Runners do not need another list of races. They need help choosing the right race.
+
+The product should become the “Zillow for running races”: a structured, mobile-first directory that compares 5Ks, 10Ks, half marathons, marathons, trail races, Turkey Trots, charity races, and fun runs by price, distance, date, terrain, difficulty, vibe, registration urgency, runner-friendliness, weather, and logistics.
+
+The differentiated product should answer:
+
+- Which race should I do?
+- Is it beginner-friendly?
+- Is it flat and fast?
+- Is it worth the price?
+- Can I bring my kid, stroller, dog, or walking group?
+- Is registration about to get more expensive?
+- What are similar alternatives nearby?
+- Is this race trusted, recurring, and well-organized?
+
+The directory should not try to compete with RunSignup as a registration platform. RunSignup processed $650 million for 39,000 events in 2025, says it has more than 50% U.S. endurance market share, and powers registration, websites, email, fundraising, and race-day tools ([RunSignup](https://info.runsignup.com/2026/01/02/2025-year-in-review/)). Running.Services should instead become the independent discovery, comparison, and decision layer above registration platforms.
+
+The rebuild should focus on four product layers:
+
+| Layer | Purpose | Why it matters |
+| --- | --- | --- |
+| Race database | Normalize every race into comparable metadata. | A directory is only as valuable as its data quality. |
+| Decision engine | Score races by fit, difficulty, price, vibe, and urgency. | This is the core differentiation versus simple listings. |
+| Alerts and saved searches | Retain users around race intent. | Directories need memory and timing to become repeat products. |
+| Organizer claim tools | Create supply-side engagement and monetization. | Race directors need visibility, corrections, coupons, and analytics. |
+
+The first wedge should be local, seasonal, and decision-rich: Turkey Trots, beginner-friendly 5Ks, half marathons, flat/fast marathons, and city-specific race pages.
+
+## Market Context
+
+The race market is healthy enough to support a discovery product. RunSignup’s 2025 RaceTrends report says race participation grew 5% from 2024 to 2025, after 8% growth in 2024 and 11% growth in 2023 ([RunSignup](https://info.runsignup.com/2026/02/02/2025-race-trends-report/)). RunSignup’s dataset covers more than 97,000 race events and 12.2 million registrations, and the company estimates that it represents at least 50% of the U.S. endurance market ([RunSignup](https://info.runsignup.com/2026/02/02/2025-race-trends-report/)).
+
+The market is fragmented in a way that favors directories. RunSignup reports that 87% of races have fewer than 500 participants, while those small races account for 38% of participants ([RunSignup](https://info.runsignup.com/2026/02/02/2025-race-trends-report/)). Running USA’s coverage of the same report says 86% of race weekends host fewer than 500 participants, less than 1% of events exceed 5,000 participants, and only 13% of participants are in large races over 5,000 people ([Running USA](https://www.runningusa.org/industry-news/runsignups-annual-racetrends-report-shows-per-race-participation-growth-of-5/)).
+
+The implication is important: most races are small, local, and discovery-constrained. Big races already have brand awareness, lotteries, sponsors, press coverage, and returning audiences. Small races need discovery, credibility, comparison, and better distribution.
+
+Mobile behavior is decisive. RunSignup says 74% of race website views and 63% of transactions came from mobile or tablet devices, and 42% of participants paid with Apple Pay or a saved credit card in November ([RunSignup](https://info.runsignup.com/2026/02/02/2025-race-trends-report/)). Running.Services should therefore be built mobile-first: location search, distance chips, map/list toggle, save, compare, alert, and register.
+
+Prices are rising, creating a strong opportunity for price intelligence. RunSignup says prices rose across all distances for the third year in a row, and 10K prices are up 21% since 2019 ([RunSignup](https://info.runsignup.com/2026/02/02/2025-race-trends-report/)). A directory that tracks price tiers, registration deadlines, price increases, and “best value” races can become more useful than a static calendar.
+
+Seasonality creates a strong wedge. Running USA reports that November, the Turkey Trot month, had the highest race growth rate at 10% ([Running USA](https://www.runningusa.org/industry-news/runsignups-annual-racetrends-report-shows-per-race-participation-growth-of-5/)). Running Insight’s coverage says 10.1% of all events occurred in November, and a quarter of November races took place on a single day ([Running Insight](https://www.runninginsight.com/runsignup-report-finds-the-good-and-bad-of-2025)). Running.Services should build the best Turkey Trot finder on the internet before trying to own every running query.
+
+## Competitive Landscape
+
+### RunSignup
+
+RunSignup is the dominant U.S. endurance registration infrastructure platform. It processed $650 million for 39,000 events in 2025, up from $562 million in 2024, and claims more than 50% market share in U.S. endurance events ([RunSignup](https://info.runsignup.com/2026/01/02/2025-year-in-review/)).
+
+RunSignup’s strengths are infrastructure, organizer tools, registration, fundraising, email, websites, race-day check-in, and payments. Its weakness as a competitor to Running.Services is that it is not neutral discovery. It is a platform where registration infrastructure and event management are central.
+
+Strategic implication: do not compete with RunSignup on registration. Use RunSignup and other registration platforms as outbound destinations, and compete on independent search, comparison, alerts, and decision support.
+
+### RunGuides
+
+RunGuides is a direct directory competitor. Its North America page lists races by date, size, and location, includes featured placements, and shows coupon codes such as “Get 10% Off” for selected events ([RunGuides](https://www.runguides.com/north-america/runs)).
+
+RunGuides’ strengths are clean listings, event size metadata, featured placements, organizer CTAs, and coupon monetization. Its weakness is that the experience remains mostly a list. It does not deeply answer “which race is right for me?” or expose rich decision fields such as difficulty, value, family-friendliness, course profile, price history, or registration urgency.
+
+Strategic implication: Running.Services should not out-list RunGuides. It should out-decide RunGuides.
+
+### Find a Race
+
+Find a Race has strong SEO framing. Its U.S. running page targets “Running Near Me | US Events Calendar 2026 - 2027” and promises a comprehensive list of U.S. running events with filters by location, month, distance, and terrain ([Find a Race](https://findarace.com/us/running)).
+
+Find a Race’s strengths are SEO page construction, broad coverage, and user-friendly category framing. Its weakness is that it is broad and still primarily calendar-driven.
+
+Strategic implication: Running.Services should borrow the structured SEO model but add richer race-fit metadata and decision tools.
+
+### RaceRaves
+
+RaceRaves’ strongest concept is reviews. Its San Francisco race page targets “2026-2027 Races in San Francisco, California” and emphasizes marathons, half marathons, 10Ks, 5Ks, and honest finisher reviews ([RaceRaves](https://raceraves.com/california-races-reviews/san-francisco/)).
+
+RaceRaves’ strength is community proof. Its weakness is that review density is hard to scale, and the product is not obviously a modern decision engine.
+
+Strategic implication: Running.Services should incorporate lightweight reviews, but should not depend entirely on user-generated reviews for value. It should use structured race intelligence even when reviews are sparse.
+
+## Strategic Positioning
+
+The current positioning should be replaced.
+
+Current-style positioning:
+
+> The comprehensive USA race calendar and route directory.
+
+Recommended positioning:
+
+> Find the right race, not just the next race.
+
+Expanded positioning:
+
+> Running.Services helps runners compare races by price, difficulty, distance, terrain, vibe, logistics, and registration urgency so they can choose the best 5K, 10K, half marathon, marathon, trail race, or Turkey Trot near them.
+
+Category:
+
+> Race discovery and decision engine.
+
+Not:
+
+- Race registration software
+- Running analytics
+- Strava coaching
+- Generic running content hub
+- Route directory
+- Blog
+- Event-management SaaS
+
+For runners, Running.Services should be the independent race shopping layer.
+
+For organizers, Running.Services should be the free race listing, claim, correction, and promotion layer.
+
+For sponsors and brands, Running.Services should be a local running-intent audience.
+
+## Product Thesis
+
+The core product thesis:
+
+> A race directory becomes valuable when it helps runners make decisions, not when it merely lists events.
+
+Most race directories treat all races as rows in a calendar. Running.Services should treat races as products that can be compared.
+
+The race page should resemble a hybrid of:
+
+- Zillow listing
+- Google Flights comparison
+- Yelp review page
+- Wirecutter-style recommendation
+- Kayak alert system
+
+The product should make race discovery feel like shopping for the right event.
+
+## Core User Segments
+
+### Beginner runners
+
+Beginner runners need confidence. They ask whether a race is manageable, welcoming, walker-friendly, family-friendly, affordable, and easy to attend.
+
+Build for:
+
+- “first 5K”
+- “beginner-friendly half marathon”
+- “walker-friendly 5K”
+- “family fun run”
+- “stroller-friendly race”
+- “cheap 5K near me”
+
+### Goal-oriented runners
+
+Goal-oriented runners care about PRs, course profile, field size, weather, competition, travel, and timing.
+
+Build for:
+
+- “flat fast half marathon”
+- “Boston qualifier marathon”
+- “PR-friendly 10K”
+- “spring marathon tune-up race”
+- “fall half marathon near me”
+
+### Social runners
+
+Social runners care about friends, run clubs, themes, beer, costumes, music, charity, and post-race events.
+
+Build for:
+
+- “beer run”
+- “Turkey Trot”
+- “Halloween 5K”
+- “Jingle Bell run”
+- “charity 5K”
+- “run club races”
+
+### Parents and families
+
+Families care about kids races, parking, bathrooms, strollers, start time, safety, and post-race activities.
+
+Build for:
+
+- “kids fun run”
+- “family 5K”
+- “stroller-friendly 5K”
+- “Thanksgiving family run”
+
+### Race organizers
+
+Race organizers need participants, visibility, accurate listings, discounts, timing partner visibility, and local marketing.
+
+Build for:
+
+- claim page
+- correct listing
+- add price/deadline/coupon
+- promote locally
+- view outbound clicks
+- benchmark against similar races
+
+## Keyword Strategy
+
+Running.Services should not start by trying to win broad national terms like “running races,” “race calendar,” or “marathon calendar USA.” Those terms are competitive and often already served by large incumbents.
+
+The SEO strategy should start with structured local, seasonal, and decision-intent pages.
+
+### Keyword Matrix
+
+| Intent class | Example queries | Value |
+| --- | --- | --- |
+| Local discovery | “5K near me,” “running races near me,” “half marathons near NYC” | High-volume discovery |
+| Distance + location | “10K races in Chicago,” “marathons in California,” “trail half marathon Colorado” | Best programmatic SEO foundation |
+| Date + distance | “May 5K races near me,” “April half marathons,” “fall marathons 2026” | Strong planning intent |
+| Seasonal | “Turkey Trot near me,” “Thanksgiving 5K NYC,” “Halloween 5K Chicago” | Excellent event-specific intent |
+| Qualitative | “best beginner half marathons,” “flat fast marathons,” “scenic 10K races” | Differentiated content |
+| Constraint-based | “walker-friendly 5K,” “stroller-friendly race,” “dog-friendly 5K” | Underserved by incumbents |
+| Price-sensitive | “cheap 5K near me,” “free fun run,” “race discount codes” | Monetizable and practical |
+| Social/vibe | “beer run,” “charity 5K,” “run club races” | Matches social running trends |
+
+### Page Architecture
+
+| Page type | URL pattern | Example |
+| --- | --- | --- |
+| City + distance | `/city-state/5k-races` | `/new-york-ny/5k-races` |
+| City + distance + month | `/city-state/5k-races/may` | `/chicago-il/10k-races/october` |
+| State + distance | `/state/half-marathons` | `/california/half-marathons` |
+| Seasonal local | `/turkey-trots/city-state` | `/turkey-trots/new-york-ny` |
+| Qualitative national | `/best/beginner-half-marathons` | `/best/flat-fast-marathons` |
+| Constraint local | `/walker-friendly-5k/city-state` | `/stroller-friendly-5k/austin-tx` |
+| Race detail | `/races/[race-slug]` | `/races/nyc-marathon` |
+| Organizer | `/organizers/[organizer-slug]` | `/organizers/new-york-road-runners` |
+| Series | `/series/[series-slug]` | `/series/rock-n-roll-running-series` |
+
+### SEO Principle
+
+Every indexable page must answer a decision question.
+
+Bad page:
+
+> List of races in Chicago.
+
+Good page:
+
+> Best 5K races in Chicago by date, price, beginner-friendliness, course type, and registration urgency.
+
+Bad page:
+
+> Race detail page with name, date, city, and registration link.
+
+Good page:
+
+> Race detail page with who it is best for, price, deadline, distance, terrain, course difficulty, historical weather, logistics, policies, alternatives, and organizer trust signals.
+
+## Product Requirements
+
+### Homepage
+
+The homepage should immediately position the product as a race finder and decision engine.
+
+Hero:
+
+> Find the right race.
+
+Subhead:
+
+> Compare 5Ks, 10Ks, half marathons, marathons, trail races, and Turkey Trots by price, difficulty, terrain, vibe, and registration urgency.
+
+Primary search:
+
+- Location or ZIP
+- Distance
+- Date/month
+- Goal
+
+Goal chips:
+
+- First race
+- PR / fast course
+- Fun with friends
+- Family-friendly
+- Trail
+- Cheap
+- Charity
+- Turkey Trot
+
+Primary CTA:
+
+> Find races near me
+
+Secondary CTAs:
+
+- Track a race
+- List your race
+- Browse Turkey Trots
+- Browse beginner-friendly races
+
+### Search Results
+
+Search results should feel like race shopping, not database browsing.
+
+Each race card should show:
+
+- Race name
+- Date
+- City/state
+- Distances
+- Price or price range
+- Registration deadline
+- Next price increase if known
+- Terrain
+- Race size
+- Beginner score
+- PR score
+- Value score
+- Vibe tags
+- Save
+- Compare
+- Alert me
+- Register
+
+Recommended filters:
+
+- Distance
+- Date/month
+- Location radius
+- Price
+- Terrain
+- Difficulty
+- Elevation
+- Race size
+- Beginner-friendly
+- Walker-friendly
+- Stroller-friendly
+- Dog-friendly
+- Kids race
+- Charity/fundraising
+- Beer/party
+- Trail/road
+- Registration open
+- Price increase soon
+- Public transit friendly
+
+### Race Detail Page
+
+The race page should be a decision page.
+
+Sections:
+
+1. Decision summary
+2. Who this race is best for
+3. Key facts
+4. Distances
+5. Price and deadlines
+6. Course difficulty
+7. Elevation
+8. Weather expectations
+9. Logistics
+10. Packet pickup
+11. Parking/transit
+12. Refund/deferral policy
+13. Historical results
+14. Reviews or runner notes
+15. Similar races nearby
+16. Save and alert
+17. Register
+18. Claim this race
+
+Recommended “best for” labels:
+
+- Best for beginners
+- Best for PRs
+- Best for walkers
+- Best for families
+- Best value
+- Best local vibe
+- Best destination race
+- Best charity race
+- Best trail challenge
+
+### Compare Tool
+
+Runners should be able to compare 2-4 races.
+
+Comparison fields:
+
+- Date
+- Distance
+- Price
+- Price increase date
+- Location
+- Travel time
+- Terrain
+- Elevation
+- Course type
+- Field size
+- Start time
+- Weather average
+- Beginner score
+- PR score
+- Value score
+- Family score
+- Reviews
+- Policies
+
+### Race Shopper
+
+The Race Shopper should be the signature product feature.
+
+Input:
+
+- Location
+- Distance
+- Month/date range
+- Goal
+- Budget
+- Travel radius
+- Difficulty preference
+- Terrain preference
+
+Output:
+
+- Best overall race
+- Best value race
+- Best beginner race
+- Best PR race
+- Best social/vibe race
+- Best hidden gem
+- Best race to register for now
+
+Example output:
+
+> Best overall: Jersey City Half Marathon. It is flat, transit-accessible, medium-large, and likely better for a PR attempt than hillier alternatives. Register soon because the next price tier is approaching.
+
+### Alerts
+
+Alerts are the retention layer.
+
+Alert types:
+
+- New race near me
+- Price increase soon
+- Registration opens
+- Registration closes
+- Similar race added
+- This weekend races
+- Turkey Trot watchlist
+- Saved race reminder
+- Race result posted
+- Discount code available
+
+Alert channels:
+
+- Email first
+- SMS later
+- Push later if app/PWA exists
+
+### Organizer Claim Flow
+
+The organizer claim flow should be free at first.
+
+Organizer capabilities:
+
+- Claim race
+- Edit race details
+- Add registration link
+- Add coupon code
+- Add price/deadline
+- Add course map
+- Add photos
+- Add FAQ
+- Add parking/transit notes
+- Add refund/deferral policy
+- See page views
+- See outbound registration clicks
+- Upgrade to featured placement
+
+Organizer pitch:
+
+> Your race is already listed. Claim it for free, improve your listing, and get discovered by runners searching by distance, location, price, and race type.
+
+## Race Scoring System
+
+The scoring system is the core product moat.
+
+### Beginner-Friendly Score
+
+Inputs:
+
+- Shorter distances available
+- Walker policy
+- Cutoff leniency
+- Elevation
+- Field size
+- Start time
+- Aid stations
+- Clear logistics
+- Reviews mentioning beginners
+- Family/kids events
+
+### PR Score
+
+Inputs:
+
+- Elevation gain
+- Course profile
+- Turn count if available
+- Weather average
+- Field size
+- Historical finish times
+- Certification status
+- Road surface
+- Start congestion
+
+### Value Score
+
+Inputs:
+
+- Price
+- Price per mile
+- Shirt/medal/swag
+- Photos included
+- Food/drink
+- Charity contribution
+- Parking
+- Course support
+- Reviews
+
+### Vibe Score
+
+Inputs:
+
+- Theme
+- Costumes
+- Beer/food
+- Music
+- Charity/community
+- Run club participation
+- Post-race festival
+- Social photos
+- Reviews
+
+### Family Score
+
+Inputs:
+
+- Kids race
+- Stroller policy
+- Parking
+- Bathrooms
+- Start time
+- Safety
+- Post-race activities
+- Spectator friendliness
+
+### Urgency Score
+
+Inputs:
+
+- Registration deadline
+- Price increase date
+- Historical sellout behavior
+- Days until race
+- Remaining spots if available
+
+## Data Strategy
+
+The moat is normalized race metadata.
+
+### Required Data Model
+
+| Field | Required? | Notes |
+| --- | --- | --- |
+| Race ID | Yes | Stable internal identifier |
+| Name | Yes | Canonical race name |
+| Slug | Yes | SEO URL |
+| Date | Yes | Start date |
+| Start time | Preferred | Important for families/travel |
+| City | Yes | Local SEO |
+| State | Yes | Local SEO |
+| Venue | Preferred | Logistics |
+| Latitude/longitude | Preferred | Map/radius search |
+| Distances | Yes | 5K, 10K, half, marathon, ultra, etc. |
+| Terrain | Preferred | Road, trail, mixed, track |
+| Registration URL | Yes | Conversion |
+| Registration platform | Preferred | RunSignup, Race Roster, Active, direct |
+| Organizer | Preferred | Supply-side claim |
+| Price | Preferred | Major differentiator |
+| Price tiers | Preferred | Enables urgency |
+| Deadline | Preferred | Enables alerts |
+| Course map URL | Preferred | Decision quality |
+| Elevation gain | Preferred | PR/difficulty score |
+| Race size | Preferred | Vibe and difficulty |
+| Past results URL | Preferred | Credibility |
+| Photos URL | Optional | Trust |
+| Refund policy | Optional | Decision quality |
+| Deferral policy | Optional | Decision quality |
+| Walker-friendly | Optional | Constraint SEO |
+| Stroller-friendly | Optional | Constraint SEO |
+| Dog-friendly | Optional | Constraint SEO |
+| Kids race | Optional | Family SEO |
+| Charity | Optional | Motivation |
+| Tags | Yes | Search/filter |
+| Source URL | Yes | Auditability |
+| Last verified | Yes | Data freshness |
+
+### Data Acquisition
+
+Recommended sources:
+
+- Public registration pages
+- Public race websites
+- Sitemaps from registration platforms where allowed
+- Organizer submissions
+- Claim flow edits
+- Public race results
+- Public course maps
+- Public social pages
+- Manual enrichment for top markets
+- Weather APIs
+- Geocoding APIs
+
+### Data Quality Rules
+
+Every indexed race page must have:
+
+- Name
+- Date
+- City/state
+- At least one distance
+- Registration or official website link
+- Source URL
+- Last verified date
+
+Noindex pages that do not meet the minimum.
+
+Every city/distance page must have:
+
+- At least 5 active or upcoming races, or
+- A strong editorial explanation plus nearby alternatives.
+
+Noindex empty pages.
+
+## Monetization
+
+The business model should start as a marketplace/media hybrid.
+
+### Phase 1 Monetization
+
+| Revenue stream | Buyer | Why it works |
+| --- | --- | --- |
+| Featured listings | Race organizers | Small races need visibility. |
+| Sponsored category pages | Race organizers / sponsors | Local running intent is valuable. |
+| Discount code placement | Race organizers | Performance-based and measurable. |
+| Newsletter sponsorship | Races / stores / brands | Seasonal race intent monetizes well. |
+| Affiliate registration links | Platforms / races | Directly tied to registration intent. |
+
+### Phase 2 Monetization
+
+| Revenue stream | Buyer | Why it works |
+| --- | --- | --- |
+| Race Pro profile | Organizers | Better listing, analytics, media, FAQ, offers. |
+| Organizer analytics | Organizers | Shows views, saves, clicks, competitors. |
+| Local market reports | Organizers / timing companies | Helps plan pricing, timing, and promotion. |
+| API access | Apps/media/clubs | Structured race data is useful externally. |
+| Brand sponsorship | Running brands | Audience is high-intent and local. |
+
+### Do Not Start With
+
+Do not start with a heavy organizer SaaS subscription. Race directors already have registration software, email tools, timing partners, and websites. The wedge should be free claim plus paid promotion.
+
+## PMF Metrics
+
+The North Star should be:
+
+> Race decisions made.
+
+This can be proxied by:
+
+- Saved races
+- Compare actions
+- Alert signups
+- Outbound registration clicks
+- Return visits from alerts
+- Claimed races
+- Featured listing purchases
+
+### Metrics Dashboard
+
+| Metric | What it tells you |
+| --- | --- |
+| Search-to-save rate | Whether results are useful. |
+| Search-to-register-click rate | Whether the directory influences action. |
+| Race-page-to-outbound-click rate | Whether detail pages convert. |
+| Alert signup rate | Whether users trust Running.Services to remember intent. |
+| Alert open/click rate | Whether retention works. |
+| Claimed race rate | Whether organizers see value. |
+| Claimed-to-paid rate | Whether supply-side monetization works. |
+| Organic landing-to-action rate | Whether SEO traffic is valuable. |
+| Repeat user rate | Whether the directory has utility beyond one-off search. |
+
+Do not use page views as the primary PMF metric. Page views can produce false confidence in a directory. A valuable race directory changes decisions.
+
+## Pages to Kill or Deprioritize
+
+Deprioritize or remove:
+
+- Generic books pages
+- Generic podcast pages
+- Generic influencer pages
+- Generic route pages not tied to race prep
+- Generic training tools unless tied to choosing a race
+- Empty city pages
+- Thin race pages
+- Pages without source URLs
+- Pages without current dates
+- Pages returning 500 errors
+- Broad “running hub” positioning
+
+The product should not be a general running portal. It should be the best race discovery engine.
+
+## 90-Day Rebuild Plan
+
+### Days 1-15: Foundation
+
+Objectives:
+
+- Fix all technical errors.
+- Establish a clean data model.
+- Reposition the homepage.
+- Prevent index bloat.
+
+Tasks:
+
+- Fix all 500s on `/races`, `/routes`, `/tools`, race detail pages, and route detail pages.
+- Remove or noindex empty/thin pages.
+- Create a canonical race schema.
+- Normalize distance, date, city, state, registration URL, source URL, organizer, price, and platform.
+- Replace homepage copy with race decision positioning.
+- Add mobile-first race search.
+- Add sitemap rules that only include valid, indexable pages.
+
+Success criteria:
+
+- Core pages return HTTP 200.
+- Invalid pages are noindexed.
+- Homepage communicates “find the right race.”
+- Search works by location, distance, and date.
+
+### Days 16-30: Decision Layer
+
+Objectives:
+
+- Make listings meaningfully comparable.
+- Launch race-fit scoring.
+
+Tasks:
+
+- Build race cards with price, distance, date, location, terrain, and registration link.
+- Add beginner score, PR score, value score, and urgency score.
+- Add save and compare.
+- Add “best for” labels.
+- Launch 10 pilot city pages.
+
+Pilot markets:
+
+- New York
+- Chicago
+- Boston
+- San Francisco Bay Area
+- Los Angeles
+- Austin
+- Denver
+- Seattle
+- Philadelphia
+- Washington DC
+
+Success criteria:
+
+- Users can compare races.
+- Race pages contain decision summaries.
+- Local pages are not thin lists.
+
+### Days 31-45: Seasonal Wedge
+
+Objectives:
+
+- Own one high-intent seasonal category.
+
+Recommended wedge:
+
+> Turkey Trots.
+
+Tasks:
+
+- Build `/turkey-trots`.
+- Build city pages for major metros.
+- Build “family-friendly Turkey Trots.”
+- Build “Turkey Trots with kids races.”
+- Build “Turkey Trots under $40.”
+- Build “Thanksgiving 5K near me.”
+- Add Turkey Trot alerts.
+
+Success criteria:
+
+- Seasonal pages are crawlable months before November.
+- Users can save and track Turkey Trots.
+- Organizer outreach has a specific pitch.
+
+### Days 46-60: Alerts
+
+Objectives:
+
+- Add retention.
+
+Tasks:
+
+- Add saved searches.
+- Add new-race alerts.
+- Add price-increase alerts.
+- Add registration-close alerts.
+- Add this-weekend digest.
+- Add saved race reminders.
+
+Success criteria:
+
+- Users subscribe to race alerts.
+- Alerts drive return visits.
+- Alert clicks produce outbound registration clicks.
+
+### Days 61-75: Organizer Claim Flow
+
+Objectives:
+
+- Build supply-side engagement.
+
+Tasks:
+
+- Add “Claim this race.”
+- Verify organizer email/domain.
+- Let organizers edit details.
+- Let organizers add coupons, photos, FAQs, price tiers, and course maps.
+- Show page views, saves, and outbound clicks.
+
+Success criteria:
+
+- Organizers claim pages.
+- Claimed pages become richer than unclaimed pages.
+- Organizers ask about promotion.
+
+### Days 76-90: Monetization Test
+
+Objectives:
+
+- Test paid promotion.
+
+Tasks:
+
+- Offer featured listing for city/distance pages.
+- Offer sponsored newsletter placement.
+- Offer coupon placement.
+- Offer Race Pro profile.
+- Reach out to 200 small and mid-sized race organizers.
+
+Success criteria:
+
+- At least 20 organizers claim pages.
+- At least 5 organizers test paid promotion.
+- Outbound registration clicks are measurable.
+- Runner alerts show repeat engagement.
+
+## AI Builder Prompt
+
+Copy and paste the following prompt into your AI builder.
+
+```text
+You are rebuilding Running.Services from a generic running directory into a race discovery and decision engine.
+
+Business goal:
+Build a mobile-first directory that helps runners choose the right race, not just browse a list of races. The product should compare 5Ks, 10Ks, half marathons, marathons, trail races, Turkey Trots, charity races, and fun runs by price, location, date, distance, difficulty, terrain, vibe, family-friendliness, beginner-friendliness, PR potential, and registration urgency.
+
+Do not build a Strava coaching product. Do not build a general running content hub. Do not build a race registration platform. Running.Services should sit above registration platforms as an independent discovery, comparison, alert, and decision layer.
+
+Primary positioning:
+“Find the right race, not just the next race.”
+
+Homepage requirements:
+1. Hero headline: “Find the right race.”
+2. Subhead: “Compare 5Ks, 10Ks, half marathons, marathons, trail races, and Turkey Trots by price, difficulty, terrain, vibe, and registration urgency.”
+3. Primary search inputs:
+   - Location or ZIP
+   - Distance
+   - Date/month
+   - Goal
+4. Goal chips:
+   - First race
+   - PR / fast course
+   - Fun with friends
+   - Family-friendly
+   - Trail
+   - Cheap
+   - Charity
+   - Turkey Trot
+5. Primary CTA: “Find races near me”
+6. Secondary CTAs:
+   - Track a race
+   - List your race
+   - Browse Turkey Trots
+   - Browse beginner-friendly races
+
+Global navigation:
+- Find races
+- Turkey Trots
+- 5Ks
+- 10Ks
+- Half marathons
+- Marathons
+- Trail races
+- For organizers
+
+Core pages to build:
+1. Homepage
+2. Race search results page
+3. Race detail page
+4. City + distance page
+5. State + distance page
+6. Seasonal page, especially Turkey Trots
+7. Qualitative pages such as beginner-friendly races and flat/fast races
+8. Organizer claim page
+9. Saved races page
+10. Alerts/preferences page
+
+Race search results requirements:
+Each race card must show:
+- Race name
+- Date
+- City/state
+- Distances
+- Price or price range if available
+- Registration deadline if available
+- Next price increase if available
+- Terrain
+- Race size if available
+- Beginner score
+- PR score
+- Value score
+- Vibe tags
+- Save button
+- Compare button
+- Alert me button
+- Register button
+
+Search filters:
+- Distance
+- Date/month
+- Location radius
+- Price
+- Terrain
+- Difficulty
+- Elevation
+- Race size
+- Beginner-friendly
+- Walker-friendly
+- Stroller-friendly
+- Dog-friendly
+- Kids race
+- Charity/fundraising
+- Beer/party
+- Trail/road
+- Registration open
+- Price increase soon
+- Public transit friendly
+
+Race detail page requirements:
+Build race pages as decision pages, not thin listings. Each race page should include:
+1. Decision summary
+2. Who this race is best for
+3. Key facts
+4. Distances
+5. Price and registration deadlines
+6. Course difficulty
+7. Elevation
+8. Weather expectations
+9. Logistics
+10. Packet pickup
+11. Parking/transit
+12. Refund/deferral policy
+13. Historical results links
+14. Reviews or runner notes
+15. Similar races nearby
+16. Save and alert buttons
+17. Register button
+18. Claim this race CTA
+
+“Best for” labels:
+- Best for beginners
+- Best for PRs
+- Best for walkers
+- Best for families
+- Best value
+- Best local vibe
+- Best destination race
+- Best charity race
+- Best trail challenge
+
+Race scoring system:
+Implement transparent, explainable scores from 0-100.
+
+Beginner-Friendly Score inputs:
+- Shorter distances available
+- Walker policy
+- Cutoff leniency
+- Elevation
+- Field size
+- Start time
+- Aid stations
+- Clear logistics
+- Reviews mentioning beginners
+- Family/kids events
+
+PR Score inputs:
+- Elevation gain
+- Course profile
+- Turn count if available
+- Weather average
+- Field size
+- Historical finish times
+- Certification status
+- Road surface
+- Start congestion
+
+Value Score inputs:
+- Price
+- Price per mile
+- Shirt/medal/swag
+- Photos included
+- Food/drink
+- Charity contribution
+- Parking
+- Course support
+- Reviews
+
+Vibe Score inputs:
+- Theme
+- Costumes
+- Beer/food
+- Music
+- Charity/community
+- Run club participation
+- Post-race festival
+- Social photos
+- Reviews
+
+Family Score inputs:
+- Kids race
+- Stroller policy
+- Parking
+- Bathrooms
+- Start time
+- Safety
+- Post-race activities
+- Spectator friendliness
+
+Urgency Score inputs:
+- Registration deadline
+- Price increase date
+- Historical sellout behavior
+- Days until race
+- Remaining spots if available
+
+Race comparison tool:
+Allow users to compare 2-4 races side by side by:
+- Date
+- Distance
+- Price
+- Price increase date
+- Location
+- Travel time
+- Terrain
+- Elevation
+- Course type
+- Field size
+- Start time
+- Weather average
+- Beginner score
+- PR score
+- Value score
+- Family score
+- Reviews
+- Policies
+
+Signature feature: Race Shopper
+Create a guided race recommendation tool. Inputs:
+- Location
+- Distance
+- Month/date range
+- Goal
+- Budget
+- Travel radius
+- Difficulty preference
+- Terrain preference
+
+Outputs:
+- Best overall race
+- Best value race
+- Best beginner race
+- Best PR race
+- Best social/vibe race
+- Best hidden gem
+- Best race to register for now
+
+Example recommendation copy:
+“Best overall: Jersey City Half Marathon. It is flat, transit-accessible, medium-large, and likely better for a PR attempt than hillier alternatives. Register soon because the next price tier is approaching.”
+
+Alerts:
+Build email-first alerts for:
+- New race near me
+- Price increase soon
+- Registration opens
+- Registration closes
+- Similar race added
+- This weekend races
+- Turkey Trot watchlist
+- Saved race reminder
+- Race result posted
+- Discount code available
+
+Organizer claim flow:
+Add a free “Claim this race” flow. Organizers should be able to:
+- Claim race
+- Edit race details
+- Add registration link
+- Add coupon code
+- Add price/deadline
+- Add course map
+- Add photos
+- Add FAQ
+- Add parking/transit notes
+- Add refund/deferral policy
+- See page views
+- See saves
+- See outbound registration clicks
+- Upgrade to featured placement
+
+Organizer pitch copy:
+“Your race is already listed. Claim it for free, improve your listing, and get discovered by runners searching by distance, location, price, and race type.”
+
+Data model:
+Create a normalized Race entity with:
+- id
+- name
+- slug
+- date
+- start_time
+- city
+- state
+- venue
+- latitude
+- longitude
+- distances
+- terrain
+- registration_url
+- official_website_url
+- registration_platform
+- organizer_name
+- organizer_url
+- price_min
+- price_max
+- price_tiers
+- registration_deadline
+- next_price_increase_date
+- course_map_url
+- elevation_gain
+- race_size
+- past_results_url
+- photos_url
+- refund_policy
+- deferral_policy
+- walker_friendly
+- stroller_friendly
+- dog_friendly
+- kids_race
+- charity
+- tags
+- source_url
+- last_verified_at
+- beginner_score
+- pr_score
+- value_score
+- vibe_score
+- family_score
+- urgency_score
+
+SEO page architecture:
+Create indexable pages only when they have enough real content.
+
+URL patterns:
+- /[city-state]/5k-races
+- /[city-state]/10k-races
+- /[city-state]/half-marathons
+- /[city-state]/marathons
+- /[state]/half-marathons
+- /turkey-trots
+- /turkey-trots/[city-state]
+- /best/beginner-half-marathons
+- /best/flat-fast-marathons
+- /walker-friendly-5k/[city-state]
+- /stroller-friendly-5k/[city-state]
+- /races/[race-slug]
+- /organizers/[organizer-slug]
+- /series/[series-slug]
+
+SEO rules:
+- Noindex empty pages.
+- Noindex thin race pages without date, location, distance, and registration/official link.
+- Every race page must include source URL and last verified date.
+- Every city/distance page should include at least 5 active/upcoming races or provide nearby alternatives.
+- Add schema.org Event or SportsEvent structured data for race pages when data is complete.
+- Add breadcrumbs.
+- Add canonical URLs.
+- Add XML sitemaps only for valid pages.
+
+Initial content wedges:
+Prioritize:
+1. Turkey Trots
+2. Beginner-friendly 5Ks
+3. Half marathons by city/state
+4. Flat/fast marathons
+5. Cheap races / races under specific prices
+6. Walker-friendly races
+7. Stroller-friendly races
+8. Family-friendly races
+9. Trail races
+10. This-weekend races
+
+Pilot markets:
+- New York
+- Chicago
+- Boston
+- San Francisco Bay Area
+- Los Angeles
+- Austin
+- Denver
+- Seattle
+- Philadelphia
+- Washington DC
+
+Monetization:
+Phase 1:
+- Featured listings
+- Sponsored category pages
+- Discount code placement
+- Newsletter sponsorship
+- Affiliate registration links
+
+Phase 2:
+- Race Pro profiles
+- Organizer analytics
+- Local market reports
+- API access
+- Brand sponsorship
+
+Do not start with a heavy organizer SaaS subscription. Start with free claim flow plus paid promotion.
+
+PMF metrics:
+The North Star is “race decisions made.”
+
+Track:
+- Search-to-save rate
+- Search-to-register-click rate
+- Race-page-to-outbound-click rate
+- Alert signup rate
+- Alert open/click rate
+- Claimed race rate
+- Claimed-to-paid rate
+- Organic landing-to-action rate
+- Repeat user rate
+
+Implementation priorities:
+1. Fix all broken pages and server errors.
+2. Build the normalized race database.
+3. Rebuild homepage around race decision search.
+4. Build mobile-first race search results.
+5. Build race detail decision pages.
+6. Add save, compare, and alert functionality.
+7. Launch Turkey Trot wedge.
+8. Launch organizer claim flow.
+9. Add featured listing monetization.
+
+Design direction:
+- Mobile-first
+- Fast
+- Clean
+- Consumer marketplace feel
+- Cards, chips, maps, comparison tables
+- Avoid dense spreadsheet UI
+- Use confidence-building labels and plain English
+
+Tone:
+- Helpful
+- Decisive
+- Local
+- Runner-friendly
+- Practical
+
+Do not include generic running books, podcasts, influencers, or unrelated route directory content unless it directly supports choosing a race.
+
+Build the first version as a polished, working MVP focused on race discovery, race comparison, alerts, and organizer claiming.
+```
+
+## Final Recommendation
+
+Rebuild Running.Services into a race marketplace-intelligence product.
+
+The simplest product promise:
+
+> Find the right race by price, distance, date, difficulty, vibe, and location.
+
+The first wedge:
+
+> Turkey Trots, beginner-friendly 5Ks, and half marathons in major U.S. metros.
+
+The first product loop:
+
+> Search → compare → save → alert → registration click.
+
+The first organizer loop:
+
+> Listed race → claim page → enrich listing → see clicks → pay for promotion.
+
+The first business model:
+
+> Featured listings, sponsored local/category pages, discount-code placement, race-page upgrades, and newsletter sponsorship.
+
+The moat:
+
+> Structured race metadata and decision scores that make races comparable in a way generic calendars do not.
+
+The success test:
+
+> If runners save races, set alerts, compare options, and click registration links, Running.Services has product value. If organizers claim pages and pay for visibility, it has marketplace value. If neither happens, it is only an SEO site.
