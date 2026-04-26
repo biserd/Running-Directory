@@ -1,14 +1,18 @@
 import { db } from "./db";
-import { states, cities, races, raceOccurrences, routes, sources, sourceRecords, collections, influencers, podcasts, books, users, magicLinkTokens, favorites, reviews, organizers, raceSeries, raceClaims, savedSearches, raceAlerts, outboundClicks, alertDispatches, featuredRequests, racePageViews } from "@shared/schema";
+import { states, cities, races, raceOccurrences, routes, sources, sourceRecords, collections, influencers, podcasts, books, users, magicLinkTokens, favorites, reviews, organizers, raceSeries, raceClaims, savedSearches, raceAlerts, outboundClicks, alertDispatches, featuredRequests, racePageViews, apiKeys, sponsorships, marketReports, marketReportAccess, monetizationRequests } from "@shared/schema";
 import type {
   State, City, Race, RaceOccurrence, Route, Source, SourceRecord, Collection, Influencer, Podcast, Book,
   InsertState, InsertCity, InsertRace, InsertRaceOccurrence, InsertRoute, InsertSource, InsertSourceRecord, InsertCollection, InsertInfluencer, InsertPodcast, InsertBook,
   User, MagicLinkToken, Favorite, Review,
   Organizer, RaceSeries, RaceClaim, SavedSearch, RaceAlert, OutboundClick, AlertDispatch, FeaturedRequest,
   InsertOrganizer, InsertRaceSeries, InsertRaceClaim, InsertSavedSearch, InsertRaceAlert, InsertOutboundClick, InsertAlertDispatch, InsertFeaturedRequest,
+  ApiKey, InsertApiKey, Sponsorship, InsertSponsorship,
+  MarketReport, InsertMarketReport, MarketReportAccess, InsertMarketReportAccess, MarketReportData,
+  MonetizationRequest, InsertMonetizationRequest,
   RaceSearchFilters,
 } from "@shared/schema";
 import { eq, and, sql, desc, asc, ilike, inArray, gte, lte, or, isNotNull } from "drizzle-orm";
+import { createHash, randomBytes } from "crypto";
 
 export interface IStorage {
   getStates(): Promise<State[]>;
@@ -131,6 +135,48 @@ export interface IStorage {
 
   recordOutboundClick(data: InsertOutboundClick): Promise<OutboundClick>;
   getOutboundClickStats(raceId: number, sinceDays?: number): Promise<{ total: number; byDestination: Record<string, number> }>;
+
+  // Pro tier
+  setOrganizerProUntil(organizerId: number, proUntil: Date | null): Promise<void>;
+  isOrganizerPro(organizerId: number): Promise<boolean>;
+  getRaceCompetitorBenchmark(race: Race, sinceDays: number): Promise<{
+    sampleSize: number;
+    yours: { views: number; saves: number; clicks: number };
+    median: { views: number; saves: number; clicks: number };
+    p75: { views: number; saves: number; clicks: number };
+  }>;
+
+  // API keys
+  createApiKey(data: { userId: number; organizerId?: number | null; name: string; tier?: string; monthlyLimit?: number }): Promise<{ apiKey: ApiKey; plaintext: string }>;
+  revokeApiKey(id: number, userId: number): Promise<void>;
+  listApiKeysForUser(userId: number): Promise<ApiKey[]>;
+  findApiKeyByPlaintext(plaintext: string): Promise<ApiKey | undefined>;
+  recordApiKeyUsage(id: number): Promise<{ allowed: boolean; remaining: number }>;
+
+  // Sponsorships
+  createSponsorship(data: InsertSponsorship): Promise<Sponsorship>;
+  updateSponsorship(id: number, data: Partial<InsertSponsorship>): Promise<Sponsorship | undefined>;
+  deleteSponsorship(id: number): Promise<void>;
+  listSponsorships(): Promise<Sponsorship[]>;
+  listSponsorshipsForPlacement(filter: { placement: string; cityId?: number; stateId?: number; distance?: string; isTurkeyTrot?: boolean; limit?: number }): Promise<Sponsorship[]>;
+  incrementSponsorshipImpressions(ids: number[]): Promise<void>;
+  incrementSponsorshipClick(id: number): Promise<void>;
+
+  // Market reports
+  upsertMarketReport(data: InsertMarketReport): Promise<MarketReport>;
+  getMarketReport(metroSlug: string, distance: string): Promise<MarketReport | undefined>;
+  listGeneratedReports(limit?: number): Promise<MarketReport[]>;
+  computeMarketReportData(metroSlug: string, distance: string): Promise<MarketReportData | undefined>;
+
+  // Report access
+  grantReportAccess(userId: number, scope: string, days: number): Promise<MarketReportAccess>;
+  hasReportAccess(userId: number, scope: string): Promise<boolean>;
+
+  // Monetization requests
+  createMonetizationRequest(data: InsertMonetizationRequest): Promise<MonetizationRequest>;
+  listMonetizationRequests(filter?: { status?: string; kind?: string; limit?: number }): Promise<MonetizationRequest[]>;
+  getMonetizationRequest(id: number): Promise<MonetizationRequest | undefined>;
+  updateMonetizationRequest(id: number, data: { status: string; adminNote?: string }): Promise<MonetizationRequest | undefined>;
 
   search(query: string, limit?: number): Promise<SearchResult>;
 }
@@ -1557,6 +1603,394 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(asc(races.date))
       .limit(filter?.limit ?? 12);
+  }
+
+  // -----------------------------------------------------------------
+  // Monetization: Pro tier
+  // -----------------------------------------------------------------
+  async setOrganizerProUntil(organizerId: number, proUntil: Date | null): Promise<void> {
+    await db.update(organizers).set({ proUntil }).where(eq(organizers.id, organizerId));
+  }
+
+  async isOrganizerPro(organizerId: number): Promise<boolean> {
+    const [row] = await db.select({ proUntil: organizers.proUntil }).from(organizers).where(eq(organizers.id, organizerId));
+    return Boolean(row?.proUntil && row.proUntil.getTime() > Date.now());
+  }
+
+  async getRaceCompetitorBenchmark(race: Race, sinceDays: number): Promise<{
+    sampleSize: number;
+    yours: { views: number; saves: number; clicks: number };
+    median: { views: number; saves: number; clicks: number };
+    p75: { views: number; saves: number; clicks: number };
+  }> {
+    const safeDays = Math.max(1, Math.min(180, Math.floor(sinceDays)));
+    const sinceDate = new Date();
+    sinceDate.setDate(sinceDate.getDate() - safeDays);
+    const sinceDay = sinceDate.toISOString().slice(0, 10);
+
+    // Same distance + state + active. Cap at 60 races for sane perf.
+    const conditions = [eq(races.isActive, true), eq(races.distance, race.distance)];
+    if (race.stateId) conditions.push(eq(races.stateId, race.stateId));
+    const peers = await db.select({ id: races.id })
+      .from(races)
+      .where(and(...conditions))
+      .limit(60);
+    const allIds = Array.from(new Set([race.id, ...peers.map(p => p.id)]));
+    if (allIds.length === 0) {
+      return {
+        sampleSize: 0,
+        yours: { views: 0, saves: 0, clicks: 0 },
+        median: { views: 0, saves: 0, clicks: 0 },
+        p75: { views: 0, saves: 0, clicks: 0 },
+      };
+    }
+
+    // Three aggregate queries grouped by raceId, instead of N×3.
+    const [viewRows, saveRows, clickRows] = await Promise.all([
+      db.select({
+        raceId: racePageViews.raceId,
+        total: sql<number>`COALESCE(SUM(${racePageViews.count}), 0)::int`,
+      })
+        .from(racePageViews)
+        .where(and(inArray(racePageViews.raceId, allIds), sql`${racePageViews.day} >= ${sinceDay}`))
+        .groupBy(racePageViews.raceId),
+      db.select({
+        raceId: favorites.itemId,
+        total: sql<number>`COUNT(*)::int`,
+      })
+        .from(favorites)
+        .where(and(
+          eq(favorites.itemType, "race"),
+          inArray(favorites.itemId, allIds),
+          sql`${favorites.createdAt} >= ${sinceDate}`,
+        ))
+        .groupBy(favorites.itemId),
+      db.select({
+        raceId: outboundClicks.raceId,
+        total: sql<number>`COUNT(*)::int`,
+      })
+        .from(outboundClicks)
+        .where(and(
+          inArray(outboundClicks.raceId, allIds),
+          sql`${outboundClicks.createdAt} >= ${sinceDate}`,
+        ))
+        .groupBy(outboundClicks.raceId),
+    ]);
+
+    const viewsBy = new Map<number, number>();
+    viewRows.forEach(r => viewsBy.set(Number(r.raceId), Number(r.total ?? 0)));
+    const savesBy = new Map<number, number>();
+    saveRows.forEach(r => savesBy.set(Number(r.raceId), Number(r.total ?? 0)));
+    const clicksBy = new Map<number, number>();
+    clickRows.forEach(r => {
+      if (r.raceId == null) return;
+      clicksBy.set(Number(r.raceId), Number(r.total ?? 0));
+    });
+
+    const statsForId = (id: number) => ({
+      views: viewsBy.get(id) ?? 0,
+      saves: savesBy.get(id) ?? 0,
+      clicks: clicksBy.get(id) ?? 0,
+    });
+
+    const yours = statsForId(race.id);
+    const peerStats = peers.map(p => p.id).filter(id => id !== race.id).map(statsForId);
+
+    const pickPercentile = (arr: number[], pct: number): number => {
+      if (arr.length === 0) return 0;
+      const sorted = [...arr].sort((a, b) => a - b);
+      const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor(pct * (sorted.length - 1))));
+      return sorted[idx];
+    };
+
+    const views = peerStats.map(p => p.views);
+    const saves = peerStats.map(p => p.saves);
+    const clicks = peerStats.map(p => p.clicks);
+
+    return {
+      sampleSize: peerStats.length,
+      yours,
+      median: { views: pickPercentile(views, 0.5), saves: pickPercentile(saves, 0.5), clicks: pickPercentile(clicks, 0.5) },
+      p75: { views: pickPercentile(views, 0.75), saves: pickPercentile(saves, 0.75), clicks: pickPercentile(clicks, 0.75) },
+    };
+  }
+
+  // -----------------------------------------------------------------
+  // Monetization: API keys
+  // -----------------------------------------------------------------
+  private hashApiKey(plaintext: string): string {
+    return createHash("sha256").update(plaintext).digest("hex");
+  }
+
+  async createApiKey(data: { userId: number; organizerId?: number | null; name: string; tier?: string; monthlyLimit?: number }): Promise<{ apiKey: ApiKey; plaintext: string }> {
+    const tier = data.tier ?? "free";
+    const monthlyLimit = data.monthlyLimit ?? (tier === "pro" ? 50000 : tier === "growth" ? 10000 : 1000);
+    const plaintext = `rs_${randomBytes(24).toString("hex")}`;
+    const keyHash = this.hashApiKey(plaintext);
+    const keyPrefix = plaintext.slice(0, 7);
+    const [apiKey] = await db.insert(apiKeys).values({
+      userId: data.userId,
+      organizerId: data.organizerId ?? null,
+      name: data.name,
+      keyHash,
+      keyPrefix,
+      tier,
+      monthlyLimit,
+      status: "active",
+    } as InsertApiKey).returning();
+    return { apiKey, plaintext };
+  }
+
+  async revokeApiKey(id: number, userId: number): Promise<void> {
+    await db.update(apiKeys).set({ status: "revoked" }).where(and(eq(apiKeys.id, id), eq(apiKeys.userId, userId)));
+  }
+
+  async listApiKeysForUser(userId: number): Promise<ApiKey[]> {
+    return db.select().from(apiKeys).where(eq(apiKeys.userId, userId)).orderBy(desc(apiKeys.createdAt));
+  }
+
+  async findApiKeyByPlaintext(plaintext: string): Promise<ApiKey | undefined> {
+    if (!plaintext || !plaintext.startsWith("rs_")) return undefined;
+    const keyHash = this.hashApiKey(plaintext);
+    const [row] = await db.select().from(apiKeys).where(and(eq(apiKeys.keyHash, keyHash), eq(apiKeys.status, "active")));
+    return row;
+  }
+
+  async recordApiKeyUsage(id: number): Promise<{ allowed: boolean; remaining: number }> {
+    // Atomic monthly reset + increment via SQL CASE. Increment only happens when
+    // the call is allowed (under limit, or window just rolled over). This keeps
+    // monthly_usage from growing unbounded for clients that keep retrying past
+    // the cap.
+    const result = await db.execute(sql`
+      UPDATE api_keys
+      SET
+        monthly_usage = CASE
+          WHEN monthly_reset_at < NOW() - INTERVAL '30 days' THEN 1
+          ELSE monthly_usage + 1
+        END,
+        monthly_reset_at = CASE
+          WHEN monthly_reset_at < NOW() - INTERVAL '30 days' THEN NOW()
+          ELSE monthly_reset_at
+        END,
+        last_used_at = NOW()
+      WHERE id = ${id}
+        AND (monthly_reset_at < NOW() - INTERVAL '30 days' OR monthly_usage < monthly_limit)
+      RETURNING monthly_usage, monthly_limit
+    `);
+    const row = (result.rows as Array<{ monthly_usage: number | string; monthly_limit: number | string }>)[0];
+    if (!row) {
+      // Either the key was missing or the cap was already reached.
+      const [keyRow] = await db.select({ monthlyLimit: apiKeys.monthlyLimit, monthlyUsage: apiKeys.monthlyUsage })
+        .from(apiKeys).where(eq(apiKeys.id, id));
+      if (!keyRow) return { allowed: false, remaining: 0 };
+      return { allowed: false, remaining: Math.max(0, Number(keyRow.monthlyLimit) - Number(keyRow.monthlyUsage)) };
+    }
+    const usage = Number(row.monthly_usage);
+    const limit = Number(row.monthly_limit);
+    return { allowed: true, remaining: Math.max(0, limit - usage) };
+  }
+
+  // -----------------------------------------------------------------
+  // Monetization: Sponsorships
+  // -----------------------------------------------------------------
+  async createSponsorship(data: InsertSponsorship): Promise<Sponsorship> {
+    const [row] = await db.insert(sponsorships).values(data).returning();
+    return row;
+  }
+
+  async updateSponsorship(id: number, data: Partial<InsertSponsorship>): Promise<Sponsorship | undefined> {
+    const [row] = await db.update(sponsorships).set(data).where(eq(sponsorships.id, id)).returning();
+    return row;
+  }
+
+  async deleteSponsorship(id: number): Promise<void> {
+    await db.delete(sponsorships).where(eq(sponsorships.id, id));
+  }
+
+  async listSponsorships(): Promise<Sponsorship[]> {
+    return db.select().from(sponsorships).orderBy(desc(sponsorships.createdAt));
+  }
+
+  async listSponsorshipsForPlacement(filter: { placement: string; cityId?: number; stateId?: number; distance?: string; isTurkeyTrot?: boolean; limit?: number }): Promise<Sponsorship[]> {
+    const conditions = [
+      eq(sponsorships.placement, filter.placement),
+      eq(sponsorships.status, "active"),
+      sql`${sponsorships.startDate} <= NOW()`,
+      or(sql`${sponsorships.endDate} IS NULL`, sql`${sponsorships.endDate} >= NOW()`)!,
+    ];
+    if (filter.cityId !== undefined) {
+      conditions.push(or(eq(sponsorships.cityId, filter.cityId), sql`${sponsorships.cityId} IS NULL`)!);
+    }
+    if (filter.stateId !== undefined) {
+      conditions.push(or(eq(sponsorships.stateId, filter.stateId), sql`${sponsorships.stateId} IS NULL`)!);
+    }
+    if (filter.distance) {
+      conditions.push(or(eq(sponsorships.distance, filter.distance), sql`${sponsorships.distance} IS NULL`)!);
+    }
+    if (filter.isTurkeyTrot !== undefined) {
+      conditions.push(or(eq(sponsorships.isTurkeyTrot, filter.isTurkeyTrot), sql`${sponsorships.isTurkeyTrot} IS NULL`)!);
+    }
+    return db.select().from(sponsorships).where(and(...conditions)).orderBy(desc(sponsorships.createdAt)).limit(filter.limit ?? 3);
+  }
+
+  async incrementSponsorshipImpressions(ids: number[]): Promise<void> {
+    if (!ids.length) return;
+    await db.update(sponsorships).set({ impressions: sql`${sponsorships.impressions} + 1` }).where(inArray(sponsorships.id, ids));
+  }
+
+  async incrementSponsorshipClick(id: number): Promise<void> {
+    await db.update(sponsorships).set({ clicks: sql`${sponsorships.clicks} + 1` }).where(eq(sponsorships.id, id));
+  }
+
+  // -----------------------------------------------------------------
+  // Monetization: Market reports
+  // -----------------------------------------------------------------
+  async upsertMarketReport(data: InsertMarketReport): Promise<MarketReport> {
+    const [row] = await db.insert(marketReports).values({ ...data, generatedAt: new Date() } as InsertMarketReport)
+      .onConflictDoUpdate({
+        target: [marketReports.metroSlug, marketReports.distance],
+        set: {
+          title: data.title,
+          summary: data.summary ?? null,
+          data: data.data,
+          generatedAt: new Date(),
+        },
+      })
+      .returning();
+    return row;
+  }
+
+  async getMarketReport(metroSlug: string, distance: string): Promise<MarketReport | undefined> {
+    const [row] = await db.select().from(marketReports).where(and(eq(marketReports.metroSlug, metroSlug), eq(marketReports.distance, distance)));
+    return row;
+  }
+
+  async listGeneratedReports(limit: number = 100): Promise<MarketReport[]> {
+    return db.select().from(marketReports).orderBy(desc(marketReports.generatedAt)).limit(limit);
+  }
+
+  async computeMarketReportData(metroSlug: string, distance: string): Promise<MarketReportData | undefined> {
+    const metro = await this.getCityByMetroSlug(metroSlug);
+    if (!metro) return undefined;
+    const racesList = await this.getRacesAdvanced({
+      state: metro.state.abbreviation,
+      city: metro.name,
+      distance,
+      limit: 500,
+    });
+    if (!racesList.length) {
+      return {
+        raceCount: 0,
+        avgPriceUsd: null,
+        priceP25Usd: null,
+        priceP50Usd: null,
+        priceP75Usd: null,
+        topMonths: [],
+        topOrganizers: [],
+        registrationOpenCount: 0,
+        beginnerFriendlyCount: 0,
+        prFriendlyCount: 0,
+        avgBeginnerScore: null,
+        avgPrScore: null,
+        avgValueScore: null,
+        trend: { yearOverYearPct: null, lastSeen: new Date().toISOString() },
+      };
+    }
+    const prices = racesList.map(r => r.priceMin ?? r.priceMax).filter((p): p is number => p != null).sort((a, b) => a - b);
+    const pct = (arr: number[], p: number): number | null => arr.length ? arr[Math.min(arr.length - 1, Math.floor(arr.length * p))] : null;
+    const monthCounts = new Map<number, number>();
+    for (const r of racesList) {
+      if (!r.date) continue;
+      const m = new Date(r.date).getUTCMonth() + 1;
+      monthCounts.set(m, (monthCounts.get(m) || 0) + 1);
+    }
+    const topMonths = Array.from(monthCounts.entries()).map(([month, count]) => ({ month, count })).sort((a, b) => b.count - a.count).slice(0, 6);
+    const orgIds = Array.from(new Set(racesList.map(r => r.organizerId).filter((x): x is number => x != null)));
+    const orgNames = new Map<number, string>();
+    if (orgIds.length) {
+      const orgsList = await db.select().from(organizers).where(inArray(organizers.id, orgIds));
+      for (const o of orgsList) orgNames.set(o.id, o.name);
+    }
+    const orgCounts = new Map<number, number>();
+    for (const r of racesList) {
+      if (r.organizerId == null) continue;
+      orgCounts.set(r.organizerId, (orgCounts.get(r.organizerId) || 0) + 1);
+    }
+    const topOrganizers = Array.from(orgCounts.entries())
+      .map(([id, count]) => ({ name: orgNames.get(id) || `Organizer #${id}`, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+    const avg = (arr: (number | null | undefined)[]) => {
+      const xs = arr.filter((n): n is number => n != null);
+      return xs.length ? Math.round((xs.reduce((s, x) => s + x, 0) / xs.length) * 10) / 10 : null;
+    };
+    return {
+      raceCount: racesList.length,
+      avgPriceUsd: avg(racesList.map(r => r.priceMin ?? r.priceMax ?? null)),
+      priceP25Usd: pct(prices, 0.25),
+      priceP50Usd: pct(prices, 0.5),
+      priceP75Usd: pct(prices, 0.75),
+      topMonths,
+      topOrganizers,
+      registrationOpenCount: racesList.filter(r => r.registrationOpen !== false).length,
+      beginnerFriendlyCount: racesList.filter(r => (r.beginnerScore ?? 0) >= 70).length,
+      prFriendlyCount: racesList.filter(r => (r.prScore ?? 0) >= 70).length,
+      avgBeginnerScore: avg(racesList.map(r => r.beginnerScore)),
+      avgPrScore: avg(racesList.map(r => r.prScore)),
+      avgValueScore: avg(racesList.map(r => r.valueScore)),
+      trend: { yearOverYearPct: null, lastSeen: new Date().toISOString() },
+    };
+  }
+
+  // -----------------------------------------------------------------
+  // Monetization: Report access
+  // -----------------------------------------------------------------
+  async grantReportAccess(userId: number, scope: string, days: number): Promise<MarketReportAccess> {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + Math.max(1, Math.min(365, Math.floor(days))));
+    const [row] = await db.insert(marketReportAccess).values({ userId, scope, expiresAt }).returning();
+    return row;
+  }
+
+  async hasReportAccess(userId: number, scope: string): Promise<boolean> {
+    const [row] = await db.select().from(marketReportAccess)
+      .where(and(
+        eq(marketReportAccess.userId, userId),
+        or(eq(marketReportAccess.scope, scope), eq(marketReportAccess.scope, "all"))!,
+        sql`${marketReportAccess.expiresAt} > NOW()`,
+      ))
+      .limit(1);
+    return Boolean(row);
+  }
+
+  // -----------------------------------------------------------------
+  // Monetization: Requests
+  // -----------------------------------------------------------------
+  async createMonetizationRequest(data: InsertMonetizationRequest): Promise<MonetizationRequest> {
+    const [row] = await db.insert(monetizationRequests).values(data).returning();
+    return row;
+  }
+
+  async listMonetizationRequests(filter?: { status?: string; kind?: string; limit?: number }): Promise<MonetizationRequest[]> {
+    const conditions: ReturnType<typeof eq>[] = [];
+    if (filter?.status) conditions.push(eq(monetizationRequests.status, filter.status));
+    if (filter?.kind) conditions.push(eq(monetizationRequests.kind, filter.kind));
+    const q = db.select().from(monetizationRequests).orderBy(desc(monetizationRequests.createdAt)).limit(filter?.limit ?? 200);
+    return conditions.length ? q.where(and(...conditions)) : q;
+  }
+
+  async getMonetizationRequest(id: number): Promise<MonetizationRequest | undefined> {
+    const [row] = await db.select().from(monetizationRequests).where(eq(monetizationRequests.id, id));
+    return row;
+  }
+
+  async updateMonetizationRequest(id: number, data: { status: string; adminNote?: string }): Promise<MonetizationRequest | undefined> {
+    const [row] = await db.update(monetizationRequests).set({
+      status: data.status,
+      adminNote: data.adminNote ?? null,
+      reviewedAt: new Date(),
+    }).where(eq(monetizationRequests.id, id)).returning();
+    return row;
   }
 }
 

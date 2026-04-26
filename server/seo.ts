@@ -30,6 +30,14 @@ export function registerSEORoutes(app: Express) {
   app.get("/robots.txt", (_req, res) => {
     const robotsTxt = `User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /admin/
+Disallow: /organizers/dashboard
+Disallow: /auth/
+Disallow: /alerts
+Disallow: /reports/
+Disallow: /favorites
 Disallow: /influencers
 Disallow: /influencers/
 Disallow: /podcasts
@@ -78,19 +86,21 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
       urlEntry("/", { changefreq: "daily", priority: "1.0", lastmod: today }),
       urlEntry("/races", { changefreq: "daily", priority: "0.9", lastmod: today }),
       urlEntry("/races/usa", { changefreq: "weekly", priority: "0.9", lastmod: today }),
-      urlEntry("/tools", { changefreq: "monthly", priority: "0.8" }),
       urlEntry("/races/year/2026", { changefreq: "daily", priority: "0.8", lastmod: today }),
       urlEntry("/races/year/2027", { changefreq: "daily", priority: "0.7", lastmod: today }),
+      urlEntry("/for-organizers", { changefreq: "monthly", priority: "0.6", lastmod: today }),
+      urlEntry("/pricing", { changefreq: "monthly", priority: "0.6", lastmod: today }),
+      urlEntry("/developers", { changefreq: "monthly", priority: "0.6", lastmod: today }),
+      urlEntry("/reports", { changefreq: "weekly", priority: "0.6", lastmod: today }),
       urlEntry("/about", { changefreq: "monthly", priority: "0.6" }),
       urlEntry("/contact", { changefreq: "monthly", priority: "0.5" }),
       urlEntry("/terms", { changefreq: "yearly", priority: "0.3" }),
       urlEntry("/privacy", { changefreq: "yearly", priority: "0.3" }),
     ];
-
-    const toolSlugs = ["race-predictor", "pace-calculator", "training-plan", "vo2-estimator"];
-    for (const slug of toolSlugs) {
-      entries.push(urlEntry(`/tools/${slug}`, { changefreq: "monthly", priority: "0.7" }));
-    }
+    // Note: /tools and /tools/[slug] are intentionally excluded from the
+    // sitemap. They are deprioritized per the rebuild report (generic
+    // training tools, not race-decision content), and their SSR meta is
+    // marked noindex so direct visitors can still reach them.
 
     res.set("Content-Type", "application/xml").send(wrapUrlset(entries));
   });

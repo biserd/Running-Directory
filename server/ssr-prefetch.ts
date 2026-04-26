@@ -285,6 +285,18 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
     if (race.distance) additionalProperty.push({ "@type": "PropertyValue", name: "Distance", value: race.distance });
     if (additionalProperty.length > 0) jsonLd.additionalProperty = additionalProperty;
 
+    // Thin-race noindex policy from the rebuild report: a race detail page
+    // is only indexable when it has the four minimum fields a runner needs
+    // to make a decision — date, city/state, distance, and either a
+    // registration URL or an official website.
+    const hasMinimumFields = Boolean(
+      race.date &&
+      race.city &&
+      race.state &&
+      race.distance &&
+      (race.registrationUrl || race.website)
+    );
+
     return {
       title: `${race.name} - ${race.city}, ${getStateName(race.state)} | running.services`,
       description: race.description || `${race.name} is a ${race.distance} race in ${race.city}, ${getStateName(race.state)}. ${race.surface} course with ${race.elevation.toLowerCase()} elevation.`,
@@ -292,6 +304,7 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
       ogDescription: `${race.distance} race on ${race.date} in ${race.city}, ${getStateName(race.state)}`,
       ogType: "article",
       canonicalUrl: `https://running.services/races/${slug}`,
+      noindex: !hasMinimumFields,
       jsonLd,
       breadcrumbJsonLd: {
         "@context": "https://schema.org",
@@ -433,6 +446,9 @@ const prefetchTools: PrefetchFn = async () => {
     description: "Essential running tools powered by AI. Pace calculators, training plan generators, and race prediction tools.",
     ogType: "website",
     canonicalUrl: "https://running.services/tools",
+    // Generic training tools are deprioritized in the rebuild report — keep
+    // them reachable for direct visitors but do not invite indexing.
+    noindex: true,
   };
 };
 
@@ -449,6 +465,7 @@ const prefetchToolDetail: PrefetchFn = async (_qc, params) => {
     description: `Use the ${name} tool powered by AITracker.run. Data-driven insights for runners.`,
     ogType: "website",
     canonicalUrl: `https://running.services/tools/${params.slug}`,
+    noindex: true,
   };
 };
 
@@ -712,6 +729,34 @@ const prefetchPrivacy: PrefetchFn = async () => ({
   ogDescription: "Privacy Policy for running.services.",
   ogType: "website",
   canonicalUrl: "https://running.services/privacy",
+});
+
+const prefetchPricing: PrefetchFn = async () => ({
+  title: "Pricing | running.services",
+  description: "Race Pro, sponsorship slots, local market reports, and API access — pricing for race directors and partners.",
+  ogTitle: "Pricing — running.services",
+  ogDescription: "Plans for race organizers, sponsors, and developers building on top of running.services.",
+  ogType: "website",
+  canonicalUrl: "https://running.services/pricing",
+});
+
+const prefetchDevelopers: PrefetchFn = async () => ({
+  title: "Developers & API | running.services",
+  description: "Public race API for partners — filtered race search, race detail, and featured listings under a simple JSON API with monthly metering.",
+  ogTitle: "running.services API",
+  ogDescription: "Build with the running.services race data API.",
+  ogType: "website",
+  canonicalUrl: "https://running.services/developers",
+});
+
+const prefetchReports: PrefetchFn = async () => ({
+  title: "Local Market Reports | running.services",
+  description: "Per-metro, per-distance race market reports — pricing, sell-out trends, and competitive landscape for race directors.",
+  ogTitle: "Race Market Reports",
+  ogDescription: "Local race market reports for race directors and sponsors.",
+  ogType: "website",
+  canonicalUrl: "https://running.services/reports",
+  noindex: true,
 });
 
 const prefetchAbout: PrefetchFn = async () => ({
@@ -1294,6 +1339,10 @@ const routeMatches: RouteMatch[] = [
   { pattern: /^\/terms$/, prefetch: prefetchTerms, paramNames: [] },
   { pattern: /^\/privacy$/, prefetch: prefetchPrivacy, paramNames: [] },
   { pattern: /^\/about$/, prefetch: prefetchAbout, paramNames: [] },
+  { pattern: /^\/pricing$/, prefetch: prefetchPricing, paramNames: [] },
+  { pattern: /^\/developers$/, prefetch: prefetchDevelopers, paramNames: [] },
+  { pattern: /^\/reports$/, prefetch: prefetchReports, paramNames: [] },
+  { pattern: /^\/reports\/([^/]+)\/([^/]+)$/, prefetch: prefetchReports, paramNames: ["metro", "distance"] },
   { pattern: /^\/contact$/, prefetch: prefetchContact, paramNames: [] },
   { pattern: /^\/blog$/, prefetch: prefetchBlog, paramNames: [] },
   { pattern: /^\/auth\/verify$/, prefetch: prefetchAuthVerify, paramNames: [] },

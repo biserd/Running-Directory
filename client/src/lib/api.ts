@@ -238,7 +238,7 @@ export async function apiOrganizerMe() {
   const res = await fetch("/api/organizers/me");
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || "Failed to load organizer");
-  return data as { organizer: OrganizerLite; races: Race[] };
+  return data as { organizer: OrganizerLite; races: Race[]; isPro: boolean };
 }
 
 export type EditableRaceFields = Partial<{
@@ -501,4 +501,145 @@ export async function apiSubmitReview(data: { itemType: string; itemId: number; 
 export async function apiDeleteReview(id: number) {
   const res = await fetch(`/api/reviews/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete review");
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Monetization: Pro, sponsorships, reports, API keys
+// ─────────────────────────────────────────────────────────────────
+
+export interface SponsorshipSlot {
+  id: number;
+  brand: string;
+  headline: string;
+  body: string | null;
+  imageUrl: string | null;
+  ctaLabel: string;
+  clickUrl: string;
+}
+
+export async function apiGetSponsorships(params: {
+  placement: string;
+  cityId?: number;
+  stateId?: number;
+  distance?: string;
+  isTurkeyTrot?: boolean;
+  limit?: number;
+}) {
+  const qs = new URLSearchParams();
+  qs.set("placement", params.placement);
+  if (params.cityId) qs.set("cityId", String(params.cityId));
+  if (params.stateId) qs.set("stateId", String(params.stateId));
+  if (params.distance) qs.set("distance", params.distance);
+  if (params.isTurkeyTrot) qs.set("isTurkeyTrot", "true");
+  if (params.limit) qs.set("limit", String(params.limit));
+  return fetchJSON<SponsorshipSlot[]>(`/api/sponsorships?${qs.toString()}`);
+}
+
+export interface MonetizationRequestBody {
+  kind: "pro" | "report" | "api" | "sponsorship";
+  contactEmail: string;
+  contactName?: string;
+  organizerId?: number;
+  scope?: string;
+  message?: string;
+}
+
+export async function apiSubmitMonetizationRequest(body: MonetizationRequestBody) {
+  const res = await fetch("/api/monetization/request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Could not submit request");
+  return data as { ok: true; requestId: number };
+}
+
+export interface ReportListItem {
+  id: number;
+  metroSlug: string;
+  distance: string;
+  title: string;
+  summary: string | null;
+  generatedAt: string;
+}
+
+export async function apiGetReports() {
+  return fetchJSON<ReportListItem[]>(`/api/reports`);
+}
+
+export interface MarketReportFull {
+  raceCount: number;
+  avgPriceUsd: number | null;
+  priceRange: { min: number | null; max: number | null };
+  topMonths: { month: number; monthName: string; count: number }[];
+  topOrganizers: { organizerId: number | null; name: string; count: number }[];
+  topRaces: { raceId: number; slug: string; name: string; date: string; qualityScore: number | null }[];
+  scoreAverages: { beginner: number | null; pr: number | null; value: number | null; vibe: number | null; family: number | null; quality: number | null };
+}
+
+export interface ReportDetail {
+  report: ReportListItem;
+  access: "preview" | "full";
+  data: Partial<MarketReportFull>;
+}
+
+export async function apiGetReport(metroSlug: string, distance: string) {
+  return fetchJSON<ReportDetail>(`/api/reports/${metroSlug}/${encodeURIComponent(distance)}`);
+}
+
+export interface OrganizerApiKey {
+  id: number;
+  name: string;
+  keyPrefix: string;
+  tier: string;
+  monthlyLimit: number;
+  monthlyUsage: number;
+  lastUsedAt: string | null;
+  status: string;
+  createdAt: string;
+}
+
+export async function apiGetOrganizerApiKeys() {
+  return fetchJSON<OrganizerApiKey[]>(`/api/organizers/me/api-keys`);
+}
+
+export async function apiRequestApiKey(body: { tier?: string; message?: string }) {
+  const res = await fetch("/api/organizers/me/api-keys/request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Could not submit request");
+  return data as { ok: true; requestId: number };
+}
+
+export async function apiRevokeApiKey(id: number) {
+  const res = await fetch(`/api/organizers/me/api-keys/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { message?: string }).message || "Could not revoke key");
+  }
+  return { ok: true } as const;
+}
+
+export interface BenchmarkResponse {
+  days: number;
+  sampleSize: number;
+  yours: { views: number; saves: number; clicks: number };
+  median: { views: number; saves: number; clicks: number };
+  p75: { views: number; saves: number; clicks: number };
+}
+
+export async function apiGetRaceBenchmark(raceId: number, days = 30) {
+  const res = await fetch(`/api/organizers/me/races/${raceId}/benchmark?days=${days}`);
+  if (res.status === 403) throw new Error("Race Pro required");
+  const data = await res.json();
+  if (!res.ok) throw new Error((data as { message?: string }).message || "Benchmark failed");
+  return data as BenchmarkResponse;
+}
+
+export function apiAnalyticsCsvUrl(raceId: number, days = 30): string {
+  return `/api/organizers/me/races/${raceId}/analytics.csv?days=${days}`;
 }

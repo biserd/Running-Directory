@@ -41,6 +41,7 @@ export const organizers = pgTable("organizers", {
   logoUrl: text("logo_url"),
   isVerified: boolean("is_verified").notNull().default(false),
   raceCount: integer("race_count").notNull().default(0),
+  proUntil: timestamp("pro_until"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("organizers_state_idx").on(table.state),
@@ -446,6 +447,92 @@ export const session = pgTable("session", {
   index("IDX_session_expire").on(table.expire),
 ]);
 
+export const apiKeys = pgTable("api_keys", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  organizerId: integer("organizer_id").references(() => organizers.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  keyHash: text("key_hash").notNull().unique(),
+  keyPrefix: text("key_prefix").notNull(),
+  tier: text("tier").notNull().default("free"),
+  monthlyLimit: integer("monthly_limit").notNull().default(1000),
+  monthlyUsage: integer("monthly_usage").notNull().default(0),
+  monthlyResetAt: timestamp("monthly_reset_at").notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at"),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("api_keys_user_idx").on(table.userId),
+  index("api_keys_hash_idx").on(table.keyHash),
+  index("api_keys_status_idx").on(table.status),
+]);
+
+export const sponsorships = pgTable("sponsorships", {
+  id: serial("id").primaryKey(),
+  brand: text("brand").notNull(),
+  headline: text("headline").notNull(),
+  body: text("body"),
+  imageUrl: text("image_url"),
+  ctaLabel: text("cta_label").notNull().default("Learn more"),
+  ctaUrl: text("cta_url").notNull(),
+  placement: text("placement").notNull().default("search"),
+  cityId: integer("city_id").references(() => cities.id, { onDelete: "set null" }),
+  stateId: integer("state_id").references(() => states.id, { onDelete: "set null" }),
+  distance: text("distance"),
+  isTurkeyTrot: boolean("is_turkey_trot"),
+  startDate: timestamp("start_date").notNull().defaultNow(),
+  endDate: timestamp("end_date"),
+  status: text("status").notNull().default("active"),
+  impressions: integer("impressions").notNull().default(0),
+  clicks: integer("clicks").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("sponsorships_placement_idx").on(table.placement),
+  index("sponsorships_status_idx").on(table.status),
+  index("sponsorships_city_idx").on(table.cityId),
+]);
+
+export const marketReports = pgTable("market_reports", {
+  id: serial("id").primaryKey(),
+  metroSlug: text("metro_slug").notNull(),
+  distance: text("distance").notNull(),
+  title: text("title").notNull(),
+  summary: text("summary"),
+  data: jsonb("data").notNull(),
+  generatedAt: timestamp("generated_at").notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("market_reports_metro_distance_idx").on(table.metroSlug, table.distance),
+]);
+
+export const marketReportAccess = pgTable("market_report_access", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  scope: text("scope").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("market_report_access_user_idx").on(table.userId),
+  index("market_report_access_scope_idx").on(table.scope),
+]);
+
+export const monetizationRequests = pgTable("monetization_requests", {
+  id: serial("id").primaryKey(),
+  kind: text("kind").notNull(),
+  organizerId: integer("organizer_id").references(() => organizers.id, { onDelete: "set null" }),
+  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+  contactEmail: text("contact_email").notNull(),
+  contactName: text("contact_name"),
+  scope: text("scope"),
+  message: text("message"),
+  status: text("status").notNull().default("pending"),
+  adminNote: text("admin_note"),
+  createdAt: timestamp("created_at").defaultNow(),
+  reviewedAt: timestamp("reviewed_at"),
+}, (table) => [
+  index("monetization_requests_kind_idx").on(table.kind),
+  index("monetization_requests_status_idx").on(table.status),
+]);
+
 export const reviews = pgTable("reviews", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -483,6 +570,11 @@ export const insertRaceAlertSchema = createInsertSchema(raceAlerts).omit({ id: t
 export const insertAlertDispatchSchema = createInsertSchema(alertDispatches).omit({ id: true, dispatchedAt: true, openedAt: true, clickedAt: true });
 export const insertOutboundClickSchema = createInsertSchema(outboundClicks).omit({ id: true, createdAt: true });
 export const insertFeaturedRequestSchema = createInsertSchema(featuredRequests).omit({ id: true, createdAt: true, reviewedAt: true });
+export const insertApiKeySchema = createInsertSchema(apiKeys).omit({ id: true, createdAt: true, lastUsedAt: true, monthlyUsage: true, monthlyResetAt: true });
+export const insertSponsorshipSchema = createInsertSchema(sponsorships).omit({ id: true, createdAt: true, impressions: true, clicks: true });
+export const insertMarketReportSchema = createInsertSchema(marketReports).omit({ id: true, generatedAt: true });
+export const insertMarketReportAccessSchema = createInsertSchema(marketReportAccess).omit({ id: true, createdAt: true });
+export const insertMonetizationRequestSchema = createInsertSchema(monetizationRequests).omit({ id: true, createdAt: true, reviewedAt: true });
 
 export type InsertState = z.infer<typeof insertStateSchema>;
 export type InsertCity = z.infer<typeof insertCitySchema>;
@@ -531,6 +623,32 @@ export type AlertDispatch = typeof alertDispatches.$inferSelect;
 export type InsertAlertDispatch = z.infer<typeof insertAlertDispatchSchema>;
 export type FeaturedRequest = typeof featuredRequests.$inferSelect;
 export type RacePageView = typeof racePageViews.$inferSelect;
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
+export type Sponsorship = typeof sponsorships.$inferSelect;
+export type InsertSponsorship = z.infer<typeof insertSponsorshipSchema>;
+export type MarketReport = typeof marketReports.$inferSelect;
+export type InsertMarketReport = z.infer<typeof insertMarketReportSchema>;
+export type MarketReportAccess = typeof marketReportAccess.$inferSelect;
+export type InsertMarketReportAccess = z.infer<typeof insertMarketReportAccessSchema>;
+export type MonetizationRequest = typeof monetizationRequests.$inferSelect;
+export type InsertMonetizationRequest = z.infer<typeof insertMonetizationRequestSchema>;
+export type MarketReportData = {
+  raceCount: number;
+  avgPriceUsd: number | null;
+  priceP25Usd: number | null;
+  priceP50Usd: number | null;
+  priceP75Usd: number | null;
+  topMonths: Array<{ month: number; count: number }>;
+  topOrganizers: Array<{ name: string; count: number }>;
+  registrationOpenCount: number;
+  beginnerFriendlyCount: number;
+  prFriendlyCount: number;
+  avgBeginnerScore: number | null;
+  avgPrScore: number | null;
+  avgValueScore: number | null;
+  trend: { yearOverYearPct: number | null; lastSeen: string };
+};
 
 export type ScoreFactor = { factor: string; points: number };
 export type ScoreBreakdown = {

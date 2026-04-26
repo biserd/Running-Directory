@@ -18,9 +18,17 @@ import {
   apiUpdateOrganizerRace,
   apiOrganizerRaceAnalytics,
   apiCreateFeaturedRequest,
+  apiGetOrganizerApiKeys,
+  apiRequestApiKey,
+  apiRevokeApiKey,
+  apiGetRaceBenchmark,
+  apiAnalyticsCsvUrl,
+  apiSubmitMonetizationRequest,
   type EditableRaceFields,
   type RaceAnalytics,
   type OrganizerLite,
+  type OrganizerApiKey,
+  type BenchmarkResponse,
 } from "@/lib/api";
 import type { Race } from "@shared/schema";
 import { format, parseISO } from "date-fns";
@@ -38,6 +46,13 @@ import {
   Heart,
   MousePointerClick,
   ShieldCheck,
+  Crown,
+  Download,
+  KeyRound,
+  Plus,
+  Trash2,
+  Cpu,
+  Lock,
 } from "lucide-react";
 
 // ───────────────── Edit dialog ─────────────────
@@ -320,10 +335,18 @@ function EditRaceDialog({ race, open, onOpenChange }: { race: Race; open: boolea
 
 // ───────────────── Analytics ─────────────────
 
-function AnalyticsCard({ raceId }: { raceId: number }) {
+function AnalyticsCard({ raceId, isPro }: { raceId: number; isPro: boolean }) {
+  const [days, setDays] = useState<7 | 30 | 90>(30);
+  const effectiveDays = isPro ? days : 30;
   const { data, isLoading } = useQuery<RaceAnalytics>({
-    queryKey: [`/api/organizers/me/races/${raceId}/analytics`, 30],
-    queryFn: () => apiOrganizerRaceAnalytics(raceId, 30),
+    queryKey: [`/api/organizers/me/races/${raceId}/analytics`, effectiveDays],
+    queryFn: () => apiOrganizerRaceAnalytics(raceId, effectiveDays),
+  });
+  const { data: bench } = useQuery<BenchmarkResponse>({
+    queryKey: [`/api/organizers/me/races/${raceId}/benchmark`, effectiveDays],
+    queryFn: () => apiGetRaceBenchmark(raceId, effectiveDays),
+    enabled: isPro,
+    retry: false,
   });
 
   if (isLoading) {
@@ -334,6 +357,33 @@ function AnalyticsCard({ raceId }: { raceId: number }) {
   const max = Math.max(1, ...data.timeline.map((d) => d.views));
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1" data-testid={`window-selector-${raceId}`}>
+          {([7, 30, 90] as const).map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => isPro && setDays(d)}
+              disabled={!isPro && d !== 30}
+              className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${effectiveDays === d ? "border-primary bg-primary/5 text-primary" : "border-transparent text-muted-foreground hover:bg-muted"} ${!isPro && d !== 30 ? "opacity-40 cursor-not-allowed" : ""}`}
+              data-testid={`button-window-${d}-${raceId}`}
+            >
+              {d}d {!isPro && d !== 30 && <Lock className="h-2.5 w-2.5 inline ml-0.5" />}
+            </button>
+          ))}
+        </div>
+        {isPro ? (
+          <Button asChild size="sm" variant="outline" data-testid={`button-csv-${raceId}`}>
+            <a href={apiAnalyticsCsvUrl(raceId, effectiveDays)} download>
+              <Download className="h-3.5 w-3.5 mr-1" /> CSV
+            </a>
+          </Button>
+        ) : (
+          <Badge variant="outline" className="text-[10px]" data-testid={`badge-pro-locked-${raceId}`}>
+            <Crown className="h-3 w-3 mr-1" /> Race Pro unlocks 7d/90d + CSV
+          </Badge>
+        )}
+      </div>
       <div className="grid grid-cols-3 gap-3">
         <div className="border rounded-lg p-3">
           <div className="text-xs text-muted-foreground inline-flex items-center gap-1"><Eye className="h-3 w-3" /> Page views</div>
@@ -380,6 +430,167 @@ function AnalyticsCard({ raceId }: { raceId: number }) {
           </div>
         </div>
       )}
+
+      {isPro && bench && bench.sampleSize > 0 && (
+        <div className="border rounded-lg p-3 bg-amber-50/40 dark:bg-amber-950/10" data-testid={`benchmark-${raceId}`}>
+          <p className="text-xs font-semibold mb-2 inline-flex items-center gap-1"><Crown className="h-3 w-3 text-amber-600" /> Competitor benchmark <span className="text-muted-foreground font-normal">vs {bench.sampleSize} peers at your distance + state</span></p>
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            {(["views", "saves", "clicks"] as const).map((m) => {
+              const yours = bench.yours[m];
+              const median = bench.median[m];
+              const p75 = bench.p75[m];
+              const beatsP75 = yours >= p75 && p75 > 0;
+              const beatsMedian = yours >= median && median > 0;
+              return (
+                <div key={m} className="border rounded p-2" data-testid={`bench-${m}-${raceId}`}>
+                  <div className="text-[10px] text-muted-foreground capitalize mb-0.5">{m}</div>
+                  <div className="text-base font-bold tabular-nums">{yours}</div>
+                  <div className="text-[10px] text-muted-foreground">vs median {median} · p75 {p75}</div>
+                  {beatsP75 ? (
+                    <div className="text-[10px] text-emerald-700 mt-0.5">Top 25%</div>
+                  ) : beatsMedian ? (
+                    <div className="text-[10px] text-blue-700 mt-0.5">Above median</div>
+                  ) : (
+                    <div className="text-[10px] text-muted-foreground mt-0.5">Below median</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ───────────────── API keys ─────────────────
+
+function ApiKeysTab({ organizerId }: { organizerId: number | null }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [tier, setTier] = useState<"free" | "growth" | "pro">("free");
+  const [message, setMessage] = useState("");
+
+  const { data: keys, isLoading } = useQuery<OrganizerApiKey[]>({
+    queryKey: ["/api/organizers/me/api-keys"],
+    queryFn: apiGetOrganizerApiKeys,
+  });
+
+  const requestMut = useMutation({
+    mutationFn: () => apiRequestApiKey({ tier, message: message || undefined }),
+    onSuccess: () => {
+      toast({ title: "Request submitted", description: "We'll email your key within 2 business days." });
+      setRequestOpen(false);
+      setMessage("");
+    },
+    onError: (err: unknown) => {
+      const m = err instanceof Error ? err.message : "Request failed";
+      toast({ title: "Couldn't submit", description: m, variant: "destructive" });
+    },
+  });
+
+  const revokeMut = useMutation({
+    mutationFn: (id: number) => apiRevokeApiKey(id),
+    onSuccess: () => {
+      toast({ title: "Key revoked" });
+      qc.invalidateQueries({ queryKey: ["/api/organizers/me/api-keys"] });
+    },
+    onError: (err: unknown) => {
+      const m = err instanceof Error ? err.message : "Could not revoke";
+      toast({ title: "Failed", description: m, variant: "destructive" });
+    },
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-baseline justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="font-heading text-xl font-semibold flex items-center gap-2"><Cpu className="h-5 w-5 text-primary" /> API keys</h2>
+          <p className="text-sm text-muted-foreground">Pull races, scores, and featured slots into your own app or newsletter.</p>
+        </div>
+        <Button onClick={() => setRequestOpen(true)} data-testid="button-request-key-tab"><Plus className="h-4 w-4 mr-1" /> Request a key</Button>
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground" data-testid="text-keys-loading">Loading…</p>
+      ) : !keys || keys.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <KeyRound className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+            <h3 className="font-semibold mb-1" data-testid="text-no-keys">No keys yet</h3>
+            <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">Request your first key — we'll email it back. Free tier includes 1,000 requests / month.</p>
+            <Button onClick={() => setRequestOpen(true)} data-testid="button-request-first-key">Request a key</Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2" data-testid="list-api-keys">
+          {keys.map((k) => (
+            <Card key={k.id} data-testid={`row-key-${k.id}`}>
+              <CardContent className="p-4 flex items-center gap-3 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-sm" data-testid={`text-key-name-${k.id}`}>{k.name}</span>
+                    <Badge variant="outline" className="text-[10px] capitalize">{k.tier}</Badge>
+                    {k.status !== "active" && <Badge variant="secondary" className="text-[10px]">{k.status}</Badge>}
+                  </div>
+                  <div className="text-xs text-muted-foreground font-mono mt-0.5" data-testid={`text-key-prefix-${k.id}`}>{k.keyPrefix}…</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {k.monthlyUsage.toLocaleString()} / {k.monthlyLimit.toLocaleString()} req this month
+                    {k.lastUsedAt && ` · last used ${format(parseISO(k.lastUsedAt), "MMM d")}`}
+                  </div>
+                </div>
+                {k.status === "active" && (
+                  <Button size="sm" variant="ghost" onClick={() => { if (confirm("Revoke this key? This cannot be undone.")) revokeMut.mutate(k.id); }} disabled={revokeMut.isPending} data-testid={`button-revoke-${k.id}`}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Card className="bg-muted/30">
+        <CardContent className="p-4 text-sm">
+          <p className="mb-1 font-semibold">Quick start</p>
+          <pre className="bg-foreground text-background rounded p-2 text-xs overflow-x-auto">{`curl -H "X-API-Key: rs_…" \\
+  "https://running.services/api/v1/races?state=NY&distance=5K"`}</pre>
+          <p className="mt-2 text-xs text-muted-foreground">Full docs at <Link href="/developers" className="text-primary hover:underline">/developers</Link>.</p>
+        </CardContent>
+      </Card>
+
+      <Dialog open={requestOpen} onOpenChange={setRequestOpen}>
+        <DialogContent data-testid="dialog-request-api-key-tab">
+          <DialogHeader>
+            <DialogTitle>Request an API key</DialogTitle>
+            <DialogDescription>Tell us what tier you want and what you're building.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); requestMut.mutate(); }} className="space-y-3">
+            <div>
+              <Label className="text-xs mb-2 block">Tier</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(["free", "growth", "pro"] as const).map((t) => (
+                  <button key={t} type="button" onClick={() => setTier(t)} className={`border rounded-md px-3 py-2 text-xs capitalize ${tier === t ? "border-primary bg-primary/5" : ""}`} data-testid={`button-key-tier-${t}`}>
+                    <div>{t}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{t === "free" ? "1k/mo" : t === "growth" ? "10k/mo" : "50k/mo"}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="key-msg" className="text-xs">What you'll build (optional)</Label>
+              <Textarea id="key-msg" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} data-testid="textarea-key-message" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setRequestOpen(false)} data-testid="button-key-cancel">Cancel</Button>
+              <Button type="submit" disabled={requestMut.isPending} data-testid="button-key-submit">
+                {requestMut.isPending ? "Submitting…" : "Request key"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -462,7 +673,7 @@ function isFeatured(race: Race): boolean {
   return new Date(race.featuredUntil).getTime() > Date.now();
 }
 
-function RaceRow({ race }: { race: Race }) {
+function RaceRow({ race, isPro }: { race: Race; isPro: boolean }) {
   const [editOpen, setEditOpen] = useState(false);
   const [featureOpen, setFeatureOpen] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
@@ -474,6 +685,11 @@ function RaceRow({ race }: { race: Race }) {
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <Link href={`/races/${race.slug}`} className="font-heading font-semibold text-lg hover:text-primary" data-testid={`link-race-${race.slug}`}>{race.name}</Link>
+              {isPro && (
+                <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0" data-testid={`badge-pro-${race.id}`}>
+                  <Crown className="h-3 w-3 mr-1" /> Race Pro
+                </Badge>
+              )}
               {isFeatured(race) && (
                 <Badge className="bg-amber-500 text-white border-0" data-testid={`badge-featured-${race.id}`}>
                   <Sparkles className="h-3 w-3 mr-1" /> Featured
@@ -510,7 +726,7 @@ function RaceRow({ race }: { race: Race }) {
             <TabsTrigger value="health" className="text-xs h-6" data-testid={`tab-health-${race.id}`}>Listing health</TabsTrigger>
           </TabsList>
           <TabsContent value="analytics" className="pt-3">
-            <AnalyticsCard raceId={race.id} />
+            <AnalyticsCard raceId={race.id} isPro={isPro} />
           </TabsContent>
           <TabsContent value="health" className="pt-3">
             <ListingHealth race={race} onEdit={() => setEditOpen(true)} />
@@ -630,7 +846,7 @@ export default function OrganizerDashboardPage() {
     );
   }
 
-  const { organizer, races } = data;
+  const { organizer, races, isPro } = data;
 
   return (
     <Layout>
@@ -643,35 +859,62 @@ export default function OrganizerDashboardPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">Organizer dashboard</p>
-                <h1 className="text-2xl md:text-3xl font-heading font-bold" data-testid="text-organizer-name">{organizer.name}</h1>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl md:text-3xl font-heading font-bold" data-testid="text-organizer-name">{organizer.name}</h1>
+                  {isPro && (
+                    <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0" data-testid="badge-organizer-pro">
+                      <Crown className="h-3 w-3 mr-1" /> Pro
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-sm text-muted-foreground mt-0.5">Signed in as {user.email}</p>
               </div>
             </div>
-            <Button asChild variant="outline" data-testid="button-public-profile">
-              <Link href={`/organizers/${organizer.slug}`}><ExternalLink className="h-4 w-4 mr-1" /> Public profile</Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {!isPro && (
+                <Button asChild variant="outline" data-testid="button-upgrade-pro">
+                  <Link href="/pricing"><Crown className="h-4 w-4 mr-1 text-amber-500" /> Upgrade to Pro</Link>
+                </Button>
+              )}
+              <Button asChild variant="outline" data-testid="button-public-profile">
+                <Link href={`/organizers/${organizer.slug}`}><ExternalLink className="h-4 w-4 mr-1" /> Public profile</Link>
+              </Button>
+            </div>
           </div>
 
-          {races.length === 0 ? (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <Calendar className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                <h2 className="font-semibold mb-1" data-testid="text-no-races">No races yet</h2>
-                <p className="text-sm text-muted-foreground mb-4">Claim another race or contact us if a race is missing from our database.</p>
-                <Button asChild data-testid="button-claim-more"><Link href="/for-organizers">Claim a race</Link></Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4" data-testid="list-organizer-races">
-              <div className="flex items-baseline justify-between mb-2">
-                <h2 className="font-heading text-xl font-semibold">Your races ({races.length})</h2>
-                <Link href="/for-organizers" className="text-sm text-primary hover:underline inline-flex items-center" data-testid="link-claim-another">
-                  Claim another <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                </Link>
-              </div>
-              {races.map((r) => <RaceRow key={r.id} race={r} />)}
-            </div>
-          )}
+          <Tabs defaultValue="races">
+            <TabsList>
+              <TabsTrigger value="races" data-testid="tab-dashboard-races">Your races</TabsTrigger>
+              <TabsTrigger value="api-keys" data-testid="tab-dashboard-api-keys"><Cpu className="h-3.5 w-3.5 mr-1" /> API keys</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="races" className="pt-6">
+              {races.length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <Calendar className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                    <h2 className="font-semibold mb-1" data-testid="text-no-races">No races yet</h2>
+                    <p className="text-sm text-muted-foreground mb-4">Claim another race or contact us if a race is missing from our database.</p>
+                    <Button asChild data-testid="button-claim-more"><Link href="/for-organizers">Claim a race</Link></Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-4" data-testid="list-organizer-races">
+                  <div className="flex items-baseline justify-between mb-2">
+                    <h2 className="font-heading text-xl font-semibold">Your races ({races.length})</h2>
+                    <Link href="/for-organizers" className="text-sm text-primary hover:underline inline-flex items-center" data-testid="link-claim-another">
+                      Claim another <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                    </Link>
+                  </div>
+                  {races.map((r) => <RaceRow key={r.id} race={r} isPro={isPro} />)}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="api-keys" className="pt-6">
+              <ApiKeysTab organizerId={organizer.id} />
+            </TabsContent>
+          </Tabs>
         </div>
       </section>
     </Layout>

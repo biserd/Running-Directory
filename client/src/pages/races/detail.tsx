@@ -505,6 +505,11 @@ export default function RaceDetail() {
                 {race.bostonQualifier && <Badge variant="outline" className="bg-white/20 text-white border-white/30 backdrop-blur">BQ</Badge>}
                 {race.isTurkeyTrot && <Badge variant="outline" className="bg-white/20 text-white border-white/30 backdrop-blur">🦃 Turkey Trot</Badge>}
                 {race.charity && <Badge variant="outline" className="bg-white/20 text-white border-white/30 backdrop-blur">Charity</Badge>}
+                {(race as { organizerIsPro?: boolean }).organizerIsPro && (
+                  <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white border-0 shadow-md" data-testid="badge-race-pro">
+                    <Sparkles className="h-3 w-3 mr-1" /> Race Pro
+                  </Badge>
+                )}
               </div>
               <div className="flex items-start gap-3">
                 <h1 className="font-heading font-extrabold text-4xl md:text-5xl tracking-tight mb-4 flex-1 text-white drop-shadow-lg" data-testid="text-race-name">{race.name}</h1>

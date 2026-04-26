@@ -128,6 +128,65 @@ export async function sendFeaturedRequestAdminNotification(
   }
 }
 
+export async function sendMonetizationRequestAdminNotification(opts: {
+  requestId: number;
+  kind: "pro" | "report" | "api" | "sponsorship";
+  contactEmail: string;
+  contactName?: string | null;
+  organizerName?: string | null;
+  scope?: string | null;
+  message?: string | null;
+}): Promise<void> {
+  const labels: Record<string, string> = {
+    pro: "Race Pro upgrade",
+    report: "Local market report access",
+    api: "API key access",
+    sponsorship: "Sponsorship placement",
+  };
+  const label = labels[opts.kind] ?? opts.kind;
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `Monetization request (${label}) #${opts.requestId}`,
+      html: `
+        <div style="font-family: 'Inter', -apple-system, sans-serif; padding: 20px; max-width: 600px;">
+          <h2 style="margin: 0 0 12px;">${label} request #${opts.requestId}</h2>
+          <p style="margin: 0 0 8px;"><strong>Contact:</strong> ${opts.contactName ? `${opts.contactName} &lt;${opts.contactEmail}&gt;` : opts.contactEmail}</p>
+          ${opts.organizerName ? `<p style="margin: 0 0 8px;"><strong>Organizer:</strong> ${opts.organizerName}</p>` : ""}
+          ${opts.scope ? `<p style="margin: 0 0 8px;"><strong>Scope:</strong> ${opts.scope}</p>` : ""}
+          ${opts.message ? `<p style="margin: 12px 0 0;"><strong>Message:</strong><br>${opts.message.replace(/</g, "&lt;")}</p>` : ""}
+          <p style="margin-top: 16px; color: #666; font-size: 13px;">Resolve via the /admin/monetization queue.</p>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("Failed to send monetization request notification:", error);
+  }
+}
+
+export async function sendApiKeyIssuedEmail(email: string, keyName: string, plaintext: string, monthlyLimit: number): Promise<void> {
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: email,
+      subject: "Your running.services API key",
+      html: `
+        <div style="font-family: 'Inter', -apple-system, sans-serif; padding: 24px; max-width: 600px;">
+          <h2 style="margin: 0 0 12px;">Your API key is ready</h2>
+          <p style="color: #555;">A new API key for running.services has been issued for <strong>${keyName}</strong>.</p>
+          <p style="margin: 16px 0 4px; font-size: 13px; color: #555;">Use this key in the <code>X-API-Key</code> header on every request:</p>
+          <pre style="background: #111; color: #fff; padding: 12px 14px; border-radius: 6px; font-size: 13px; overflow-x: auto;">${plaintext}</pre>
+          <p style="color: #b91c1c; font-size: 13px; margin-top: 8px;">Store this key now — it will not be shown again.</p>
+          <p style="color: #555; font-size: 13px;">Monthly request limit: <strong>${monthlyLimit.toLocaleString()}</strong>. Read the docs at <a href="https://running.services/developers">running.services/developers</a>.</p>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("Failed to send API key issued email:", error);
+  }
+}
+
 export async function sendAdminNewUserNotification(userEmail: string): Promise<void> {
   try {
     await resend.emails.send({

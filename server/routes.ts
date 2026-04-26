@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { refreshRaceData } from "./ingestion/pipeline";
 import { fetchRacesByState } from "./ingestion/runsignup";
 import { sendMagicLinkEmail, sendAdminNewUserNotification, sendClaimVerificationEmail, sendFeaturedRequestAdminNotification } from "./email";
+import { registerMonetizationRoutes } from "./routes-monetization";
 import { computeRaceScores } from "./scoring";
 import { backfillRaceScores, recomputeUrgencyScores } from "./scoring-backfill";
 import { z } from "zod";
@@ -303,7 +304,11 @@ export async function registerRoutes(
         citySlug = cityRow?.slug ?? null;
       } catch {}
     }
-    res.json({ ...race, citySlug });
+    let organizerIsPro = false;
+    if (race.organizerId) {
+      try { organizerIsPro = await storage.isOrganizerPro(race.organizerId); } catch {}
+    }
+    res.json({ ...race, citySlug, organizerIsPro });
   });
 
   app.get("/api/race-occurrences", async (req, res) => {
@@ -928,7 +933,8 @@ export async function registerRoutes(
     const org = await storage.getOrganizerBySlug(req.params.slug);
     if (!org) return res.status(404).json({ message: "Organizer not found" });
     const races = await storage.getRacesByOrganizer(org.id);
-    res.json({ organizer: org, races });
+    const isPro = await storage.isOrganizerPro(org.id);
+    res.json({ organizer: org, races, isPro });
   });
 
   app.get("/api/series", async (req, res) => {
@@ -1222,8 +1228,11 @@ export async function registerRoutes(
   app.get("/api/organizers/me", async (req, res) => {
     const ctx = await requireOrganizer(req, res);
     if (!ctx) return;
-    const races = await storage.getRacesEditableByUser(ctx.userId);
-    res.json({ organizer: ctx.organizer, races });
+    const [races, isPro] = await Promise.all([
+      storage.getRacesEditableByUser(ctx.userId),
+      storage.isOrganizerPro(ctx.organizerId),
+    ]);
+    res.json({ organizer: ctx.organizer, races, isPro });
   });
 
   const faqEntrySchema = z.object({ q: z.string().min(1).max(200), a: z.string().min(1).max(2000) });
@@ -1293,6 +1302,42 @@ export async function registerRoutes(
     const days = Math.max(1, Math.min(180, parseInt(String(req.query.days || "30"), 10) || 30));
     const data = await storage.getRaceAnalytics(raceId, days);
     res.json({ days, ...data });
+  });
+
+  // Pro-only: CSV export of analytics timeline
+  app.get("/api/organizers/me/races/:id/analytics.csv", async (req, res) => {
+    const ctx = await requireOrganizer(req, res);
+    if (!ctx) return;
+    const isPro = await storage.isOrganizerPro(ctx.organizerId);
+    if (!isPro) return res.status(403).json({ message: "Race Pro required" });
+    const raceId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(raceId)) return res.status(400).json({ message: "Invalid race id" });
+    const owned = await storage.getRaceForOrganizerUser(raceId, ctx.userId);
+    if (!owned) return res.status(404).json({ message: "Race not found" });
+    const days = Math.max(1, Math.min(180, parseInt(String(req.query.days || "30"), 10) || 30));
+    const data = await storage.getRaceAnalytics(raceId, days);
+    const lines = ["day,views,saves,clicks"];
+    for (const row of data.timeline) {
+      lines.push(`${row.day},${row.views},${row.saves},${row.clicks}`);
+    }
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${owned.slug}-analytics-${days}d.csv"`);
+    res.send(lines.join("\n"));
+  });
+
+  // Pro-only: competitor benchmark (median views/saves/clicks for similar races)
+  app.get("/api/organizers/me/races/:id/benchmark", async (req, res) => {
+    const ctx = await requireOrganizer(req, res);
+    if (!ctx) return;
+    const isPro = await storage.isOrganizerPro(ctx.organizerId);
+    if (!isPro) return res.status(403).json({ message: "Race Pro required" });
+    const raceId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(raceId)) return res.status(400).json({ message: "Invalid race id" });
+    const owned = await storage.getRaceForOrganizerUser(raceId, ctx.userId);
+    if (!owned) return res.status(404).json({ message: "Race not found" });
+    const days = Math.max(1, Math.min(180, parseInt(String(req.query.days || "30"), 10) || 30));
+    const benchmark = await storage.getRaceCompetitorBenchmark(owned, days);
+    res.json({ days, ...benchmark });
   });
 
   const featuredRequestSchema = z.object({
@@ -1693,6 +1738,9 @@ export async function registerRoutes(
       }
     });
   });
+
+  // Monetization (Race Pro, sponsorships, market reports, public API).
+  registerMonetizationRoutes(app);
 
   return httpServer;
 }

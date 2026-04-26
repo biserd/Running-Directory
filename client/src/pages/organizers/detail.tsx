@@ -35,7 +35,7 @@ export default function OrganizerDetailPage() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug;
 
-  const { data, isLoading } = useQuery<{ organizer: OrganizerProfile; races: Race[] } | null>({
+  const { data, isLoading } = useQuery<{ organizer: OrganizerProfile; races: Race[]; isPro?: boolean } | null>({
     queryKey: [`/api/organizers/${slug}`],
     queryFn: async () => {
       const res = await fetch(`/api/organizers/${slug}`);
@@ -96,6 +96,11 @@ export default function OrganizerDetailPage() {
                 {organizer.isVerified && (
                   <Badge variant="outline" className="text-emerald-700 border-emerald-300" data-testid="badge-verified">
                     <ShieldCheck className="h-3 w-3 mr-1" /> Verified
+                  </Badge>
+                )}
+                {(data as { isPro?: boolean }).isPro && (
+                  <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0" data-testid="badge-organizer-pro">
+                    <Sparkles className="h-3 w-3 mr-1" /> Pro
                   </Badge>
                 )}
               </div>

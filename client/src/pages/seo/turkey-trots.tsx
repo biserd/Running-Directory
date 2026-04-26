@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SeoListing } from "@/components/seo/seo-listing";
 import { FeaturedSlot } from "@/components/seo/featured-slot";
 import { RaceCard } from "@/components/race-card";
+import { SponsorshipSlot } from "@/components/sponsorship-slot";
 import { apiSearchRaces, buildRaceSearchQs } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Bell, MapPin } from "lucide-react";
@@ -218,8 +219,9 @@ export default function TurkeyTrotsPage() {
       noindex={list.length < 5}
       testIdPrefix="turkey-trots"
     >
-      <div className="-mt-2 mb-6">
+      <div className="-mt-2 mb-6 space-y-3">
         <FeaturedSlot isTurkeyTrot testIdPrefix="featured-turkey-trots-national" />
+        <SponsorshipSlot placement="turkey-trots" isTurkeyTrot stateId={metro?.state?.id} cityId={metro?.city?.id} />
       </div>
       {list.length > 0 && (
         <div className="space-y-12 mt-12" data-testid="section-turkey-trots-extras">

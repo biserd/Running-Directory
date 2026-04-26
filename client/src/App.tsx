@@ -51,6 +51,11 @@ import StateDistancePage from "@/pages/seo/state-distance";
 import BestPage from "@/pages/seo/best";
 import ConstraintPage from "@/pages/seo/constraint";
 import SeriesDetailPage from "@/pages/series/detail";
+import PricingPage from "@/pages/pricing";
+import DevelopersPage from "@/pages/developers";
+import ReportsHubPage from "@/pages/reports/index";
+import ReportDetailPage from "@/pages/reports/detail";
+import AdminMonetizationPage from "@/pages/admin/monetization";
 
 function AppRouter() {
   return (
@@ -102,6 +107,11 @@ function AppRouter() {
       <Route path="/organizers" component={OrganizersPage} />
       <Route path="/for-organizers" component={ForOrganizersPage} />
       <Route path="/series/:slug" component={SeriesDetailPage} />
+      <Route path="/pricing" component={PricingPage} />
+      <Route path="/developers" component={DevelopersPage} />
+      <Route path="/reports" component={ReportsHubPage} />
+      <Route path="/reports/:metro/:distance" component={ReportDetailPage} />
+      <Route path="/admin/monetization" component={AdminMonetizationPage} />
       <Route path="/turkey-trots/:metro" component={TurkeyTrotsPage} />
       <Route path="/turkey-trots" component={TurkeyTrotsPage} />
       <Route path="/best/:slug" component={BestPage} />

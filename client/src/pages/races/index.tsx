@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/layout";
 import { RaceCard } from "@/components/race-card";
+import { SponsorshipSlot } from "@/components/sponsorship-slot";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Link, useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -797,6 +798,11 @@ export default function RacesSearchPage() {
               </Card>
             ) : (
               <>
+                <SponsorshipSlot
+                  placement="search"
+                  distance={filters.distance || undefined}
+                  className="mb-4"
+                />
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {filtered.map(race => <RaceCard key={race.id} race={race} />)}
                 </div>
