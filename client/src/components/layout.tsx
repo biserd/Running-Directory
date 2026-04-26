@@ -16,6 +16,7 @@ const PRIMARY_NAV: { label: string; href: string; testId: string }[] = [
   { label: "Marathon", href: "/races?distance=Marathon", testId: "link-distance-marathon" },
   { label: "Trail", href: "/races?surface=Trail", testId: "link-surface-trail" },
   { label: "For organizers", href: "/for-organizers", testId: "link-for-organizers" },
+  { label: "Pricing", href: "/pricing", testId: "link-pricing" },
 ];
 
 function isActive(location: string, href: string): boolean {
@@ -23,6 +24,7 @@ function isActive(location: string, href: string): boolean {
   if (path === "/races") return location === "/races" || location.startsWith("/races?");
   if (path === "/organizers") return location.startsWith("/organizers");
   if (path === "/for-organizers") return location === "/for-organizers" || location.startsWith("/organizers/dashboard");
+  if (path === "/pricing") return location === "/pricing";
   return location === path;
 }
 
@@ -72,6 +74,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </DropdownMenuContent>
             </DropdownMenu>
             <Link href="/for-organizers" className={cn("hover:text-primary", isActive(location, "/for-organizers") ? "text-primary" : "text-foreground/80")} data-testid="link-for-organizers-md">For organizers</Link>
+            <Link href="/pricing" className={cn("hover:text-primary", isActive(location, "/pricing") ? "text-primary" : "text-foreground/80")} data-testid="link-pricing-md">Pricing</Link>
           </nav>
 
           <div className="flex items-center gap-2">
@@ -202,6 +205,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="/organizers" className="hover:text-primary" data-testid="link-organizers-footer">Race organizers</Link></li>
                 <li><Link href="/for-organizers" className="hover:text-primary" data-testid="link-claim-footer">Claim your race</Link></li>
+                <li><Link href="/pricing" className="hover:text-primary" data-testid="link-pricing-footer">Pricing</Link></li>
+                <li><Link href="/reports" className="hover:text-primary" data-testid="link-reports-footer">Market reports</Link></li>
+                <li><Link href="/developers" className="hover:text-primary" data-testid="link-developers-footer">API & developers</Link></li>
                 <li><Link href="/organizers/dashboard" className="hover:text-primary" data-testid="link-organizer-dashboard-footer">Organizer dashboard</Link></li>
               </ul>
             </div>
