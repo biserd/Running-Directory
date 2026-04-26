@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Race, RaceAlert } from "@shared/schema";
 import { setPendingAction } from "@/lib/pending-action";
+import { buildOutboundRedirectUrl } from "@/lib/api";
 import { Calendar, MapPin, Mountain, DollarSign, AlarmClock, Users, Heart, Scale, Bell, BellRing, ExternalLink, Check } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
@@ -118,21 +119,12 @@ export function RaceCard({ race, showCompare = true, showAlert = true }: RaceCar
     }
   };
 
-  const handleRegister = async (e: React.MouseEvent) => {
-    if (!race.registrationUrl) return;
-    e.preventDefault();
-    e.stopPropagation();
-    try {
-      void fetch("/api/outbound", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ raceId: race.id, destination: "registration", targetUrl: race.registrationUrl }),
-        keepalive: true,
-      }).catch(() => undefined);
-    } finally {
-      window.open(race.registrationUrl, "_blank", "noopener,noreferrer");
-    }
-  };
+  // Register CTA goes through the server-side 302 redirect endpoint so the
+  // click is logged consistently with the rest of the site (and still works
+  // for middle-clicks / no-JS).
+  const registerHref = race.registrationUrl
+    ? buildOutboundRedirectUrl({ url: race.registrationUrl, destination: "registration", raceId: race.id })
+    : null;
 
   return (
     <Card className="overflow-hidden hover:border-primary/50 transition-colors group h-full flex flex-col" data-testid={`card-race-${race.id}`}>
@@ -255,14 +247,21 @@ export function RaceCard({ race, showCompare = true, showAlert = true }: RaceCar
               </Button>
             )}
           </div>
-          {race.registrationUrl ? (
+          {registerHref ? (
             <Button
+              asChild
               size="sm"
               className="h-8 text-xs"
-              onClick={handleRegister}
               data-testid={`button-register-${race.id}`}
             >
-              Register <ExternalLink className="ml-1 h-3 w-3" />
+              <a
+                href={registerHref}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Register <ExternalLink className="ml-1 h-3 w-3" />
+              </a>
             </Button>
           ) : (
             <Button asChild size="sm" variant="outline" className="h-8 text-xs">
