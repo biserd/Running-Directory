@@ -31,6 +31,12 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// Trust the first proxy hop (Replit's TLS-terminating load balancer) so that
+// req.secure / req.protocol reflect the original HTTPS request. Without this,
+// express-session refuses to send "secure" cookies in production and users
+// appear to sign in successfully but lose their session on the next request.
+app.set("trust proxy", 1);
+
 const PgSession = connectPgSimple(session);
 const sessionPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
