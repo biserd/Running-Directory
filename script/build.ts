@@ -1,6 +1,7 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
 import { rm, readFile } from "fs/promises";
+import path from "path";
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -47,10 +48,12 @@ async function buildAll() {
   });
 
   console.log("building SSR bundle...");
+  // outDir must be an absolute path because vite.config.ts sets root: "client"
+  // and a relative outDir would resolve to client/dist/server, not dist/server.
   await viteBuild({
     build: {
       ssr: "src/entry-server.tsx",
-      outDir: "dist/server",
+      outDir: path.resolve(import.meta.dirname, "..", "dist", "server"),
       emptyOutDir: true,
     },
   });
