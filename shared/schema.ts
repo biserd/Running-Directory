@@ -128,6 +128,12 @@ export const races = pgTable("races", {
   isFeatured: boolean("is_featured").notNull().default(false),
   featuredUntil: timestamp("featured_until"),
 
+  couponCode: text("coupon_code"),
+  couponDiscount: text("coupon_discount"),
+  couponExpiresAt: text("coupon_expires_at"),
+  photoUrls: text("photo_urls").array().notNull().default(sql`'{}'`),
+  faq: jsonb("faq"),
+
   sourceUrl: text("source_url"),
   lastVerifiedAt: timestamp("last_verified_at"),
 

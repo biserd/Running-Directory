@@ -24,7 +24,7 @@ import { BestForBadges } from "@/components/best-for-badges";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   apiGetRace, apiGetRoutes, apiGetWeather, apiGetElevationProfile, apiGetBooks, apiGetPodcasts,
-  apiSimilarRaces, apiSubmitRaceClaim, apiTrackOutbound, apiTrackRaceView,
+  apiSimilarRaces, apiSubmitRaceClaim, apiTrackOutbound, apiTrackRaceView, buildOutboundRedirectUrl,
   type WeatherData, type ElevationProfile,
 } from "@/lib/api";
 import { format } from "date-fns";
@@ -239,6 +239,13 @@ function ClaimRaceCard({ race }: { race: Race }) {
     setSubmitting(true);
     try {
       const res = await apiSubmitRaceClaim(race.slug, { claimerEmail: email, claimerName: name || undefined, claimerRole: role || undefined, message: message || undefined });
+      // High-trust: claimer email domain matched the race website domain. The
+      // server already signed the user in; jump them straight to the dashboard.
+      if (res.verifiedVia === "domain-match" && res.redirect) {
+        toast({ title: "Verified instantly", description: res.message });
+        setLocation(res.redirect);
+        return;
+      }
       toast({ title: "Check your email", description: res.message });
       setDone(true);
     } catch (err: unknown) {
@@ -460,13 +467,18 @@ export default function RaceDetail() {
   }
 
   const price = fmtPrice(race.priceMin, race.priceMax);
-  const handleRegister = (e: React.MouseEvent) => {
+  // Register / website CTAs go through the server-side 302 redirect endpoint
+  // so the click is logged with raceId + destination + referer, even when the
+  // user disables JavaScript or middle-clicks the link to open it in a new tab.
+  const registerHref = (() => {
     const url = race.registrationUrl || race.website;
-    if (!url) return;
-    e.preventDefault();
-    void apiTrackOutbound({ raceId: race.id, destination: race.registrationUrl ? "registration" : "website", targetUrl: url });
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
+    if (!url) return null;
+    return buildOutboundRedirectUrl({
+      url,
+      destination: race.registrationUrl ? "registration" : "website",
+      raceId: race.id,
+    });
+  })();
 
   return (
     <Layout>
@@ -506,16 +518,18 @@ export default function RaceDetail() {
             </div>
 
             <div className="flex flex-col gap-3 min-w-[220px]">
-              {(race.registrationUrl || race.website) && (
-                <Button size="lg" className="w-full font-semibold" onClick={handleRegister} data-testid="button-register">
-                  Register Now <ExternalLink className="ml-2 h-4 w-4" />
+              {registerHref && (
+                <Button size="lg" className="w-full font-semibold" asChild data-testid="button-register">
+                  <a href={registerHref} target="_blank" rel="noopener noreferrer nofollow">
+                    Register Now <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
                 </Button>
               )}
               <CompareToggle raceId={race.id} />
               <AlertToggle race={race} />
               {race.website && (
                 <Button variant="outline" className="w-full bg-white/10 text-white border-white/30 hover:bg-white/20" asChild data-testid="button-website">
-                  <a href={race.website} target="_blank" rel="noopener noreferrer nofollow" onClick={() => apiTrackOutbound({ raceId: race.id, destination: "website", targetUrl: race.website! })}>
+                  <a href={buildOutboundRedirectUrl({ url: race.website, destination: "website", raceId: race.id })} target="_blank" rel="noopener noreferrer nofollow">
                     Visit Website <ExternalLink className="ml-2 h-4 w-4" />
                   </a>
                 </Button>

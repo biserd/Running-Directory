@@ -12,6 +12,7 @@ import type { InsertRaceClaim, InsertOutboundClick, InsertFeaturedRequest, Race 
 import type { RaceSearchFilters } from "@shared/schema";
 import { getStateCentroid } from "@shared/states";
 import crypto from "crypto";
+import { getDomain as tldtsGetDomain } from "tldts";
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (!req.session?.userId) {
@@ -979,13 +980,46 @@ export async function registerRoutes(
     message: z.string().max(2000).optional(),
   });
 
-  async function handleClaimSubmission(raceSlug: string, body: unknown, req: Request): Promise<{ status: number; payload: object }> {
+  // Domain-match verification: an email like alice@brooklynmarathon.com that
+  // claims a race whose website is https://www.brooklynmarathon.com is treated
+  // as proof of ownership and skips the manual email round-trip. We rely on the
+  // Public Suffix List (via tldts) to compute the eTLD+1 (registrable domain),
+  // so multi-part suffixes like co.uk / com.au / github.io are handled
+  // correctly — alice@evil.co.uk does NOT match victim.co.uk.
+  function extractRegistrableHost(host: string | null | undefined): string | null {
+    if (!host) return null;
+    const h = host.trim().toLowerCase().replace(/^https?:\/\//, "").split("/")[0].split(":")[0];
+    if (!h) return null;
+    // tldts.getDomain returns the eTLD+1 (e.g. "example.co.uk") or null when
+    // the input is an IP, an ICANN public suffix itself, or otherwise has no
+    // registrable parent. Returning null here causes the domain-match check
+    // below to fail-closed.
+    const domain = tldtsGetDomain(h, { allowPrivateDomains: true });
+    return domain || null;
+  }
+  function emailDomainMatchesRace(email: string, race: { website?: string | null; registrationUrl?: string | null }): boolean {
+    const at = email.lastIndexOf("@");
+    if (at < 0) return false;
+    const emailHost = extractRegistrableHost(email.slice(at + 1));
+    if (!emailHost) return false;
+    const candidates: (string | null | undefined)[] = [race.website, race.registrationUrl];
+    for (const c of candidates) {
+      let host: string | null = null;
+      try { if (c) host = new URL(c).hostname; } catch { host = null; }
+      const reg = extractRegistrableHost(host);
+      if (reg && reg === emailHost) return true;
+    }
+    return false;
+  }
+
+  async function handleClaimSubmission(raceSlug: string, body: unknown, req: Request, res?: Response): Promise<{ status: number; payload: object }> {
     try {
       const input = claimSchema.parse({ ...(body as object), raceSlug });
       const race = await storage.getRaceBySlug(input.raceSlug);
       if (!race) return { status: 404, payload: { message: "Race not found" } };
 
       const verificationToken = crypto.randomBytes(32).toString("hex");
+      const domainMatched = emailDomainMatchesRace(input.claimerEmail, race);
       const claimData: InsertRaceClaim = {
         raceId: race.id,
         organizerId: race.organizerId ?? null,
@@ -998,6 +1032,27 @@ export async function registerRoutes(
       };
       const claim = await storage.createRaceClaim(claimData);
 
+      // High-trust path: the email domain matches the race's official website.
+      // Auto-complete verification, sign the user in, and skip the email click.
+      if (domainMatched) {
+        const result = await storage.completeClaimVerification(verificationToken);
+        if (!("error" in result) && res) {
+          req.session.userId = result.user.id;
+          return {
+            status: 200,
+            payload: {
+              message: "Verified instantly via your email domain. Welcome to the dashboard.",
+              claimId: claim.id,
+              verifiedVia: "domain-match",
+              autoSignedIn: true,
+              redirect: "/organizers/dashboard",
+              organizer: { id: result.organizer.id, slug: result.organizer.slug, name: result.organizer.name },
+            },
+          };
+        }
+        // If completion failed (e.g., race already owned), fall through to email path.
+      }
+
       const baseUrl = getTrustedBaseUrl(req);
       sendClaimVerificationEmail(input.claimerEmail.toLowerCase(), race.name, race.city, race.state, verificationToken, baseUrl).catch((err) => {
         console.error("[claim] verification email failed:", err);
@@ -1008,6 +1063,7 @@ export async function registerRoutes(
         payload: {
           message: "Almost there — we sent a verification link to your email. Click it to unlock the organizer dashboard.",
           claimId: claim.id,
+          verifiedVia: "email-link",
         },
       };
     } catch (err) {
@@ -1047,7 +1103,7 @@ export async function registerRoutes(
     if (emailFromBody && !takeRateSlot(`email:${emailFromBody}`, CLAIM_MAX_PER_EMAIL)) {
       return res.status(429).json({ message: "We've sent several verification links to this email recently. Please check your inbox or try again in an hour." });
     }
-    const { status, payload } = await handleClaimSubmission(req.params.slug, req.body, req);
+    const { status, payload } = await handleClaimSubmission(req.params.slug, req.body, req, res);
     res.status(status).json(payload);
   });
 
@@ -1098,7 +1154,7 @@ export async function registerRoutes(
         }
         raceSlug = orgRaces[0].slug;
       }
-      const { status, payload } = await handleClaimSubmission(raceSlug, req.body, req);
+      const { status, payload } = await handleClaimSubmission(raceSlug, req.body, req, res);
       res.status(status).json(payload);
     } catch (err) {
       console.error("Organizer claim error:", err);
@@ -1149,6 +1205,7 @@ export async function registerRoutes(
     res.json({ organizer: ctx.organizer, races });
   });
 
+  const faqEntrySchema = z.object({ q: z.string().min(1).max(200), a: z.string().min(1).max(2000) });
   const editableRaceSchema = z.object({
     registrationUrl: z.string().url().nullable().optional(),
     website: z.string().url().nullable().optional(),
@@ -1179,6 +1236,11 @@ export async function registerRoutes(
     charity: z.boolean().nullable().optional(),
     charityPartner: z.string().max(160).nullable().optional(),
     vibeTags: z.array(z.string().max(40)).max(20).optional(),
+    couponCode: z.string().max(40).nullable().optional(),
+    couponDiscount: z.string().max(80).nullable().optional(),
+    couponExpiresAt: z.string().max(40).nullable().optional(),
+    photoUrls: z.array(z.string().url()).max(20).optional(),
+    faq: z.array(faqEntrySchema).max(30).nullable().optional(),
   });
 
   app.patch("/api/organizers/me/races/:id", async (req, res) => {
@@ -1541,6 +1603,43 @@ export async function registerRoutes(
       }
       throw err;
     }
+  });
+
+  // Logged 302 redirect for register/website CTAs. Lets us put the click logger
+  // in the link href itself (no JS required) and still send the user straight
+  // to the organizer's site. We only allow http/https targets and validate the
+  // destination tag against our enum so the URL can't be abused as an open
+  // redirect to javascript: or data: URIs.
+  const outboundDestinations = ["registration", "website", "organizer", "course-map", "elevation", "results", "social"] as const;
+  app.get("/api/outbound/redirect", async (req, res) => {
+    const url = typeof req.query.url === "string" ? req.query.url : "";
+    const destination = typeof req.query.destination === "string" ? req.query.destination : "";
+    const raceId = req.query.raceId ? parseInt(String(req.query.raceId), 10) : NaN;
+    const organizerId = req.query.organizerId ? parseInt(String(req.query.organizerId), 10) : NaN;
+    if (!url || !(outboundDestinations as readonly string[]).includes(destination)) {
+      return res.status(400).send("Invalid redirect");
+    }
+    let parsed: URL;
+    try { parsed = new URL(url); } catch { return res.status(400).send("Invalid url"); }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return res.status(400).send("Invalid protocol");
+    }
+    try {
+      await storage.recordOutboundClick({
+        raceId: Number.isFinite(raceId) ? raceId : null,
+        organizerId: Number.isFinite(organizerId) ? organizerId : null,
+        destination,
+        targetUrl: url,
+        userId: req.session?.userId ?? null,
+        sessionId: req.sessionID ?? null,
+        referer: req.get("referer") ?? null,
+        userAgent: req.get("user-agent") ?? null,
+      });
+    } catch (err) {
+      console.error("[outbound] redirect log failed:", err);
+      // Don't block the redirect on logging failure.
+    }
+    res.redirect(302, parsed.toString());
   });
 
   app.get("/api/admin/outbound/stats/:raceId", adminAuth, async (req, res) => {

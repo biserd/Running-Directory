@@ -91,6 +91,14 @@ const FIELD_GROUPS: Array<{ title: string; fields: Array<{ key: keyof EditableRa
       { key: "charityPartner", label: "Charity partner", type: "text", placeholder: "Charity name" },
     ],
   },
+  {
+    title: "Discount code (shown to runners on the race page)",
+    fields: [
+      { key: "couponCode", label: "Coupon code", type: "text", placeholder: "RUN10" },
+      { key: "couponDiscount", label: "Discount (display copy)", type: "text", placeholder: "$10 off through Sept 30" },
+      { key: "couponExpiresAt", label: "Coupon expires (YYYY-MM-DD)", type: "text", placeholder: "2026-09-30" },
+    ],
+  },
 ];
 
 function emptyToNull(v: string): string | null {
@@ -121,8 +129,16 @@ function EditRaceDialog({ race, open, onOpenChange }: { race: Race; open: boolea
     return obj;
   }, [race]);
 
+  const initialPhotos = useMemo(() => ((race as unknown as { photoUrls?: string[] }).photoUrls ?? []).join("\n"), [race]);
+  const initialFaq = useMemo<{ q: string; a: string }[]>(() => {
+    const raw = (race as unknown as { faq?: { q: string; a: string }[] | null }).faq;
+    return Array.isArray(raw) ? raw : [];
+  }, [race]);
+
   const [form, setForm] = useState(initialState);
-  useEffect(() => { setForm(initialState); }, [initialState, open]);
+  const [photosText, setPhotosText] = useState(initialPhotos);
+  const [faqEntries, setFaqEntries] = useState(initialFaq);
+  useEffect(() => { setForm(initialState); setPhotosText(initialPhotos); setFaqEntries(initialFaq); }, [initialState, initialPhotos, initialFaq, open]);
 
   const mutation = useMutation({
     mutationFn: (partial: EditableRaceFields) => apiUpdateOrganizerRace(race.id, partial),
@@ -152,6 +168,18 @@ function EditRaceDialog({ race, open, onOpenChange }: { race: Race; open: boolea
         }
       }
     }
+    // Photos: split on newlines, trim, drop empties / non-http urls.
+    const photoUrls = photosText
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter((s) => /^https?:\/\//i.test(s));
+    partial.photoUrls = photoUrls.slice(0, 20);
+    // FAQ: drop blank rows, cap at 30.
+    const cleanFaq = faqEntries
+      .map((f) => ({ q: f.q.trim(), a: f.a.trim() }))
+      .filter((f) => f.q && f.a)
+      .slice(0, 30);
+    partial.faq = cleanFaq.length > 0 ? cleanFaq : null;
     mutation.mutate(partial);
   };
 
@@ -214,6 +242,70 @@ function EditRaceDialog({ race, open, onOpenChange }: { race: Race; open: boolea
               </div>
             </div>
           ))}
+
+          <div>
+            <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground mb-3">Photos</h3>
+            <Label htmlFor="field-photoUrls" className="text-xs">Photo URLs (one per line, https only — up to 20)</Label>
+            <Textarea
+              id="field-photoUrls"
+              rows={4}
+              value={photosText}
+              onChange={(e) => setPhotosText(e.target.value)}
+              placeholder="https://cdn.example.com/start-line.jpg"
+              data-testid="input-photoUrls"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">Frequently asked questions</h3>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setFaqEntries([...faqEntries, { q: "", a: "" }])}
+                data-testid="button-faq-add"
+              >
+                Add FAQ
+              </Button>
+            </div>
+            {faqEntries.length === 0 && (
+              <p className="text-xs text-muted-foreground" data-testid="text-faq-empty">No FAQs yet. Add one to answer the questions runners always ask.</p>
+            )}
+            <div className="space-y-3">
+              {faqEntries.map((entry, idx) => (
+                <div key={idx} className="border rounded-lg p-3 space-y-2" data-testid={`faq-row-${idx}`}>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor={`faq-q-${idx}`} className="text-xs">Question {idx + 1}</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFaqEntries(faqEntries.filter((_, i) => i !== idx))}
+                      data-testid={`button-faq-remove-${idx}`}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                  <Input
+                    id={`faq-q-${idx}`}
+                    value={entry.q}
+                    placeholder="Is there parking at the start?"
+                    onChange={(e) => setFaqEntries(faqEntries.map((f, i) => i === idx ? { ...f, q: e.target.value } : f))}
+                    data-testid={`input-faq-q-${idx}`}
+                  />
+                  <Textarea
+                    rows={2}
+                    value={entry.a}
+                    placeholder="Yes — free at the high school lot until 7:30am."
+                    onChange={(e) => setFaqEntries(faqEntries.map((f, i) => i === idx ? { ...f, a: e.target.value } : f))}
+                    data-testid={`input-faq-a-${idx}`}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} data-testid="button-edit-cancel">Cancel</Button>
             <Button type="submit" disabled={mutation.isPending} data-testid="button-edit-save">

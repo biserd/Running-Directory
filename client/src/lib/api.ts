@@ -200,7 +200,14 @@ export async function apiSubmitRaceClaim(slug: string, body: { claimerEmail: str
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json.message || "Claim failed");
-  return json as { message: string; claimId: number };
+  return json as {
+    message: string;
+    claimId: number;
+    verifiedVia?: "email-link" | "domain-match";
+    autoSignedIn?: boolean;
+    redirect?: string;
+    organizer?: { id: number; slug: string; name: string };
+  };
 }
 
 export interface OrganizerLite {
@@ -264,7 +271,26 @@ export type EditableRaceFields = Partial<{
   charity: boolean | null;
   charityPartner: string | null;
   vibeTags: string[];
+  couponCode: string | null;
+  couponDiscount: string | null;
+  couponExpiresAt: string | null;
+  photoUrls: string[];
+  faq: { q: string; a: string }[] | null;
 }>;
+
+export function buildOutboundRedirectUrl(params: {
+  url: string;
+  destination: "registration" | "website" | "organizer" | "course-map" | "elevation" | "results" | "social";
+  raceId?: number;
+  organizerId?: number;
+}): string {
+  const qs = new URLSearchParams();
+  qs.set("url", params.url);
+  qs.set("destination", params.destination);
+  if (params.raceId != null) qs.set("raceId", String(params.raceId));
+  if (params.organizerId != null) qs.set("organizerId", String(params.organizerId));
+  return `/api/outbound/redirect?${qs.toString()}`;
+}
 
 export async function apiUpdateOrganizerRace(raceId: number, partial: EditableRaceFields) {
   const res = await fetch(`/api/organizers/me/races/${raceId}`, {

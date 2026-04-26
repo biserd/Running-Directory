@@ -1391,6 +1391,7 @@ export class DatabaseStorage implements IStorage {
       "refundPolicy", "deferralPolicy", "packetPickup", "parkingNotes", "transitFriendly",
       "walkerFriendly", "strollerFriendly", "dogFriendly", "kidsRace",
       "charity", "charityPartner", "vibeTags",
+      "couponCode", "couponDiscount", "couponExpiresAt", "photoUrls", "faq",
     ];
     const update: Record<string, unknown> = { lastVerifiedAt: new Date() };
     for (const k of allowedKeys) {
