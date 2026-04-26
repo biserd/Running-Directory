@@ -109,7 +109,7 @@ export default function OrganizerDetailPage() {
                   <span className="inline-flex items-center gap-1"><MapPin className="h-4 w-4" /> {[organizer.city, organizer.state].filter(Boolean).join(", ")}</span>
                 )}
                 {organizer.websiteUrl && (
-                  <a href={organizer.websiteUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-primary" data-testid="link-organizer-website">
+                  <a href={organizer.websiteUrl} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex items-center gap-1 hover:text-primary" data-testid="link-organizer-website">
                     <Globe className="h-4 w-4" /> Website
                   </a>
                 )}

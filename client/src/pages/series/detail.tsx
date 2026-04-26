@@ -75,7 +75,7 @@ export default function SeriesDetailPage() {
                 <p className="text-muted-foreground mt-3 text-lg" data-testid="text-series-description">{series.description}</p>
               )}
               {series.website && (
-                <a href={series.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline mt-3" data-testid="link-series-website">
+                <a href={series.website} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline mt-3" data-testid="link-series-website">
                   Series website <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               )}

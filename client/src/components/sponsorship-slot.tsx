@@ -30,7 +30,7 @@ export function SponsorshipSlot({ placement, cityId, stateId, distance, isTurkey
           key={sp.id}
           href={sp.clickUrl}
           target="_blank"
-          rel="noopener sponsored"
+          rel="noopener noreferrer sponsored nofollow"
           className="block border rounded-lg overflow-hidden bg-card hover:border-primary/40 transition-colors"
           data-testid={`sponsorship-${sp.id}`}
         >

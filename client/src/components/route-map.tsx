@@ -31,7 +31,7 @@ export function RouteMap({ lat, lng, name, polyline, className = "" }: RouteMapP
       }).setView([lat, lng], 14);
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" rel="nofollow noopener noreferrer" target="_blank">OpenStreetMap</a>',
         maxZoom: 19,
       }).addTo(map);
 
