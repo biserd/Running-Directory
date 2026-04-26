@@ -1019,11 +1019,31 @@ export async function registerRoutes(
       if (!race) return { status: 404, payload: { message: "Race not found" } };
 
       const verificationToken = crypto.randomBytes(32).toString("hex");
-      const domainMatched = emailDomainMatchesRace(input.claimerEmail, race);
+
+      // Domain-match auto-approval: ONLY trust this when the requester is
+      // already signed into the site via the existing magic-link flow, AND we
+      // compare the registrable domain of their *server-known* email (not the
+      // form input). Otherwise an attacker could claim any race by typing
+      // admin@therace.com into the form. Anonymous claimers always go through
+      // the email-link path so we have proof they own the inbox.
+      let verifiedSessionEmail: string | null = null;
+      if (req.session?.userId) {
+        try {
+          const sessUser = await storage.getUserById(req.session.userId);
+          if (sessUser?.email) verifiedSessionEmail = sessUser.email.toLowerCase();
+        } catch (err) {
+          console.error("[claim] session user lookup failed:", err);
+        }
+      }
+      const domainMatched = !!verifiedSessionEmail && emailDomainMatchesRace(verifiedSessionEmail, race);
+
       const claimData: InsertRaceClaim = {
         raceId: race.id,
         organizerId: race.organizerId ?? null,
-        claimerEmail: input.claimerEmail.toLowerCase(),
+        // When the high-trust path is taken we record the verified session
+        // email (which we know is real) instead of the form input, so the
+        // organizer link is created against the right account.
+        claimerEmail: (domainMatched && verifiedSessionEmail ? verifiedSessionEmail : input.claimerEmail).toLowerCase(),
         claimerName: input.claimerName,
         claimerRole: input.claimerRole,
         message: input.message,
@@ -1032,8 +1052,6 @@ export async function registerRoutes(
       };
       const claim = await storage.createRaceClaim(claimData);
 
-      // High-trust path: the email domain matches the race's official website.
-      // Auto-complete verification, sign the user in, and skip the email click.
       if (domainMatched) {
         const result = await storage.completeClaimVerification(verificationToken);
         if (!("error" in result) && res) {
@@ -1053,8 +1071,11 @@ export async function registerRoutes(
         // If completion failed (e.g., race already owned), fall through to email path.
       }
 
+      // Always send the verification token to the email recorded on the claim
+      // row. That way ownership proof is "received the token at this exact
+      // address" — never to a different mailbox the requester didn't enter.
       const baseUrl = getTrustedBaseUrl(req);
-      sendClaimVerificationEmail(input.claimerEmail.toLowerCase(), race.name, race.city, race.state, verificationToken, baseUrl).catch((err) => {
+      sendClaimVerificationEmail(claimData.claimerEmail, race.name, race.city, race.state, verificationToken, baseUrl).catch((err) => {
         console.error("[claim] verification email failed:", err);
       });
 
