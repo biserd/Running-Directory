@@ -1,6 +1,7 @@
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { SeoListing } from "@/components/seo/seo-listing";
+import { FeaturedSlot } from "@/components/seo/featured-slot";
 import { apiSearchRaces, buildRaceSearchQs } from "@/lib/api";
 import {
   DISTANCE_SLUG_TO_LABEL,
@@ -209,6 +210,14 @@ export default function CityDistancePage() {
       }}
       noindex={list.length < 5}
       testIdPrefix="city-distance"
-    />
+    >
+      <div className="-mt-4">
+        <FeaturedSlot
+          cityId={metro.city.id}
+          distance={distanceCfg.distance ?? undefined}
+          testIdPrefix="featured-city-distance"
+        />
+      </div>
+    </SeoListing>
   );
 }

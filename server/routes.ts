@@ -3,12 +3,12 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { refreshRaceData } from "./ingestion/pipeline";
 import { fetchRacesByState } from "./ingestion/runsignup";
-import { sendMagicLinkEmail, sendAdminNewUserNotification } from "./email";
+import { sendMagicLinkEmail, sendAdminNewUserNotification, sendClaimVerificationEmail, sendFeaturedRequestAdminNotification } from "./email";
 import { computeRaceScores } from "./scoring";
 import { backfillRaceScores, recomputeUrgencyScores } from "./scoring-backfill";
 import { z } from "zod";
 import { insertOrganizerSchema, insertRaceClaimSchema, insertSavedSearchSchema, insertRaceAlertSchema, insertOutboundClickSchema } from "@shared/schema";
-import type { InsertRaceClaim, InsertOutboundClick } from "@shared/schema";
+import type { InsertRaceClaim, InsertOutboundClick, InsertFeaturedRequest, Race } from "@shared/schema";
 import type { RaceSearchFilters } from "@shared/schema";
 import { getStateCentroid } from "@shared/states";
 import crypto from "crypto";
@@ -22,6 +22,31 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+}
+
+// Build a base URL for outbound auth/claim emails. We must NEVER trust the
+// raw Host / X-Forwarded-* headers — they are attacker-controlled and would
+// let someone embed a malicious origin in a verification email. Instead we
+// resolve a trusted origin server-side, in priority order:
+//   1. APP_BASE_URL env (canonical, set in production).
+//   2. The exact REPLIT_DOMAINS value provided by the platform (dev/preview).
+//   3. CANONICAL_BASE_URL fallback.
+// Token links are always served over https.
+const CANONICAL_BASE_URL = "https://running.services";
+function resolveTrustedBaseUrl(): string {
+  const env = process.env.APP_BASE_URL?.trim();
+  if (env) return env.replace(/\/$/, "");
+  const replitDomains = process.env.REPLIT_DOMAINS?.trim();
+  if (replitDomains) {
+    // REPLIT_DOMAINS is a comma-separated list — pick the first.
+    const host = replitDomains.split(",")[0].trim().toLowerCase();
+    if (host) return `https://${host}`;
+  }
+  return CANONICAL_BASE_URL;
+}
+const TRUSTED_BASE_URL = resolveTrustedBaseUrl();
+function getTrustedBaseUrl(_req: Request): string {
+  return TRUSTED_BASE_URL;
 }
 
 function humanizeAlertType(t: string): string {
@@ -52,9 +77,7 @@ export async function registerRoutes(
 
     await storage.createMagicLinkToken(email.toLowerCase(), token, expiresAt);
 
-    const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-    const host = req.headers["x-forwarded-host"] || req.get("host");
-    const baseUrl = `${protocol}://${host}`;
+    const baseUrl = getTrustedBaseUrl(req);
 
     const sent = await sendMagicLinkEmail(email.toLowerCase(), token, baseUrl);
     if (!sent) {
@@ -898,7 +921,9 @@ export async function registerRoutes(
     res.json(list);
   });
 
-  app.get("/api/organizers/:slug", async (req, res) => {
+  app.get("/api/organizers/:slug", async (req, res, next) => {
+    // Reserve `me` for the authenticated dashboard endpoint registered later.
+    if (req.params.slug === "me") return next();
     const org = await storage.getOrganizerBySlug(req.params.slug);
     if (!org) return res.status(404).json({ message: "Organizer not found" });
     const races = await storage.getRacesByOrganizer(org.id);
@@ -938,7 +963,8 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/organizers/:slug", adminAuth, async (req, res) => {
+  app.patch("/api/organizers/:slug", adminAuth, async (req, res, next) => {
+    if (req.params.slug === "me") return next();
     const org = await storage.getOrganizerBySlug(req.params.slug);
     if (!org) return res.status(404).json({ message: "Organizer not found" });
     const updated = await storage.updateOrganizer(org.id, req.body);
@@ -953,7 +979,7 @@ export async function registerRoutes(
     message: z.string().max(2000).optional(),
   });
 
-  async function handleClaimSubmission(raceSlug: string, body: unknown): Promise<{ status: number; payload: object }> {
+  async function handleClaimSubmission(raceSlug: string, body: unknown, req: Request): Promise<{ status: number; payload: object }> {
     try {
       const input = claimSchema.parse({ ...(body as object), raceSlug });
       const race = await storage.getRaceBySlug(input.raceSlug);
@@ -972,10 +998,15 @@ export async function registerRoutes(
       };
       const claim = await storage.createRaceClaim(claimData);
 
+      const baseUrl = getTrustedBaseUrl(req);
+      sendClaimVerificationEmail(input.claimerEmail.toLowerCase(), race.name, race.city, race.state, verificationToken, baseUrl).catch((err) => {
+        console.error("[claim] verification email failed:", err);
+      });
+
       return {
         status: 201,
         payload: {
-          message: "Claim submitted. Our team will review and reach out within 2 business days.",
+          message: "Almost there — we sent a verification link to your email. Click it to unlock the organizer dashboard.",
           claimId: claim.id,
         },
       };
@@ -988,12 +1019,62 @@ export async function registerRoutes(
     }
   }
 
+  // Simple in-memory rate limiter for claim/verification endpoints to prevent
+  // an attacker from spamming verification emails. Keys are bucketed by IP and
+  // by claimer email; we keep a sliding 1-hour window per key.
+  const claimRateLimit = new Map<string, number[]>();
+  const CLAIM_WINDOW_MS = 60 * 60 * 1000;
+  const CLAIM_MAX_PER_IP = 10;
+  const CLAIM_MAX_PER_EMAIL = 3;
+  function takeRateSlot(key: string, max: number): boolean {
+    const now = Date.now();
+    const arr = (claimRateLimit.get(key) || []).filter((t) => now - t < CLAIM_WINDOW_MS);
+    if (arr.length >= max) {
+      claimRateLimit.set(key, arr);
+      return false;
+    }
+    arr.push(now);
+    claimRateLimit.set(key, arr);
+    return true;
+  }
+
   app.post("/api/races/:slug/claim", async (req, res) => {
-    const { status, payload } = await handleClaimSubmission(req.params.slug, req.body);
+    const ip = (req.headers["x-forwarded-for"]?.toString().split(",")[0].trim()) || req.ip || "unknown";
+    const emailFromBody = typeof req.body?.claimerEmail === "string" ? req.body.claimerEmail.trim().toLowerCase() : "";
+    if (!takeRateSlot(`ip:${ip}`, CLAIM_MAX_PER_IP)) {
+      return res.status(429).json({ message: "Too many claim attempts. Please try again later." });
+    }
+    if (emailFromBody && !takeRateSlot(`email:${emailFromBody}`, CLAIM_MAX_PER_EMAIL)) {
+      return res.status(429).json({ message: "We've sent several verification links to this email recently. Please check your inbox or try again in an hour." });
+    }
+    const { status, payload } = await handleClaimSubmission(req.params.slug, req.body, req);
     res.status(status).json(payload);
   });
 
+  app.get("/api/race-claims/verify", async (req, res) => {
+    const token = typeof req.query.token === "string" ? req.query.token : "";
+    if (!token) return res.status(400).json({ message: "Missing token" });
+    const result = await storage.completeClaimVerification(token);
+    if ("error" in result) return res.status(400).json({ message: result.error });
+
+    req.session.userId = result.user.id;
+    res.json({
+      ok: true,
+      user: { id: result.user.id, email: result.user.email, name: result.user.name },
+      organizer: { id: result.organizer.id, slug: result.organizer.slug, name: result.organizer.name },
+      race: { id: result.race.id, slug: result.race.slug, name: result.race.name },
+    });
+  });
+
   app.post("/api/organizers/:slug/claim", async (req, res) => {
+    const ip = (req.headers["x-forwarded-for"]?.toString().split(",")[0].trim()) || req.ip || "unknown";
+    const emailFromBody = typeof req.body?.claimerEmail === "string" ? req.body.claimerEmail.trim().toLowerCase() : "";
+    if (!takeRateSlot(`ip:${ip}`, CLAIM_MAX_PER_IP)) {
+      return res.status(429).json({ message: "Too many claim attempts. Please try again later." });
+    }
+    if (emailFromBody && !takeRateSlot(`email:${emailFromBody}`, CLAIM_MAX_PER_EMAIL)) {
+      return res.status(429).json({ message: "We've sent several verification links to this email recently. Please check your inbox or try again in an hour." });
+    }
     try {
       const organizer = await storage.getOrganizerBySlug(req.params.slug);
       if (!organizer) {
@@ -1017,7 +1098,7 @@ export async function registerRoutes(
         }
         raceSlug = orgRaces[0].slug;
       }
-      const { status, payload } = await handleClaimSubmission(raceSlug, req.body);
+      const { status, payload } = await handleClaimSubmission(raceSlug, req.body, req);
       res.status(status).json(payload);
     } catch (err) {
       console.error("Organizer claim error:", err);
@@ -1044,6 +1125,183 @@ export async function registerRoutes(
     const { note } = req.body || {};
     await storage.rejectRaceClaim(id, note);
     res.json({ ok: true });
+  });
+
+  // ───────── Organizer self-serve dashboard ─────────
+
+  async function requireOrganizer(req: Request, res: Response): Promise<{ userId: number; organizerId: number; organizer: import("@shared/schema").Organizer } | null> {
+    if (!req.session?.userId) {
+      res.status(401).json({ message: "Authentication required" });
+      return null;
+    }
+    const organizer = await storage.getOrganizerForUser(req.session.userId);
+    if (!organizer) {
+      res.status(403).json({ message: "Organizer access required. Claim a race to get started." });
+      return null;
+    }
+    return { userId: req.session.userId, organizerId: organizer.id, organizer };
+  }
+
+  app.get("/api/organizers/me", async (req, res) => {
+    const ctx = await requireOrganizer(req, res);
+    if (!ctx) return;
+    const races = await storage.getRacesEditableByUser(ctx.userId);
+    res.json({ organizer: ctx.organizer, races });
+  });
+
+  const editableRaceSchema = z.object({
+    registrationUrl: z.string().url().nullable().optional(),
+    website: z.string().url().nullable().optional(),
+    description: z.string().max(5000).nullable().optional(),
+    startTime: z.string().max(40).nullable().optional(),
+    timeLimit: z.string().max(40).nullable().optional(),
+    priceMin: z.number().int().nonnegative().nullable().optional(),
+    priceMax: z.number().int().nonnegative().nullable().optional(),
+    registrationOpen: z.boolean().nullable().optional(),
+    registrationDeadline: z.string().max(40).nullable().optional(),
+    nextPriceIncreaseAt: z.string().max(40).nullable().optional(),
+    nextPriceIncreaseAmount: z.number().int().nonnegative().nullable().optional(),
+    courseMapUrl: z.string().url().nullable().optional(),
+    elevationProfileUrl: z.string().url().nullable().optional(),
+    courseType: z.string().max(40).nullable().optional(),
+    terrain: z.string().max(40).nullable().optional(),
+    elevationGainM: z.number().int().nonnegative().nullable().optional(),
+    fieldSize: z.number().int().nonnegative().nullable().optional(),
+    refundPolicy: z.string().max(2000).nullable().optional(),
+    deferralPolicy: z.string().max(2000).nullable().optional(),
+    packetPickup: z.string().max(2000).nullable().optional(),
+    parkingNotes: z.string().max(2000).nullable().optional(),
+    transitFriendly: z.boolean().nullable().optional(),
+    walkerFriendly: z.boolean().nullable().optional(),
+    strollerFriendly: z.boolean().nullable().optional(),
+    dogFriendly: z.boolean().nullable().optional(),
+    kidsRace: z.boolean().nullable().optional(),
+    charity: z.boolean().nullable().optional(),
+    charityPartner: z.string().max(160).nullable().optional(),
+    vibeTags: z.array(z.string().max(40)).max(20).optional(),
+  });
+
+  app.patch("/api/organizers/me/races/:id", async (req, res) => {
+    const ctx = await requireOrganizer(req, res);
+    if (!ctx) return;
+    const raceId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(raceId)) return res.status(400).json({ message: "Invalid race id" });
+    const owned = await storage.getRaceForOrganizerUser(raceId, ctx.userId);
+    if (!owned) return res.status(404).json({ message: "Race not found" });
+    try {
+      const partial = editableRaceSchema.parse(req.body ?? {});
+      const updated = await storage.updateRaceContent(raceId, ctx.organizerId, partial as Partial<Race>);
+      if (!updated) return res.status(400).json({ message: "Nothing to update" });
+      res.json({ ok: true, race: updated });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+      console.error("[organizer] update race failed:", err);
+      res.status(500).json({ message: "Update failed" });
+    }
+  });
+
+  app.get("/api/organizers/me/races/:id/analytics", async (req, res) => {
+    const ctx = await requireOrganizer(req, res);
+    if (!ctx) return;
+    const raceId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(raceId)) return res.status(400).json({ message: "Invalid race id" });
+    const owned = await storage.getRaceForOrganizerUser(raceId, ctx.userId);
+    if (!owned) return res.status(404).json({ message: "Race not found" });
+    const days = Math.max(1, Math.min(180, parseInt(String(req.query.days || "30"), 10) || 30));
+    const data = await storage.getRaceAnalytics(raceId, days);
+    res.json({ days, ...data });
+  });
+
+  const featuredRequestSchema = z.object({
+    plan: z.enum(["featured", "premium"]).default("featured"),
+    durationDays: z.number().int().min(7).max(365).default(30),
+    message: z.string().max(2000).optional(),
+    contactEmail: z.string().email().optional(),
+  });
+
+  app.post("/api/organizers/me/races/:id/feature", async (req, res) => {
+    const ctx = await requireOrganizer(req, res);
+    if (!ctx) return;
+    const raceId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(raceId)) return res.status(400).json({ message: "Invalid race id" });
+    const owned = await storage.getRaceForOrganizerUser(raceId, ctx.userId);
+    if (!owned) return res.status(404).json({ message: "Race not found" });
+    try {
+      const input = featuredRequestSchema.parse(req.body ?? {});
+      const me = await storage.getUserById(ctx.userId);
+      const data: InsertFeaturedRequest = {
+        raceId,
+        organizerId: ctx.organizerId,
+        userId: ctx.userId,
+        contactEmail: (input.contactEmail || me?.email || ctx.organizer.email || "").toLowerCase(),
+        message: input.message ?? null,
+        plan: input.plan,
+        durationDays: input.durationDays,
+        status: "pending",
+        adminNote: null,
+      };
+      if (!data.contactEmail) return res.status(400).json({ message: "contactEmail required" });
+      const created = await storage.createFeaturedRequest(data);
+      sendFeaturedRequestAdminNotification(
+        owned.name, owned.slug, ctx.organizer.name, data.contactEmail,
+        input.plan, input.durationDays, input.message ?? null, created.id,
+      ).catch((err) => console.error("[featured] admin notify failed:", err));
+      res.status(201).json({
+        ok: true,
+        request: created,
+        message: "Thanks! Our team will review your featured listing request and email you within 2 business days.",
+      });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+      console.error("[featured] request failed:", err);
+      res.status(500).json({ message: "Request failed" });
+    }
+  });
+
+  app.get("/api/admin/featured/requests", adminAuth, async (_req, res) => {
+    const list = await storage.getPendingFeaturedRequests(100);
+    res.json(list);
+  });
+
+  app.post("/api/admin/featured/:id/approve", adminAuth, async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    const days = Math.max(1, Math.min(365, parseInt(String(req.body?.durationDays || "30"), 10) || 30));
+    const result = await storage.approveFeaturedRequest(id, days, typeof req.body?.note === "string" ? req.body.note : undefined);
+    if (!result) return res.status(404).json({ message: "Request not found" });
+    res.json({ ok: true, ...result });
+  });
+
+  app.post("/api/admin/featured/:id/reject", adminAuth, async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    const updated = await storage.rejectFeaturedRequest(id, typeof req.body?.note === "string" ? req.body.note : undefined);
+    if (!updated) return res.status(404).json({ message: "Request not found" });
+    res.json({ ok: true, request: updated });
+  });
+
+  app.get("/api/featured/races", async (req, res) => {
+    const cityId = req.query.cityId ? parseInt(String(req.query.cityId), 10) : undefined;
+    const distance = typeof req.query.distance === "string" ? req.query.distance : undefined;
+    const isTurkeyTrot = req.query.isTurkeyTrot === "true";
+    const limit = req.query.limit ? Math.min(50, Math.max(1, parseInt(String(req.query.limit), 10) || 12)) : 12;
+    const races = await storage.getFeaturedRaces({
+      cityId: Number.isFinite(cityId) ? cityId : undefined,
+      distance,
+      isTurkeyTrot: isTurkeyTrot || undefined,
+      limit,
+    });
+    res.json(races);
+  });
+
+  app.post("/api/races/:slug/view", async (req, res) => {
+    try {
+      const race = await storage.getRaceBySlug(req.params.slug);
+      if (!race) return res.status(404).json({ ok: false });
+      await storage.incrementRacePageView(race.id);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("[view] failed:", err);
+      res.status(500).json({ ok: false });
+    }
   });
 
   app.get("/api/saved-searches", requireAuth, async (req, res) => {

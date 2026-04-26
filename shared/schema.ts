@@ -126,6 +126,7 @@ export const races = pgTable("races", {
 
   isClaimed: boolean("is_claimed").notNull().default(false),
   isFeatured: boolean("is_featured").notNull().default(false),
+  featuredUntil: timestamp("featured_until"),
 
   sourceUrl: text("source_url"),
   lastVerifiedAt: timestamp("last_verified_at"),
@@ -175,7 +176,7 @@ export const raceClaims = pgTable("race_claims", {
   claimerName: text("claimer_name"),
   claimerRole: text("claimer_role"),
   message: text("message"),
-  verificationToken: text("verification_token").notNull().unique(),
+  verificationToken: text("verification_token").unique(),
   verifiedAt: timestamp("verified_at"),
   reviewedAt: timestamp("reviewed_at"),
   reviewerNote: text("reviewer_note"),
@@ -370,10 +371,42 @@ export const users = pgTable("users", {
   name: text("name"),
   unsubscribedAlertTypes: text("unsubscribed_alert_types").array().notNull().default(sql`'{}'`),
   unsubscribedAll: boolean("unsubscribed_all").notNull().default(false),
+  isOrganizer: boolean("is_organizer").notNull().default(false),
+  organizerId: integer("organizer_id").references(() => organizers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow(),
   lastLoginAt: timestamp("last_login_at"),
 }, (table) => [
   index("users_email_idx").on(table.email),
+  index("users_organizer_idx").on(table.organizerId),
+]);
+
+export const featuredRequests = pgTable("featured_requests", {
+  id: serial("id").primaryKey(),
+  raceId: integer("race_id").notNull().references(() => races.id, { onDelete: "cascade" }),
+  organizerId: integer("organizer_id").references(() => organizers.id, { onDelete: "set null" }),
+  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+  contactEmail: text("contact_email").notNull(),
+  message: text("message"),
+  plan: text("plan").notNull().default("featured"),
+  durationDays: integer("duration_days").notNull().default(30),
+  status: text("status").notNull().default("pending"),
+  adminNote: text("admin_note"),
+  createdAt: timestamp("created_at").defaultNow(),
+  reviewedAt: timestamp("reviewed_at"),
+}, (table) => [
+  index("featured_requests_race_idx").on(table.raceId),
+  index("featured_requests_status_idx").on(table.status),
+]);
+
+export const racePageViews = pgTable("race_page_views", {
+  id: serial("id").primaryKey(),
+  raceId: integer("race_id").notNull().references(() => races.id, { onDelete: "cascade" }),
+  day: text("day").notNull(),
+  count: integer("count").notNull().default(0),
+}, (table) => [
+  uniqueIndex("race_page_views_race_day_idx").on(table.raceId, table.day),
+  index("race_page_views_race_idx").on(table.raceId),
+  index("race_page_views_day_idx").on(table.day),
 ]);
 
 export const magicLinkTokens = pgTable("magic_link_tokens", {
@@ -443,6 +476,7 @@ export const insertSavedSearchSchema = createInsertSchema(savedSearches).omit({ 
 export const insertRaceAlertSchema = createInsertSchema(raceAlerts).omit({ id: true, createdAt: true, lastNotifiedAt: true });
 export const insertAlertDispatchSchema = createInsertSchema(alertDispatches).omit({ id: true, dispatchedAt: true, openedAt: true, clickedAt: true });
 export const insertOutboundClickSchema = createInsertSchema(outboundClicks).omit({ id: true, createdAt: true });
+export const insertFeaturedRequestSchema = createInsertSchema(featuredRequests).omit({ id: true, createdAt: true, reviewedAt: true });
 
 export type InsertState = z.infer<typeof insertStateSchema>;
 export type InsertCity = z.infer<typeof insertCitySchema>;
@@ -464,6 +498,7 @@ export type InsertRaceClaim = z.infer<typeof insertRaceClaimSchema>;
 export type InsertSavedSearch = z.infer<typeof insertSavedSearchSchema>;
 export type InsertRaceAlert = z.infer<typeof insertRaceAlertSchema>;
 export type InsertOutboundClick = z.infer<typeof insertOutboundClickSchema>;
+export type InsertFeaturedRequest = z.infer<typeof insertFeaturedRequestSchema>;
 
 export type State = typeof states.$inferSelect;
 export type City = typeof cities.$inferSelect;
@@ -488,6 +523,8 @@ export type RaceAlert = typeof raceAlerts.$inferSelect;
 export type OutboundClick = typeof outboundClicks.$inferSelect;
 export type AlertDispatch = typeof alertDispatches.$inferSelect;
 export type InsertAlertDispatch = z.infer<typeof insertAlertDispatchSchema>;
+export type FeaturedRequest = typeof featuredRequests.$inferSelect;
+export type RacePageView = typeof racePageViews.$inferSelect;
 
 export type ScoreFactor = { factor: string; points: number };
 export type ScoreBreakdown = {

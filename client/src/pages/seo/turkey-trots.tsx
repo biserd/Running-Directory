@@ -1,6 +1,7 @@
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { SeoListing } from "@/components/seo/seo-listing";
+import { FeaturedSlot } from "@/components/seo/featured-slot";
 import { RaceCard } from "@/components/race-card";
 import { apiSearchRaces, buildRaceSearchQs } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -163,7 +164,11 @@ export default function TurkeyTrotsPage() {
           fallbackLabel: "All Turkey Trots",
         }}
         testIdPrefix="turkey-trots-metro"
-      />
+      >
+        <div className="-mt-2 mb-2">
+          <FeaturedSlot cityId={metro.city.id} isTurkeyTrot testIdPrefix="featured-turkey-trots-metro" />
+        </div>
+      </SeoListing>
     );
   }
 
@@ -213,6 +218,9 @@ export default function TurkeyTrotsPage() {
       noindex={list.length < 5}
       testIdPrefix="turkey-trots"
     >
+      <div className="-mt-2 mb-6">
+        <FeaturedSlot isTurkeyTrot testIdPrefix="featured-turkey-trots-national" />
+      </div>
       {list.length > 0 && (
         <div className="space-y-12 mt-12" data-testid="section-turkey-trots-extras">
           {/* Tracking CTA — Turkey-Trot-specific copy */}

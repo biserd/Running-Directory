@@ -40,7 +40,11 @@ import FavoritesPage from "@/pages/favorites";
 import AlertsPage from "@/pages/alerts";
 import RaceShopperPage from "@/pages/race-shopper";
 import ComparePage from "@/pages/compare";
-import { ThisWeekendPage, PriceWatchPage, OrganizersPage, OrganizerDetailPage } from "@/pages/coming-soon";
+import { ThisWeekendPage, PriceWatchPage, OrganizersPage } from "@/pages/coming-soon";
+import ForOrganizersPage from "@/pages/organizers/for-organizers";
+import OrganizerDashboardPage from "@/pages/organizers/dashboard";
+import OrganizerDetailPage from "@/pages/organizers/detail";
+import AuthVerifyClaimPage from "@/pages/auth/verify-claim";
 import TurkeyTrotsPage from "@/pages/seo/turkey-trots";
 import CityDistancePage from "@/pages/seo/city-distance";
 import StateDistancePage from "@/pages/seo/state-distance";
@@ -53,6 +57,7 @@ function AppRouter() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/auth/verify" component={AuthVerifyPage} />
+      <Route path="/auth/verify-claim" component={AuthVerifyClaimPage} />
       <Route path="/favorites" component={FavoritesPage} />
       <Route path="/alerts" component={AlertsPage} />
       <Route path="/races" component={RacesHub} />
@@ -92,9 +97,10 @@ function AppRouter() {
       <Route path="/compare" component={ComparePage} />
       <Route path="/this-weekend" component={ThisWeekendPage} />
       <Route path="/price-watch" component={PriceWatchPage} />
+      <Route path="/organizers/dashboard" component={OrganizerDashboardPage} />
       <Route path="/organizers/:slug" component={OrganizerDetailPage} />
       <Route path="/organizers" component={OrganizersPage} />
-      <Route path="/for-organizers" component={OrganizersPage} />
+      <Route path="/for-organizers" component={ForOrganizersPage} />
       <Route path="/series/:slug" component={SeriesDetailPage} />
       <Route path="/turkey-trots/:metro" component={TurkeyTrotsPage} />
       <Route path="/turkey-trots" component={TurkeyTrotsPage} />

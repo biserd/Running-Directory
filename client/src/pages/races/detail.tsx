@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Layout } from "@/components/layout";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import heroImage from "@/assets/images/hero-race-detail.jpg";
@@ -24,7 +24,7 @@ import { BestForBadges } from "@/components/best-for-badges";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   apiGetRace, apiGetRoutes, apiGetWeather, apiGetElevationProfile, apiGetBooks, apiGetPodcasts,
-  apiSimilarRaces, apiSubmitRaceClaim, apiTrackOutbound,
+  apiSimilarRaces, apiSubmitRaceClaim, apiTrackOutbound, apiTrackRaceView,
   type WeatherData, type ElevationProfile,
 } from "@/lib/api";
 import { format } from "date-fns";
@@ -239,10 +239,8 @@ function ClaimRaceCard({ race }: { race: Race }) {
     setSubmitting(true);
     try {
       const res = await apiSubmitRaceClaim(race.slug, { claimerEmail: email, claimerName: name || undefined, claimerRole: role || undefined, message: message || undefined });
-      toast({ title: "Claim submitted", description: res.message });
+      toast({ title: "Check your email", description: res.message });
       setDone(true);
-      // Redirect to the for-organizers hub so the claimer can see what's available next
-      setTimeout(() => setLocation("/for-organizers"), 1200);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Please try again.";
       toast({ title: "Couldn't submit claim", description: msg, variant: "destructive" });
@@ -257,9 +255,12 @@ function ClaimRaceCard({ race }: { race: Race }) {
       <p className="text-sm text-muted-foreground mb-3">Claim this race to update details, fix data, set pricing, and reach our runners.</p>
       {done ? (
         <div className="space-y-3">
-          <p className="text-sm text-emerald-600 font-medium" data-testid="text-claim-success">Claim received — taking you to the organizer hub…</p>
+          <p className="text-sm text-emerald-600 font-medium" data-testid="text-claim-success">
+            Check your email at <strong>{email}</strong> for a verification link. It unlocks your organizer dashboard.
+          </p>
+          <p className="text-xs text-muted-foreground">The link is good for 7 days. Don't see it? Check spam, or try again from the For Organizers page.</p>
           <Button asChild variant="outline" size="sm" className="w-full" data-testid="button-claim-organizer-hub">
-            <Link href="/for-organizers">Open organizer hub</Link>
+            <Link href="/for-organizers">Back to organizer info</Link>
           </Button>
         </div>
       ) : !open ? (
@@ -398,6 +399,12 @@ export default function RaceDetail() {
     queryFn: () => apiGetRace(slug!),
     enabled: !!slug,
   });
+
+  // Fire-and-forget page view beacon, once per slug per mount.
+  useEffect(() => {
+    if (!slug) return;
+    void apiTrackRaceView(slug);
+  }, [slug]);
 
   const { data: nearbyRoutes } = useQuery({
     queryKey: ["/api/routes", { state: race?.state, limit: 3 }],

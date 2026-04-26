@@ -203,6 +203,119 @@ export async function apiSubmitRaceClaim(slug: string, body: { claimerEmail: str
   return json as { message: string; claimId: number };
 }
 
+export interface OrganizerLite {
+  id: number;
+  slug: string;
+  name: string;
+  email?: string | null;
+  description?: string | null;
+  websiteUrl?: string | null;
+  city?: string | null;
+  state?: string | null;
+  isVerified?: boolean | null;
+}
+
+export async function apiClaimVerify(token: string) {
+  const res = await fetch(`/api/race-claims/verify?token=${encodeURIComponent(token)}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Verification failed");
+  return data as {
+    ok: true;
+    user: AuthUser;
+    organizer: { id: number; slug: string; name: string };
+    race: { id: number; slug: string; name: string };
+  };
+}
+
+export async function apiOrganizerMe() {
+  const res = await fetch("/api/organizers/me");
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to load organizer");
+  return data as { organizer: OrganizerLite; races: Race[] };
+}
+
+export type EditableRaceFields = Partial<{
+  registrationUrl: string | null;
+  website: string | null;
+  description: string | null;
+  startTime: string | null;
+  timeLimit: string | null;
+  priceMin: number | null;
+  priceMax: number | null;
+  registrationOpen: boolean | null;
+  registrationDeadline: string | null;
+  nextPriceIncreaseAt: string | null;
+  nextPriceIncreaseAmount: number | null;
+  courseMapUrl: string | null;
+  elevationProfileUrl: string | null;
+  courseType: string | null;
+  terrain: string | null;
+  elevationGainM: number | null;
+  fieldSize: number | null;
+  refundPolicy: string | null;
+  deferralPolicy: string | null;
+  packetPickup: string | null;
+  parkingNotes: string | null;
+  transitFriendly: boolean | null;
+  walkerFriendly: boolean | null;
+  strollerFriendly: boolean | null;
+  dogFriendly: boolean | null;
+  kidsRace: boolean | null;
+  charity: boolean | null;
+  charityPartner: string | null;
+  vibeTags: string[];
+}>;
+
+export async function apiUpdateOrganizerRace(raceId: number, partial: EditableRaceFields) {
+  const res = await fetch(`/api/organizers/me/races/${raceId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(partial),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Update failed");
+  return data as { ok: true; race: Race };
+}
+
+export interface RaceAnalytics {
+  days: number;
+  totals: { views: number; saves: number; clicks: number };
+  timeline: { day: string; views: number; saves: number; clicks: number }[];
+  byDestination: { destination: string; count: number }[];
+}
+
+export async function apiOrganizerRaceAnalytics(raceId: number, days = 30) {
+  const res = await fetch(`/api/organizers/me/races/${raceId}/analytics?days=${days}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Analytics failed");
+  return data as RaceAnalytics;
+}
+
+export async function apiCreateFeaturedRequest(raceId: number, body: { plan?: "featured" | "premium"; durationDays?: number; message?: string; contactEmail?: string }) {
+  const res = await fetch(`/api/organizers/me/races/${raceId}/feature`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Request failed");
+  return data as { ok: true; message: string };
+}
+
+export async function apiGetFeaturedRaces(params: { cityId?: number; distance?: string; isTurkeyTrot?: boolean; limit?: number } = {}) {
+  const qs = new URLSearchParams();
+  if (params.cityId) qs.set("cityId", String(params.cityId));
+  if (params.distance) qs.set("distance", params.distance);
+  if (params.isTurkeyTrot) qs.set("isTurkeyTrot", "true");
+  if (params.limit) qs.set("limit", String(params.limit));
+  const q = qs.toString();
+  return fetchJSON<Race[]>(`/api/featured/races${q ? `?${q}` : ""}`);
+}
+
+export function apiTrackRaceView(slug: string) {
+  return fetch(`/api/races/${slug}/view`, { method: "POST", keepalive: true }).catch(() => undefined);
+}
+
 export async function apiTrackOutbound(input: { raceId?: number; organizerId?: number; destination: "registration" | "website" | "organizer" | "course-map" | "elevation" | "results" | "social"; targetUrl: string }) {
   return fetch("/api/outbound", {
     method: "POST",

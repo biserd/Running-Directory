@@ -1,11 +1,11 @@
 import { db } from "./db";
-import { states, cities, races, raceOccurrences, routes, sources, sourceRecords, collections, influencers, podcasts, books, users, magicLinkTokens, favorites, reviews, organizers, raceSeries, raceClaims, savedSearches, raceAlerts, outboundClicks, alertDispatches } from "@shared/schema";
+import { states, cities, races, raceOccurrences, routes, sources, sourceRecords, collections, influencers, podcasts, books, users, magicLinkTokens, favorites, reviews, organizers, raceSeries, raceClaims, savedSearches, raceAlerts, outboundClicks, alertDispatches, featuredRequests, racePageViews } from "@shared/schema";
 import type {
   State, City, Race, RaceOccurrence, Route, Source, SourceRecord, Collection, Influencer, Podcast, Book,
   InsertState, InsertCity, InsertRace, InsertRaceOccurrence, InsertRoute, InsertSource, InsertSourceRecord, InsertCollection, InsertInfluencer, InsertPodcast, InsertBook,
   User, MagicLinkToken, Favorite, Review,
-  Organizer, RaceSeries, RaceClaim, SavedSearch, RaceAlert, OutboundClick, AlertDispatch,
-  InsertOrganizer, InsertRaceSeries, InsertRaceClaim, InsertSavedSearch, InsertRaceAlert, InsertOutboundClick, InsertAlertDispatch,
+  Organizer, RaceSeries, RaceClaim, SavedSearch, RaceAlert, OutboundClick, AlertDispatch, FeaturedRequest,
+  InsertOrganizer, InsertRaceSeries, InsertRaceClaim, InsertSavedSearch, InsertRaceAlert, InsertOutboundClick, InsertAlertDispatch, InsertFeaturedRequest,
   RaceSearchFilters,
 } from "@shared/schema";
 import { eq, and, sql, desc, asc, ilike, inArray, gte, lte, or, isNotNull } from "drizzle-orm";
@@ -902,6 +902,11 @@ export class DatabaseStorage implements IStorage {
     return org;
   }
 
+  async getOrganizerByEmail(email: string): Promise<Organizer | undefined> {
+    const [org] = await db.select().from(organizers).where(eq(organizers.email, email.toLowerCase()));
+    return org;
+  }
+
   async createOrganizer(data: InsertOrganizer): Promise<Organizer> {
     const [org] = await db.insert(organizers).values(data).returning();
     return org;
@@ -1238,6 +1243,319 @@ export class DatabaseStorage implements IStorage {
       .where(sql`${alertDispatches.dispatchedAt} >= ${since}`)
       .groupBy(alertDispatches.alertType);
     return rows;
+  }
+
+  // ───────── Organizer linkage + claim verify ─────────
+
+  async setUserOrganizer(userId: number, organizerId: number): Promise<void> {
+    await db.update(users).set({ isOrganizer: true, organizerId }).where(eq(users.id, userId));
+  }
+
+  async getOrganizerForUser(userId: number): Promise<Organizer | undefined> {
+    const [row] = await db.select({ org: organizers })
+      .from(users)
+      .innerJoin(organizers, eq(organizers.id, users.organizerId))
+      .where(eq(users.id, userId));
+    return row?.org;
+  }
+
+  async getRaceClaimWithRace(token: string): Promise<{ claim: RaceClaim; race: Race } | undefined> {
+    const [row] = await db.select({ claim: raceClaims, race: races })
+      .from(raceClaims)
+      .innerJoin(races, eq(races.id, raceClaims.raceId))
+      .where(eq(raceClaims.verificationToken, token));
+    return row;
+  }
+
+  async completeClaimVerification(token: string): Promise<{ user: User; organizer: Organizer; race: Race } | { error: string; pendingReview?: boolean }> {
+    const found = await this.getRaceClaimWithRace(token);
+    // Tokens are one-time: rejected if not found OR already consumed (token cleared).
+    if (!found || !found.claim.verificationToken) return { error: "This verification link is no longer valid. Please request a new one." };
+    const { claim, race } = found;
+    if (claim.status === "rejected") return { error: "This claim was rejected" };
+
+    // 7-day expiry on the verification token (hard stop regardless of prior verification).
+    const ageMs = Date.now() - new Date(claim.createdAt ?? Date.now()).getTime();
+    if (ageMs > 7 * 24 * 60 * 60 * 1000) {
+      return { error: "This verification link has expired" };
+    }
+
+    // SECURITY: if a race is already linked to a different organizer, do NOT auto-attach.
+    // Mark the claim as pending admin review and notify a human; never silently grant access
+    // to someone else's organizer account or someone else's race.
+    if (race.organizerId) {
+      const existingByEmail = await this.getOrganizerByEmail(claim.claimerEmail);
+      const sameOrganizer = existingByEmail && existingByEmail.id === race.organizerId;
+      if (!sameOrganizer) {
+        await db.update(raceClaims).set({
+          status: "pending",
+          reviewerNote: "Race already claimed by another organizer — admin review required",
+          // do NOT consume token here; admin can still see the claim
+        }).where(eq(raceClaims.id, claim.id));
+        return { error: "This race is already claimed. Our team will review your request and contact you within 2 business days.", pendingReview: true };
+      }
+    }
+
+    let user = await this.getUserByEmail(claim.claimerEmail);
+    if (!user) {
+      user = await this.createUser(claim.claimerEmail, claim.claimerName ?? undefined);
+    }
+
+    let organizer: Organizer | undefined;
+    if (claim.organizerId) {
+      const [o] = await db.select().from(organizers).where(eq(organizers.id, claim.organizerId));
+      organizer = o;
+    }
+    if (!organizer && race.organizerId) {
+      const [o] = await db.select().from(organizers).where(eq(organizers.id, race.organizerId));
+      organizer = o;
+    }
+    if (!organizer) {
+      // Reuse an organizer this email already owns rather than creating duplicates.
+      const existingByEmail = await this.getOrganizerByEmail(claim.claimerEmail);
+      if (existingByEmail) organizer = existingByEmail;
+    }
+    if (!organizer) {
+      const baseSlug = (claim.claimerName || race.name)
+        .toLowerCase().trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60) || `organizer-${Date.now()}`;
+      let slug = baseSlug;
+      let suffix = 1;
+      while (true) {
+        const existing = await this.getOrganizerBySlug(slug);
+        if (!existing) break;
+        slug = `${baseSlug}-${++suffix}`;
+        if (suffix > 50) { slug = `${baseSlug}-${Date.now()}`; break; }
+      }
+      organizer = await this.createOrganizer({
+        slug,
+        name: claim.claimerName || race.name,
+        email: claim.claimerEmail,
+        contactName: claim.claimerName ?? null,
+        city: race.city,
+        state: race.state,
+        isVerified: true,
+        raceCount: 0,
+      });
+    } else if (!organizer.isVerified) {
+      const [updated] = await db.update(organizers).set({ isVerified: true }).where(eq(organizers.id, organizer.id)).returning();
+      if (updated) organizer = updated;
+    }
+
+    // Consume the token so it cannot be replayed.
+    await db.update(raceClaims).set({
+      status: "approved",
+      organizerId: organizer.id,
+      verifiedAt: claim.verifiedAt ?? new Date(),
+      reviewedAt: new Date(),
+      reviewerNote: claim.reviewerNote ?? "Self-verified via email",
+      verificationToken: null,
+    }).where(eq(raceClaims.id, claim.id));
+
+    await db.update(races).set({
+      organizerId: organizer.id,
+      isClaimed: true,
+    }).where(eq(races.id, race.id));
+
+    await this.setUserOrganizer(user.id, organizer.id);
+    await this.updateUserLastLogin(user.id);
+
+    return { user, organizer, race };
+  }
+
+  // ───────── Organizer-side race editing + dashboard ─────────
+
+  async getRacesEditableByUser(userId: number): Promise<Race[]> {
+    const [u] = await db.select().from(users).where(eq(users.id, userId));
+    if (!u || !u.isOrganizer || !u.organizerId) return [];
+    return db.select().from(races)
+      .where(and(eq(races.organizerId, u.organizerId), eq(races.isActive, true)))
+      .orderBy(asc(races.date));
+  }
+
+  async getRaceForOrganizerUser(raceId: number, userId: number): Promise<Race | undefined> {
+    const [u] = await db.select().from(users).where(eq(users.id, userId));
+    if (!u || !u.isOrganizer || !u.organizerId) return undefined;
+    const [r] = await db.select().from(races).where(and(eq(races.id, raceId), eq(races.organizerId, u.organizerId)));
+    return r;
+  }
+
+  async updateRaceContent(raceId: number, organizerId: number, partial: Partial<Race>): Promise<Race | undefined> {
+    const allowedKeys: (keyof Race)[] = [
+      "registrationUrl", "website", "description", "startTime", "timeLimit",
+      "priceMin", "priceMax", "registrationOpen", "registrationDeadline",
+      "nextPriceIncreaseAt", "nextPriceIncreaseAmount",
+      "courseMapUrl", "elevationProfileUrl", "courseType", "terrain", "elevationGainM", "fieldSize",
+      "refundPolicy", "deferralPolicy", "packetPickup", "parkingNotes", "transitFriendly",
+      "walkerFriendly", "strollerFriendly", "dogFriendly", "kidsRace",
+      "charity", "charityPartner", "vibeTags",
+    ];
+    const update: Record<string, unknown> = { lastVerifiedAt: new Date() };
+    for (const k of allowedKeys) {
+      if (k in partial) update[k as string] = (partial as Record<string, unknown>)[k as string];
+    }
+    if (Object.keys(update).length <= 1) return undefined;
+    const [updated] = await db.update(races)
+      .set(update)
+      .where(and(eq(races.id, raceId), eq(races.organizerId, organizerId)))
+      .returning();
+    return updated;
+  }
+
+  // ───────── Race page-view tracking + analytics ─────────
+
+  async incrementRacePageView(raceId: number): Promise<void> {
+    const day = new Date().toISOString().slice(0, 10);
+    await db.insert(racePageViews)
+      .values({ raceId, day, count: 1 })
+      .onConflictDoUpdate({
+        target: [racePageViews.raceId, racePageViews.day],
+        set: { count: sql`${racePageViews.count} + 1` },
+      });
+  }
+
+  async getRaceAnalytics(raceId: number, sinceDays: number = 30): Promise<{
+    totals: { views: number; saves: number; clicks: number };
+    timeline: { day: string; views: number; clicks: number; saves: number }[];
+    byDestination: { destination: string; count: number }[];
+  }> {
+    const safeDays = Math.max(1, Math.min(180, Math.floor(sinceDays)));
+    const sinceDate = new Date();
+    sinceDate.setDate(sinceDate.getDate() - safeDays);
+    const sinceDay = sinceDate.toISOString().slice(0, 10);
+
+    const [viewsTotal, viewsRows, savesTotal, clicksTotal, clicksRows, destRows] = await Promise.all([
+      db.select({ total: sql<number>`COALESCE(SUM(${racePageViews.count}), 0)::int` })
+        .from(racePageViews)
+        .where(and(eq(racePageViews.raceId, raceId), sql`${racePageViews.day} >= ${sinceDay}`)),
+      db.select({ day: racePageViews.day, count: racePageViews.count })
+        .from(racePageViews)
+        .where(and(eq(racePageViews.raceId, raceId), sql`${racePageViews.day} >= ${sinceDay}`)),
+      db.select({ total: sql<number>`COUNT(*)::int` })
+        .from(favorites)
+        .where(and(eq(favorites.itemType, "race"), eq(favorites.itemId, raceId), sql`${favorites.createdAt} >= ${sinceDate}`)),
+      db.select({ total: sql<number>`COUNT(*)::int` })
+        .from(outboundClicks)
+        .where(and(eq(outboundClicks.raceId, raceId), sql`${outboundClicks.createdAt} >= ${sinceDate}`)),
+      db.select({
+        day: sql<string>`to_char(${outboundClicks.createdAt}, 'YYYY-MM-DD')`,
+        count: sql<number>`COUNT(*)::int`,
+      }).from(outboundClicks)
+        .where(and(eq(outboundClicks.raceId, raceId), sql`${outboundClicks.createdAt} >= ${sinceDate}`))
+        .groupBy(sql`to_char(${outboundClicks.createdAt}, 'YYYY-MM-DD')`),
+      db.select({ destination: outboundClicks.destination, count: sql<number>`COUNT(*)::int` })
+        .from(outboundClicks)
+        .where(and(eq(outboundClicks.raceId, raceId), sql`${outboundClicks.createdAt} >= ${sinceDate}`))
+        .groupBy(outboundClicks.destination),
+    ]);
+
+    const savesRows = await db.select({
+      day: sql<string>`to_char(${favorites.createdAt}, 'YYYY-MM-DD')`,
+      count: sql<number>`COUNT(*)::int`,
+    }).from(favorites)
+      .where(and(eq(favorites.itemType, "race"), eq(favorites.itemId, raceId), sql`${favorites.createdAt} >= ${sinceDate}`))
+      .groupBy(sql`to_char(${favorites.createdAt}, 'YYYY-MM-DD')`);
+
+    const map = new Map<string, { day: string; views: number; clicks: number; saves: number }>();
+    for (let i = 0; i < safeDays; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - (safeDays - 1 - i));
+      const key = d.toISOString().slice(0, 10);
+      map.set(key, { day: key, views: 0, clicks: 0, saves: 0 });
+    }
+    for (const r of viewsRows) {
+      const k = r.day;
+      if (!map.has(k)) map.set(k, { day: k, views: 0, clicks: 0, saves: 0 });
+      map.get(k)!.views = Number(r.count);
+    }
+    for (const r of clicksRows) {
+      const k = r.day;
+      if (!map.has(k)) map.set(k, { day: k, views: 0, clicks: 0, saves: 0 });
+      map.get(k)!.clicks = Number(r.count);
+    }
+    for (const r of savesRows) {
+      const k = r.day;
+      if (!map.has(k)) map.set(k, { day: k, views: 0, clicks: 0, saves: 0 });
+      map.get(k)!.saves = Number(r.count);
+    }
+
+    const byDestination = destRows
+      .map((r) => ({ destination: r.destination, count: Number(r.count) }))
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      totals: {
+        views: Number(viewsTotal[0]?.total ?? 0),
+        saves: Number(savesTotal[0]?.total ?? 0),
+        clicks: Number(clicksTotal[0]?.total ?? 0),
+      },
+      timeline: Array.from(map.values()).sort((a, b) => a.day.localeCompare(b.day)),
+      byDestination,
+    };
+  }
+
+  // ───────── Featured listing requests ─────────
+
+  async createFeaturedRequest(data: InsertFeaturedRequest): Promise<FeaturedRequest> {
+    const [row] = await db.insert(featuredRequests).values(data).returning();
+    return row;
+  }
+
+  async getPendingFeaturedRequests(limit: number = 100): Promise<FeaturedRequest[]> {
+    return db.select().from(featuredRequests)
+      .where(eq(featuredRequests.status, "pending"))
+      .orderBy(desc(featuredRequests.createdAt))
+      .limit(limit);
+  }
+
+  async getFeaturedRequest(id: number): Promise<FeaturedRequest | undefined> {
+    const [row] = await db.select().from(featuredRequests).where(eq(featuredRequests.id, id));
+    return row;
+  }
+
+  async approveFeaturedRequest(id: number, durationDays: number, adminNote?: string): Promise<{ request: FeaturedRequest; race: Race } | undefined> {
+    const req = await this.getFeaturedRequest(id);
+    if (!req) return undefined;
+    const featuredUntil = new Date();
+    featuredUntil.setDate(featuredUntil.getDate() + Math.max(1, Math.min(365, Math.floor(durationDays))));
+    await db.update(featuredRequests).set({
+      status: "approved",
+      adminNote: adminNote ?? null,
+      reviewedAt: new Date(),
+    }).where(eq(featuredRequests.id, id));
+    const [race] = await db.update(races).set({
+      isFeatured: true,
+      featuredUntil,
+    }).where(eq(races.id, req.raceId)).returning();
+    const [updated] = await db.select().from(featuredRequests).where(eq(featuredRequests.id, id));
+    return updated && race ? { request: updated, race } : undefined;
+  }
+
+  async rejectFeaturedRequest(id: number, adminNote?: string): Promise<FeaturedRequest | undefined> {
+    const [row] = await db.update(featuredRequests).set({
+      status: "rejected",
+      adminNote: adminNote ?? null,
+      reviewedAt: new Date(),
+    }).where(eq(featuredRequests.id, id)).returning();
+    return row;
+  }
+
+  async getFeaturedRaces(filter?: { cityId?: number; distance?: string; isTurkeyTrot?: boolean; limit?: number }): Promise<Race[]> {
+    const conditions = [
+      eq(races.isActive, true),
+      isNotNull(races.featuredUntil),
+      sql`${races.featuredUntil} > NOW()`,
+      sql`${races.date} >= CURRENT_DATE::text`,
+    ];
+    if (filter?.cityId) conditions.push(eq(races.cityId, filter.cityId));
+    if (filter?.distance) conditions.push(eq(races.distance, filter.distance));
+    if (filter?.isTurkeyTrot) conditions.push(eq(races.isTurkeyTrot, true));
+    return db.select().from(races)
+      .where(and(...conditions))
+      .orderBy(asc(races.date))
+      .limit(filter?.limit ?? 12);
   }
 }
 

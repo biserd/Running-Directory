@@ -15,13 +15,14 @@ const PRIMARY_NAV: { label: string; href: string; testId: string }[] = [
   { label: "Half", href: "/races?distance=Half+Marathon", testId: "link-distance-half" },
   { label: "Marathon", href: "/races?distance=Marathon", testId: "link-distance-marathon" },
   { label: "Trail", href: "/races?surface=Trail", testId: "link-surface-trail" },
-  { label: "For organizers", href: "/organizers", testId: "link-for-organizers" },
+  { label: "For organizers", href: "/for-organizers", testId: "link-for-organizers" },
 ];
 
 function isActive(location: string, href: string): boolean {
   const path = href.split("?")[0];
   if (path === "/races") return location === "/races" || location.startsWith("/races?");
   if (path === "/organizers") return location.startsWith("/organizers");
+  if (path === "/for-organizers") return location === "/for-organizers" || location.startsWith("/organizers/dashboard");
   return location === path;
 }
 
@@ -70,7 +71,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <DropdownMenuItem asChild><Link href="/races?turkeyTrot=true" data-testid="link-turkey-trots-md">Turkey Trots</Link></DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Link href="/organizers" className={cn("hover:text-primary", isActive(location, "/organizers") ? "text-primary" : "text-foreground/80")} data-testid="link-for-organizers-md">For organizers</Link>
+            <Link href="/for-organizers" className={cn("hover:text-primary", isActive(location, "/for-organizers") ? "text-primary" : "text-foreground/80")} data-testid="link-for-organizers-md">For organizers</Link>
           </nav>
 
           <div className="flex items-center gap-2">
@@ -200,7 +201,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <h4 className="font-heading font-semibold mb-4">For organizers</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="/organizers" className="hover:text-primary" data-testid="link-organizers-footer">Race organizers</Link></li>
-                <li><Link href="/organizers" className="hover:text-primary" data-testid="link-claim-footer">Claim your race</Link></li>
+                <li><Link href="/for-organizers" className="hover:text-primary" data-testid="link-claim-footer">Claim your race</Link></li>
+                <li><Link href="/organizers/dashboard" className="hover:text-primary" data-testid="link-organizer-dashboard-footer">Organizer dashboard</Link></li>
               </ul>
             </div>
           </div>
