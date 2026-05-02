@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { apiGetState, apiGetCity, apiGetRaces, apiGetRoutes, apiGetCitiesByState } from "@/lib/api";
+import { MarketSummary } from "@/components/market-summary";
 import heroImage from "@/assets/images/hero-races.jpg";
 import { MapPin, ArrowRight } from "lucide-react";
 
@@ -64,6 +65,16 @@ export default function CityHub() {
           { label: stateName, href: `/state/${stateSlug}` },
           { label: cityName },
         ]} />
+
+        {cityData?.name && stateData?.abbreviation && (
+          <div className="mt-8">
+            <MarketSummary
+              state={stateData.abbreviation}
+              city={cityData.name}
+              scopeLabel={`${cityData.name}, ${stateData.abbreviation}`}
+            />
+          </div>
+        )}
 
         <section className="mt-10">
           <div className="flex items-center justify-between mb-6">

@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { apiGetState, apiGetRaces, apiGetRoutes, apiGetCitiesByState } from "@/lib/api";
+import { MarketSummary } from "@/components/market-summary";
 import heroImage from "@/assets/images/hero-races.jpg";
 import { MapPin, ArrowRight, Navigation } from "lucide-react";
 
@@ -65,6 +66,12 @@ export default function StateHub() {
             <div className="text-sm text-muted-foreground">Routes</div>
           </div>
         </div>
+
+        {stateData?.abbreviation && (
+          <div className="mt-8">
+            <MarketSummary state={stateData.abbreviation} scopeLabel={stateName} />
+          </div>
+        )}
 
         <div className="mt-12">
           <div className="flex items-center justify-between mb-6">

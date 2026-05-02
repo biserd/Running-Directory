@@ -1996,6 +1996,103 @@ export class DatabaseStorage implements IStorage {
   }
 
   // -----------------------------------------------------------------
+  // Map view: lightweight pins (id, slug, name, lat/lng, key facts)
+  // -----------------------------------------------------------------
+  async getRacePins(filters?: {
+    state?: string;
+    distance?: string;
+    bbox?: { minLat: number; minLng: number; maxLat: number; maxLng: number };
+    limit?: number;
+  }): Promise<Array<{
+    id: number; slug: string; name: string; city: string; state: string;
+    distance: string; date: string; lat: number; lng: number;
+    priceMin: number | null; qualityScore: number;
+  }>> {
+    const conds: any[] = [
+      isNotNull(races.lat),
+      isNotNull(races.lng),
+      eq(races.isActive, true),
+    ];
+    if (filters?.state) conds.push(eq(races.state, filters.state));
+    if (filters?.distance) conds.push(eq(races.distance, filters.distance));
+    if (filters?.bbox) {
+      conds.push(gte(races.lat, filters.bbox.minLat));
+      conds.push(lte(races.lat, filters.bbox.maxLat));
+      conds.push(gte(races.lng, filters.bbox.minLng));
+      conds.push(lte(races.lng, filters.bbox.maxLng));
+    }
+    const limit = Math.min(Math.max(filters?.limit ?? 5000, 1), 10000);
+    const rows = await db.select({
+      id: races.id, slug: races.slug, name: races.name,
+      city: races.city, state: races.state, distance: races.distance,
+      date: races.date, lat: races.lat, lng: races.lng,
+      priceMin: races.priceMin, qualityScore: races.qualityScore,
+    }).from(races).where(and(...conds)).limit(limit);
+    return rows.filter((r): r is typeof r & { lat: number; lng: number } =>
+      r.lat != null && r.lng != null);
+  }
+
+  // -----------------------------------------------------------------
+  // Market intelligence: aggregated stats per state/city/distance
+  // -----------------------------------------------------------------
+  async getMarketStats(filters: {
+    state?: string;
+    city?: string;
+    distance?: string;
+  }): Promise<{
+    raceCount: number;
+    avgPriceMin: number | null;
+    avgPriceMax: number | null;
+    medianQualityScore: number | null;
+    distanceMix: { distance: string; count: number }[];
+    next30Days: number;
+    registrationClosingSoon: number;
+    avgPriceByDistance: { distance: string; avgPriceMin: number | null }[];
+  }> {
+    const conds: any[] = [eq(races.isActive, true)];
+    if (filters.state) conds.push(eq(races.state, filters.state));
+    if (filters.city) conds.push(eq(races.city, filters.city));
+    if (filters.distance) conds.push(eq(races.distance, filters.distance));
+
+    const today = new Date().toISOString().slice(0, 10);
+    const in30 = new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10);
+
+    const [agg] = await db.select({
+      raceCount: sql<number>`COUNT(*)::int`,
+      avgPriceMin: sql<number | null>`AVG(${races.priceMin})::float`,
+      avgPriceMax: sql<number | null>`AVG(${races.priceMax})::float`,
+      medianQualityScore: sql<number | null>`PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${races.qualityScore})::float`,
+      next30Days: sql<number>`COUNT(*) FILTER (WHERE ${races.date} >= ${today} AND ${races.date} <= ${in30})::int`,
+      registrationClosingSoon: sql<number>`COUNT(*) FILTER (WHERE ${races.registrationDeadline} IS NOT NULL AND ${races.registrationDeadline} >= ${today} AND ${races.registrationDeadline} <= ${in30})::int`,
+    }).from(races).where(and(...conds));
+
+    const mix = await db.select({
+      distance: races.distance,
+      count: sql<number>`COUNT(*)::int`,
+    }).from(races).where(and(...conds)).groupBy(races.distance).orderBy(desc(sql`COUNT(*)`)).limit(8);
+
+    const byDist = await db.select({
+      distance: races.distance,
+      avgPriceMin: sql<number | null>`AVG(${races.priceMin})::float`,
+    }).from(races).where(and(...conds, isNotNull(races.priceMin)))
+      .groupBy(races.distance).orderBy(desc(sql`COUNT(*)`)).limit(6);
+
+    return {
+      raceCount: agg?.raceCount ?? 0,
+      avgPriceMin: agg?.avgPriceMin != null ? Math.round(agg.avgPriceMin) : null,
+      avgPriceMax: agg?.avgPriceMax != null ? Math.round(agg.avgPriceMax) : null,
+      medianQualityScore: agg?.medianQualityScore != null ? Math.round(agg.medianQualityScore) : null,
+      distanceMix: mix,
+      next30Days: agg?.next30Days ?? 0,
+      registrationClosingSoon: agg?.registrationClosingSoon ?? 0,
+      avgPriceByDistance: byDist.map((r) => ({
+        distance: r.distance,
+        avgPriceMin: r.avgPriceMin != null ? Math.round(r.avgPriceMin) : null,
+      })),
+    };
+  }
+
+  // -----------------------------------------------------------------
   // Field-level provenance (multi-source merge foundation)
   // -----------------------------------------------------------------
   /**

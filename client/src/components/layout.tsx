@@ -60,6 +60,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {/* Condensed nav for medium screens */}
           <nav className="hidden md:flex lg:hidden items-center gap-4 text-sm font-medium">
             <Link href="/races" className={cn("hover:text-primary", isActive(location, "/races") ? "text-primary" : "text-foreground/80")} data-testid="link-find-races-md">Find races</Link>
+            <Link href="/map" className={cn("hover:text-primary", isActive(location, "/map") ? "text-primary" : "text-foreground/80")} data-testid="link-map-md">Map</Link>
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-1 hover:text-primary outline-none" data-testid="button-distances-menu">
                 Distances <ChevronDown className="h-3.5 w-3.5" />

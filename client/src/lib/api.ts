@@ -278,9 +278,14 @@ export type EditableRaceFields = Partial<{
   faq: { q: string; a: string }[] | null;
 }>;
 
+export type OutboundDestination =
+  | "registration" | "website" | "organizer"
+  | "course-map" | "elevation" | "results" | "social"
+  | "sponsorship" | "hotel" | "flight" | "gear" | "coach";
+
 export function buildOutboundRedirectUrl(params: {
   url: string;
-  destination: "registration" | "website" | "organizer" | "course-map" | "elevation" | "results" | "social";
+  destination: OutboundDestination;
   raceId?: number;
   organizerId?: number;
 }): string {
@@ -290,6 +295,44 @@ export function buildOutboundRedirectUrl(params: {
   if (params.raceId != null) qs.set("raceId", String(params.raceId));
   if (params.organizerId != null) qs.set("organizerId", String(params.organizerId));
   return `/api/outbound/redirect?${qs.toString()}`;
+}
+
+export type RacePin = {
+  id: number; slug: string; name: string; city: string; state: string;
+  distance: string; date: string; lat: number; lng: number;
+  priceMin: number | null; qualityScore: number;
+};
+
+export async function apiGetRacePins(params: { state?: string; distance?: string; bbox?: string; limit?: number }): Promise<{ pins: RacePin[] }> {
+  const qs = new URLSearchParams();
+  if (params.state) qs.set("state", params.state);
+  if (params.distance) qs.set("distance", params.distance);
+  if (params.bbox) qs.set("bbox", params.bbox);
+  if (params.limit) qs.set("limit", String(params.limit));
+  const res = await fetch(`/api/races/map?${qs.toString()}`);
+  if (!res.ok) throw new Error("Failed to load race pins");
+  return res.json();
+}
+
+export type MarketStats = {
+  raceCount: number;
+  avgPriceMin: number | null;
+  avgPriceMax: number | null;
+  medianQualityScore: number | null;
+  distanceMix: { distance: string; count: number }[];
+  next30Days: number;
+  registrationClosingSoon: number;
+  avgPriceByDistance: { distance: string; avgPriceMin: number | null }[];
+};
+
+export async function apiGetMarketStats(params: { state?: string; city?: string; distance?: string }): Promise<MarketStats> {
+  const qs = new URLSearchParams();
+  if (params.state) qs.set("state", params.state);
+  if (params.city) qs.set("city", params.city);
+  if (params.distance) qs.set("distance", params.distance);
+  const res = await fetch(`/api/markets/summary?${qs.toString()}`);
+  if (!res.ok) throw new Error("Failed to load market stats");
+  return res.json();
 }
 
 export async function apiUpdateOrganizerRace(raceId: number, partial: EditableRaceFields) {

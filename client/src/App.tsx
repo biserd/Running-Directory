@@ -13,6 +13,7 @@ import RacesCityPage from "@/pages/races/city";
 import RacesYearPage from "@/pages/races/year";
 import RacesNearbyPage from "@/pages/races/nearby";
 import RaceDetail from "@/pages/races/detail";
+import MapPage from "@/pages/map";
 import RoutesHub from "@/pages/routes/index";
 import RoutesStatePage from "@/pages/routes/state";
 import RoutesCityPage from "@/pages/routes/city";
@@ -72,6 +73,7 @@ function AppRouter() {
       <Route path="/races/year/:year/month/:month" component={RacesYearPage} />
       <Route path="/races/year/:year" component={RacesYearPage} />
       <Route path="/races/nearby" component={RacesNearbyPage} />
+      <Route path="/map" component={MapPage} />
       <Route path="/races/:slug" component={RaceDetail} />
       <Route path="/routes" component={RoutesHub} />
       <Route path="/routes/state/:state/city/:city" component={RoutesCityPage} />

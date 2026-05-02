@@ -21,6 +21,7 @@ import { ToolsCTA } from "@/components/tools-cta";
 import { ReviewSection } from "@/components/review-section";
 import { ScoreBlock } from "@/components/score-block";
 import { BestForBadges } from "@/components/best-for-badges";
+import { PlanYourTrip } from "@/components/plan-your-trip";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   apiGetRace, apiGetRoutes, apiGetWeather, apiGetElevationProfile, apiGetBooks, apiGetPodcasts,
@@ -740,6 +741,16 @@ export default function RaceDetail() {
               <li className="border-t pt-2"><span className="text-muted-foreground block text-xs mb-1">Deferral policy</span><span data-testid="text-deferral-policy">{race.deferralPolicy || <span className="text-muted-foreground italic">Not stated by organizer</span>}</span></li>
             </ul>
           </div>
+
+          {/* Plan your trip — affiliate-tracked travel & training links */}
+          <PlanYourTrip
+            raceId={race.id}
+            raceName={race.name}
+            city={race.city}
+            state={race.state}
+            date={race.date}
+            distance={race.distance}
+          />
 
           {/* Section 14: Difficulty */}
           <DifficultyCard race={race} weather={weather} />

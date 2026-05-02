@@ -293,6 +293,34 @@ export async function registerRoutes(
     "nearby",
   ]);
 
+  // Lightweight pin endpoint for the /map page. Registered BEFORE /:slug so the
+  // word "map" isn't captured as a slug.
+  app.get("/api/races/map", async (req, res) => {
+    const state = typeof req.query.state === "string" ? req.query.state : undefined;
+    const distance = typeof req.query.distance === "string" ? req.query.distance : undefined;
+    const limit = req.query.limit ? Math.min(parseInt(String(req.query.limit), 10) || 5000, 10000) : 5000;
+    let bbox: { minLat: number; minLng: number; maxLat: number; maxLng: number } | undefined;
+    if (typeof req.query.bbox === "string") {
+      const parts = req.query.bbox.split(",").map(parseFloat);
+      if (parts.length === 4 && parts.every((n) => Number.isFinite(n))) {
+        bbox = { minLng: parts[0], minLat: parts[1], maxLng: parts[2], maxLat: parts[3] };
+      }
+    }
+    const pins = await storage.getRacePins({ state, distance, bbox, limit });
+    res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    res.json({ pins });
+  });
+
+  // Aggregated market stats for state/city hubs.
+  app.get("/api/markets/summary", async (req, res) => {
+    const state = typeof req.query.state === "string" ? req.query.state : undefined;
+    const city = typeof req.query.city === "string" ? req.query.city : undefined;
+    const distance = typeof req.query.distance === "string" ? req.query.distance : undefined;
+    const stats = await storage.getMarketStats({ state, city, distance });
+    res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=1800");
+    res.json(stats);
+  });
+
   app.get("/api/races/:slug", async (req, res, next) => {
     if (RESERVED_RACE_ROUTES.has(req.params.slug)) return next();
     const race = await storage.getRaceBySlug(req.params.slug);
@@ -1689,7 +1717,7 @@ export async function registerRoutes(
   // to the organizer's site. We only allow http/https targets and validate the
   // destination tag against our enum so the URL can't be abused as an open
   // redirect to javascript: or data: URIs.
-  const outboundDestinations = ["registration", "website", "organizer", "course-map", "elevation", "results", "social"] as const;
+  const outboundDestinations = ["registration", "website", "organizer", "course-map", "elevation", "results", "social", "sponsorship", "hotel", "flight", "gear", "coach"] as const;
   app.get("/api/outbound/redirect", async (req, res) => {
     const url = typeof req.query.url === "string" ? req.query.url : "";
     const destination = typeof req.query.destination === "string" ? req.query.destination : "";
