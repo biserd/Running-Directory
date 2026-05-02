@@ -1,5 +1,6 @@
 import { db } from "./db";
-import { states, cities, races, raceOccurrences, routes, sources, sourceRecords, collections, influencers, podcasts, books, users, magicLinkTokens, favorites, reviews, organizers, raceSeries, raceClaims, savedSearches, raceAlerts, outboundClicks, alertDispatches, featuredRequests, racePageViews, apiKeys, sponsorships, marketReports, marketReportAccess, monetizationRequests } from "@shared/schema";
+import { states, cities, races, raceOccurrences, routes, sources, sourceRecords, collections, influencers, podcasts, books, users, magicLinkTokens, favorites, reviews, organizers, raceSeries, raceClaims, savedSearches, raceAlerts, outboundClicks, alertDispatches, featuredRequests, racePageViews, apiKeys, sponsorships, marketReports, marketReportAccess, monetizationRequests, raceFieldProvenance } from "@shared/schema";
+import { TRACKED_FIELDS, isTrackedField, resolveFieldWinners, type TrackedField } from "@shared/provenance";
 import type {
   State, City, Race, RaceOccurrence, Route, Source, SourceRecord, Collection, Influencer, Podcast, Book,
   InsertState, InsertCity, InsertRace, InsertRaceOccurrence, InsertRoute, InsertSource, InsertSourceRecord, InsertCollection, InsertInfluencer, InsertPodcast, InsertBook,
@@ -9,6 +10,7 @@ import type {
   ApiKey, InsertApiKey, Sponsorship, InsertSponsorship,
   MarketReport, InsertMarketReport, MarketReportAccess, InsertMarketReportAccess, MarketReportData,
   MonetizationRequest, InsertMonetizationRequest,
+  RaceFieldProvenance,
   RaceSearchFilters,
 } from "@shared/schema";
 import { eq, and, sql, desc, asc, ilike, inArray, gte, lte, or, isNotNull } from "drizzle-orm";
@@ -1991,6 +1993,74 @@ export class DatabaseStorage implements IStorage {
       reviewedAt: new Date(),
     }).where(eq(monetizationRequests.id, id)).returning();
     return row;
+  }
+
+  // -----------------------------------------------------------------
+  // Field-level provenance (multi-source merge foundation)
+  // -----------------------------------------------------------------
+  /**
+   * Record one observation per (raceId, fieldName, sourceKey). Re-observing the
+   * same triple from the same source upserts (newest value + observedAt wins
+   * within that source). Untracked field names and undefined values are skipped.
+   */
+  async recordRaceProvenance(
+    raceId: number,
+    sourceKey: string,
+    fields: Record<string, unknown>,
+    opts?: { confidence?: number; observedAt?: Date },
+  ): Promise<number> {
+    const confidence = Math.max(0, Math.min(100, opts?.confidence ?? 100));
+    const observedAt = opts?.observedAt ?? new Date();
+    const rows = Object.entries(fields)
+      .filter(([k, v]) => isTrackedField(k) && v !== undefined)
+      .map(([fieldName, value]) => ({
+        raceId,
+        fieldName,
+        sourceKey,
+        value: value as unknown,
+        confidence,
+        observedAt,
+      }));
+    if (rows.length === 0) return 0;
+    await db.insert(raceFieldProvenance)
+      .values(rows)
+      .onConflictDoUpdate({
+        target: [raceFieldProvenance.raceId, raceFieldProvenance.fieldName, raceFieldProvenance.sourceKey],
+        set: {
+          value: sql`excluded.value`,
+          confidence: sql`excluded.confidence`,
+          observedAt: sql`excluded.observed_at`,
+        },
+      });
+    return rows.length;
+  }
+
+  async getRaceProvenance(raceId: number): Promise<RaceFieldProvenance[]> {
+    return db.select().from(raceFieldProvenance)
+      .where(eq(raceFieldProvenance.raceId, raceId))
+      .orderBy(asc(raceFieldProvenance.fieldName), desc(raceFieldProvenance.observedAt));
+  }
+
+  /**
+   * Resolve the winning value for each tracked field on a race using the
+   * trust-hierarchy resolver. Returns a partial map of field → value
+   * (only fields that have at least one non-null observation).
+   */
+  async resolveRaceFields(raceId: number): Promise<Record<string, unknown>> {
+    const rows = await db.select({
+      fieldName: raceFieldProvenance.fieldName,
+      sourceKey: raceFieldProvenance.sourceKey,
+      value: raceFieldProvenance.value,
+      confidence: raceFieldProvenance.confidence,
+      observedAt: raceFieldProvenance.observedAt,
+    }).from(raceFieldProvenance).where(eq(raceFieldProvenance.raceId, raceId));
+    return resolveFieldWinners(rows.map((r) => ({
+      fieldName: r.fieldName,
+      sourceKey: r.sourceKey,
+      value: r.value,
+      confidence: r.confidence,
+      observedAt: r.observedAt ?? new Date(0),
+    })));
   }
 }
 

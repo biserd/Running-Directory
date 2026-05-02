@@ -548,6 +548,23 @@ export const reviews = pgTable("reviews", {
   index("reviews_user_idx").on(table.userId),
 ]);
 
+export const raceFieldProvenance = pgTable("race_field_provenance", {
+  id: serial("id").primaryKey(),
+  raceId: integer("race_id").notNull().references(() => races.id, { onDelete: "cascade" }),
+  fieldName: text("field_name").notNull(),
+  sourceKey: text("source_key").notNull(),
+  value: jsonb("value"),
+  confidence: integer("confidence").notNull().default(100),
+  observedAt: timestamp("observed_at").notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("race_field_provenance_unique_idx").on(table.raceId, table.fieldName, table.sourceKey),
+  index("race_field_provenance_race_idx").on(table.raceId),
+]);
+
+export const insertRaceFieldProvenanceSchema = createInsertSchema(raceFieldProvenance).omit({ id: true, observedAt: true });
+export type InsertRaceFieldProvenance = z.infer<typeof insertRaceFieldProvenanceSchema>;
+export type RaceFieldProvenance = typeof raceFieldProvenance.$inferSelect;
+
 export const insertStateSchema = createInsertSchema(states).omit({ id: true });
 export const insertCitySchema = createInsertSchema(cities).omit({ id: true });
 export const insertRaceSchema = createInsertSchema(races).omit({ id: true });

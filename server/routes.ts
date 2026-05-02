@@ -1189,6 +1189,16 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/races/:id/provenance", adminAuth, async (req, res) => {
+    const raceId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(raceId)) return res.status(400).json({ message: "Invalid race id" });
+    const [rows, resolved] = await Promise.all([
+      storage.getRaceProvenance(raceId),
+      storage.resolveRaceFields(raceId),
+    ]);
+    res.json({ raceId, observations: rows, resolved });
+  });
+
   app.get("/api/admin/claims", adminAuth, async (req, res) => {
     const status = (req.query.status as string) || "pending";
     const list = await storage.getRaceClaimsByStatus(status, 100);
@@ -1284,6 +1294,9 @@ export async function registerRoutes(
       const partial = editableRaceSchema.parse(req.body ?? {});
       const updated = await storage.updateRaceContent(raceId, ctx.organizerId, partial as Partial<Race>);
       if (!updated) return res.status(400).json({ message: "Nothing to update" });
+      // Record organizer-sourced provenance so future multi-source merges respect this edit.
+      storage.recordRaceProvenance(raceId, "organizer", partial as Record<string, unknown>)
+        .catch((err) => console.error("[provenance] organizer write failed:", err));
       res.json({ ok: true, race: updated });
     } catch (err) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: "Invalid input", errors: err.errors });

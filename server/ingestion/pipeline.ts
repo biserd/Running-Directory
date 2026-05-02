@@ -111,6 +111,25 @@ export async function processRaceImport(records: RawRaceRecord[]): Promise<{
 
       const result = await storage.upsertRace(raceData);
 
+      // Record per-field provenance for the merge resolver. Sourced fields only;
+      // computed values like qualityScore are excluded.
+      storage.recordRaceProvenance(result.id, record.sourceName || "runsignup", {
+        name: record.name,
+        date: record.date,
+        city: record.city,
+        state: record.state,
+        distance: record.distance,
+        distanceLabel: record.distanceLabel,
+        distanceMeters: record.distanceMeters,
+        surface: record.surface,
+        elevation: record.elevation,
+        description: record.description,
+        website: record.website,
+        registrationUrl: record.registrationUrl,
+        startTime: record.startTime,
+        timeLimit: record.timeLimit,
+      }).catch((err) => console.error("[provenance] ingest write failed:", err));
+
       const sourceRecord: InsertSourceRecord = {
         sourceId,
         externalId: record.externalId,
