@@ -1,3 +1,4 @@
+/// <reference types="google.maps" />
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
@@ -24,6 +25,12 @@ function writeUrlParams(params: Record<string, string | undefined>) {
   window.history.replaceState({}, "", url.toString());
 }
 
+async function fetchPublicConfig(): Promise<{ googleMapsApiKey: string | null }> {
+  const res = await fetch("/api/config/public");
+  if (!res.ok) throw new Error("Failed to load public config");
+  return res.json();
+}
+
 export default function MapPage() {
   const [stateFilter, setStateFilter] = useState<string | undefined>(readUrlParam("state"));
   const [distanceFilter, setDistanceFilter] = useState<string | undefined>(readUrlParam("distance"));
@@ -35,6 +42,12 @@ export default function MapPage() {
   const { data: states } = useQuery({
     queryKey: ["/api/states"],
     queryFn: () => apiGetStates(),
+    staleTime: 1000 * 60 * 60,
+  });
+
+  const { data: config } = useQuery({
+    queryKey: ["/api/config/public"],
+    queryFn: fetchPublicConfig,
     staleTime: 1000 * 60 * 60,
   });
 
@@ -96,78 +109,88 @@ export default function MapPage() {
             <Skeleton className="h-12 w-48" />
           </div>
         )}
-        <RaceMap pins={pins} />
+        {config?.googleMapsApiKey ? (
+          <RaceMap apiKey={config.googleMapsApiKey} pins={pins} />
+        ) : config && !config.googleMapsApiKey ? (
+          <div className="h-full flex items-center justify-center text-center px-6" data-testid="map-no-key">
+            <div>
+              <h2 className="font-heading font-bold text-xl mb-2">Google Maps key not configured</h2>
+              <p className="text-muted-foreground text-sm">
+                Set the <code>GOOGLE_MAPS_API_KEY</code> secret to enable the map.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <Skeleton className="h-full w-full" />
+        )}
       </div>
     </Layout>
   );
 }
 
-// Leaflet references `window` at module-eval time, so we dynamically import it
-// (and the markercluster plugin + their CSS) inside useEffect. This keeps the
-// page SSR-safe — the server renders the chrome and the map mounts client-side.
-type LeafletNS = typeof import("leaflet");
+// Google Maps JS API + MarkerClusterer. Loaded dynamically so SSR doesn't try
+// to evaluate `window`-dependent code on the server.
 type MapHandle = {
-  L: LeafletNS;
-  map: import("leaflet").Map;
-  cluster: import("leaflet").MarkerClusterGroup;
-  defaultIcon: import("leaflet").Icon;
+  map: google.maps.Map;
+  clusterer: import("@googlemaps/markerclusterer").MarkerClusterer;
+  infoWindow: google.maps.InfoWindow;
 };
 
-function RaceMap({ pins }: { pins: RacePin[] }) {
+function RaceMap({ apiKey, pins }: { apiKey: string; pins: RacePin[] }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [handle, setHandle] = useState<MapHandle | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     let cleanup: (() => void) | null = null;
+
     (async () => {
-      const Lmod = await import("leaflet");
-      await import("leaflet/dist/leaflet.css");
-      await import("leaflet.markercluster");
-      await import("leaflet.markercluster/dist/MarkerCluster.css");
-      await import("leaflet.markercluster/dist/MarkerCluster.Default.css");
+      const [{ setOptions, importLibrary }, { MarkerClusterer }] = await Promise.all([
+        import("@googlemaps/js-api-loader"),
+        import("@googlemaps/markerclusterer"),
+      ]);
+      setOptions({ key: apiKey, v: "weekly" });
+      const { Map, InfoWindow } = await importLibrary("maps");
+      await importLibrary("marker");
       if (cancelled || !containerRef.current) return;
-      const L = Lmod.default ?? (Lmod as unknown as LeafletNS);
-      const defaultIcon = L.icon({
-        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41],
+
+      const map = new Map(containerRef.current, {
+        center: { lat: 39.5, lng: -98.35 },
+        zoom: 4,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
+        gestureHandling: "greedy",
+        clickableIcons: false,
       });
-      const map = L.map(containerRef.current, { center: [39.5, -98.35], zoom: 4 });
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright" rel="nofollow noopener noreferrer">OpenStreetMap</a> contributors',
-        maxZoom: 18,
-      }).addTo(map);
-      const cluster = (L as any).markerClusterGroup({
-        chunkedLoading: true,
-        showCoverageOnHover: false,
-        maxClusterRadius: 60,
-      });
-      map.addLayer(cluster);
-      setHandle({ L, map, cluster, defaultIcon });
+      const infoWindow = new InfoWindow();
+      const clusterer = new MarkerClusterer({ map, markers: [] });
+
+      setHandle({ map, clusterer, infoWindow });
+
       cleanup = () => {
-        map.remove();
+        clusterer.clearMarkers();
+        infoWindow.close();
       };
-    })();
+    })().catch((err) => {
+      console.error("[map] failed to load Google Maps:", err);
+    });
+
     return () => {
       cancelled = true;
       if (cleanup) cleanup();
     };
-  }, []);
+  }, [apiKey]);
 
   // Re-render markers when pins change.
   useEffect(() => {
     if (!handle) return;
-    const { L, map, cluster, defaultIcon } = handle;
-    cluster.clearLayers();
+    const { map, clusterer, infoWindow } = handle;
+    clusterer.clearMarkers();
     if (pins.length === 0) return;
+
     const markers = pins.map((p) => {
-      const m = L.marker([p.lat, p.lng], { icon: defaultIcon });
+      const marker = new google.maps.Marker({ position: { lat: p.lat, lng: p.lng } });
       const dateStr = (() => {
         try {
           return new Date(p.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -176,9 +199,9 @@ function RaceMap({ pins }: { pins: RacePin[] }) {
         }
       })();
       const price = p.priceMin != null ? `$${p.priceMin}+` : "Price TBA";
-      m.bindPopup(`
-        <div style="min-width:200px">
-          <a href="/races/${p.slug}" data-testid="popup-link-${p.slug}" style="font-weight:600;color:hsl(217,91%,40%);text-decoration:none">
+      const html = `
+        <div style="min-width:200px;font-family:Inter,sans-serif">
+          <a href="/races/${p.slug}" data-testid="popup-link-${p.slug}" style="font-weight:600;color:hsl(217,91%,40%);text-decoration:none;font-size:14px">
             ${escapeHtml(p.name)}
           </a>
           <div style="font-size:12px;color:#666;margin-top:4px">
@@ -187,13 +210,23 @@ function RaceMap({ pins }: { pins: RacePin[] }) {
           <div style="font-size:12px;color:#666">${escapeHtml(dateStr)} • ${price}</div>
           <div style="font-size:11px;color:#888;margin-top:4px">Quality ${p.qualityScore}/100</div>
         </div>
-      `);
-      return m;
+      `;
+      marker.addListener("click", () => {
+        infoWindow.setContent(html);
+        infoWindow.open({ map, anchor: marker });
+      });
+      return marker;
     });
-    cluster.addLayers(markers);
+    clusterer.addMarkers(markers);
+
     if (pins.length <= 500) {
-      const bounds = L.latLngBounds(pins.map((p) => [p.lat, p.lng] as [number, number]));
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
+      const bounds = new google.maps.LatLngBounds();
+      pins.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lng }));
+      map.fitBounds(bounds, 60);
+      const listener = google.maps.event.addListenerOnce(map, "bounds_changed", () => {
+        if ((map.getZoom() ?? 0) > 10) map.setZoom(10);
+      });
+      return () => google.maps.event.removeListener(listener);
     }
   }, [handle, pins]);
 

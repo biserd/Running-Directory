@@ -293,6 +293,16 @@ export async function registerRoutes(
     "nearby",
   ]);
 
+  // Exposes a small set of public config values to the client. The Google Maps
+  // JS API key is "public by design" — security comes from HTTP referrer
+  // restrictions configured in the Google Cloud Console, not from key secrecy.
+  app.get("/api/config/public", (_req, res) => {
+    res.set("Cache-Control", "public, max-age=300");
+    res.json({
+      googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || null,
+    });
+  });
+
   // Lightweight pin endpoint for the /map page. Registered BEFORE /:slug so the
   // word "map" isn't captured as a slug.
   app.get("/api/races/map", async (req, res) => {

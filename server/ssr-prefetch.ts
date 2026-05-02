@@ -759,6 +759,15 @@ const prefetchReports: PrefetchFn = async () => ({
   noindex: true,
 });
 
+const prefetchMap: PrefetchFn = async () => ({
+  title: "Race Map — Browse Every US Race | running.services",
+  description: "Explore every race in the USA on an interactive map. Filter by state and distance to find races near you.",
+  ogTitle: "USA Race Map",
+  ogDescription: "Interactive map of every race in the USA — filter by state and distance.",
+  ogType: "website",
+  canonicalUrl: "https://running.services/map",
+});
+
 const prefetchAbout: PrefetchFn = async () => ({
   title: "About Us | running.services",
   description: "Learn about running.services — a data-driven running hub with 17,150+ races, routes, and community resources for runners across the USA.",
@@ -1339,6 +1348,7 @@ const routeMatches: RouteMatch[] = [
   { pattern: /^\/terms$/, prefetch: prefetchTerms, paramNames: [] },
   { pattern: /^\/privacy$/, prefetch: prefetchPrivacy, paramNames: [] },
   { pattern: /^\/about$/, prefetch: prefetchAbout, paramNames: [] },
+  { pattern: /^\/map$/, prefetch: prefetchMap, paramNames: [] },
   { pattern: /^\/pricing$/, prefetch: prefetchPricing, paramNames: [] },
   { pattern: /^\/developers$/, prefetch: prefetchDevelopers, paramNames: [] },
   { pattern: /^\/reports$/, prefetch: prefetchReports, paramNames: [] },
