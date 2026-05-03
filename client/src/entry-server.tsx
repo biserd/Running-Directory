@@ -11,6 +11,10 @@ export interface PageMeta {
   ogType?: string;
   canonicalUrl?: string;
   jsonLd?: Record<string, any>;
+  breadcrumbJsonLd?: Record<string, any>;
+  extraJsonLd?: Record<string, any>[];
+  noindex?: boolean;
+  is404?: boolean;
 }
 
 export interface SSRResult {

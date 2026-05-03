@@ -50,6 +50,8 @@ import TurkeyTrotsPage from "@/pages/seo/turkey-trots";
 import CityDistancePage from "@/pages/seo/city-distance";
 import StateDistancePage from "@/pages/seo/state-distance";
 import BestPage from "@/pages/seo/best";
+import BestDistanceMonthPage from "@/pages/seo/best-distance-month";
+import RaceVsRacePage from "@/pages/seo/race-vs-race";
 import ConstraintPage from "@/pages/seo/constraint";
 import SeriesDetailPage from "@/pages/series/detail";
 import PricingPage from "@/pages/pricing";
@@ -116,6 +118,8 @@ function AppRouter() {
       <Route path="/admin/monetization" component={AdminMonetizationPage} />
       <Route path="/turkey-trots/:metro" component={TurkeyTrotsPage} />
       <Route path="/turkey-trots" component={TurkeyTrotsPage} />
+      <Route path="/best-races/:distance/:month" component={BestDistanceMonthPage} />
+      <Route path="/vs/:slugs" component={RaceVsRacePage} />
       <Route path="/best/:slug" component={BestPage} />
       <Route path="/walker-friendly-5k/:metro" component={ConstraintPage} />
       <Route path="/stroller-friendly-5k/:metro" component={ConstraintPage} />

@@ -197,6 +197,71 @@ const prefetchRacesYear: PrefetchFn = async (qc, params) => {
   };
 };
 
+function buildRaceFaq(race: {
+  name: string;
+  distance: string;
+  city: string;
+  state: string;
+  elevationGainM?: number | null;
+  surface?: string | null;
+  terrain?: string | null;
+  registrationDeadline?: string | null;
+  registrationOpen?: boolean | null;
+  priceMin?: number | null;
+  priceMax?: number | null;
+  fieldSize?: number | null;
+  startTime?: string | null;
+}) {
+  const stateName = getStateName(race.state);
+  const dist = race.distance || "race";
+  const elev = race.elevationGainM ?? null;
+
+  const difficultyAnswer = (() => {
+    const surface = race.surface ? race.surface.toLowerCase() : "road";
+    if (elev != null && elev >= 300) {
+      return `${race.name} is a hilly ${dist} with about ${elev} m (${Math.round(elev * 3.28)} ft) of elevation gain on a ${surface} course. Expect a tougher-than-average effort — pace conservatively on the climbs and save something for the back half.`;
+    }
+    if (elev != null && elev >= 100) {
+      return `${race.name} has rolling terrain with around ${elev} m (${Math.round(elev * 3.28)} ft) of elevation gain on a ${surface} course. It's a moderate ${dist} — manageable for most runners but not flat.`;
+    }
+    if (elev != null) {
+      return `${race.name} is a flat-to-gently-rolling ${dist} with about ${elev} m (${Math.round(elev * 3.28)} ft) of elevation gain on a ${surface} course. A friendly profile for chasing a personal best.`;
+    }
+    return `${race.name} is a ${dist} on a ${surface} course in ${race.city}, ${stateName}. We don't have a verified elevation profile yet — check the organizer's course map for the climb breakdown.`;
+  })();
+
+  const wearAnswer = (() => {
+    const start = race.startTime ? ` The published start time is ${race.startTime}.` : "";
+    return `Race-day weather in ${race.city} can swing year over year, so dress for the forecast on the day. As a rule of thumb, dress for ~10°F warmer than the standing temperature once you start running. Layer with a throwaway long-sleeve at the start, gloves and a hat for sub-50°F mornings, and a singlet plus a visor when it climbs above 60°F.${start} Check the race-day weather forecast on this page closer to the date for a specific recommendation.`;
+  })();
+
+  const sellOutAnswer = (() => {
+    if (race.registrationOpen === false) {
+      return `Registration for ${race.name} is currently closed. If you missed it, set an alert on this page and we'll let you know the moment the next year's registration opens.`;
+    }
+    if (race.registrationDeadline) {
+      return `Registration closes on ${race.registrationDeadline}. ${race.fieldSize && race.fieldSize >= 5000 ? "This is a large-field event so it usually stays open until the deadline, but the entry fee typically goes up in tiers as the date approaches." : "Smaller events like this one can sell out before the posted deadline — sign up early to lock in the lower price."}`;
+    }
+    return `${race.name} hasn't published a hard registration deadline. Most races of this size raise the entry fee in tiers (early-bird, regular, late) and can sell out without warning — sign up early if you're committed.`;
+  })();
+
+  const faqs = [
+    { q: `How hard is the ${race.name} ${dist}?`, a: difficultyAnswer },
+    { q: `What should I wear for the ${race.name}?`, a: wearAnswer },
+    { q: `When does the ${race.name} sell out?`, a: sellOutAnswer },
+  ];
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
+}
+
 const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
   const slug = params.slug;
   const [race, nearbyRoutes] = await Promise.all([
@@ -285,6 +350,22 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
     if (race.distance) additionalProperty.push({ "@type": "PropertyValue", name: "Distance", value: race.distance });
     if (additionalProperty.length > 0) jsonLd.additionalProperty = additionalProperty;
 
+    // Add aggregateRating from review summary when there is at least 1 review.
+    try {
+      const summary = await storage.getReviewSummary("race", race.id);
+      if (summary && summary.count >= 1 && summary.avgRating > 0) {
+        jsonLd.aggregateRating = {
+          "@type": "AggregateRating",
+          ratingValue: Number(summary.avgRating.toFixed(2)),
+          reviewCount: summary.count,
+          bestRating: 5,
+          worstRating: 1,
+        };
+      }
+    } catch { /* non-critical */ }
+
+    const faqJsonLd = buildRaceFaq(race);
+
     // Thin-race noindex policy from the rebuild report: a race detail page
     // is only indexable when it has the four minimum fields a runner needs
     // to make a decision — date, city/state, distance, and either a
@@ -306,6 +387,7 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
       canonicalUrl: `https://running.services/races/${slug}`,
       noindex: !hasMinimumFields,
       jsonLd,
+      extraJsonLd: [faqJsonLd],
       breadcrumbJsonLd: {
         "@context": "https://schema.org",
         "@type": "BreadcrumbList",
@@ -894,6 +976,132 @@ const prefetchOrganizers: PrefetchFn = async (qc, params) => {
 
 const SITE_ORIGIN = "https://running.services";
 
+const prefetchBestDistanceMonth: PrefetchFn = async (qc, params) => {
+  const distanceSlug = params.distance;
+  const monthSlug = params.month?.toLowerCase();
+  if (!isValidDistanceSlug(distanceSlug) || !monthSlug || !isValidMonthSlug(monthSlug)) {
+    return {
+      title: "Best-of list not found | running.services",
+      description: "Unknown distance or month.",
+      ogType: "website",
+      is404: true,
+      noindex: true,
+    } as PageMeta;
+  }
+  const distanceCfg = DISTANCE_SLUG_TO_LABEL[distanceSlug];
+  const monthNum = MONTH_SLUG_TO_NUM[monthSlug];
+  const monthLabel = METRO_MONTH_NAMES[monthNum];
+
+  const search: BestSearchParams = {
+    distance: distanceCfg.distance || undefined,
+    surface: distanceCfg.surface || undefined,
+    month: monthNum,
+    sort: "date",
+    limit: 60,
+  };
+  const apiQs = buildBestSearchQs(search);
+  const races = await storage.getRacesAdvanced({
+    distance: distanceCfg.distance || undefined,
+    surface: distanceCfg.surface || undefined,
+    month: monthNum,
+    sort: "date",
+    limit: 60,
+  }).catch(() => []);
+  qc.setQueryData(["/api/races/search", apiQs], races);
+
+  const url = `${SITE_ORIGIN}/best-races/${distanceSlug}/${monthSlug}`;
+  const title = `Best ${distanceCfg.plural} in ${monthLabel} | running.services`;
+  const description = `The top-rated ${distanceCfg.label.toLowerCase()}s across the USA in ${monthLabel}, ranked by RaceScore — our 0–100 composite of PR potential, value, vibe, beginner-friendliness, and data confidence.`;
+
+  return {
+    title,
+    description,
+    ogType: "website",
+    canonicalUrl: url,
+    noindex: races.length < 5,
+    jsonLd: buildCollectionJsonLd(`Best ${distanceCfg.plural} in ${monthLabel}`, description, url, races),
+    breadcrumbJsonLd: buildBreadcrumbJsonLd([
+      { name: "Home", href: "/" },
+      { name: "Races", href: "/races" },
+      { name: "Best of" },
+      { name: `${distanceCfg.plural} in ${monthLabel}` },
+    ]),
+  } as PageMeta;
+};
+
+const prefetchRaceVsRace: PrefetchFn = async (qc, params) => {
+  const combined = params.slugs;
+  const idx = combined?.indexOf("-vs-") ?? -1;
+  if (!combined || idx <= 0) {
+    return {
+      title: "Compare two races | running.services",
+      description: "Pick two races to compare side by side.",
+      ogType: "website",
+      canonicalUrl: `${SITE_ORIGIN}/vs`,
+      noindex: true,
+    } as PageMeta;
+  }
+  const slugA = combined.slice(0, idx);
+  const slugB = combined.slice(idx + 4);
+  const [a, b] = await Promise.all([
+    storage.getRaceBySlug(slugA).catch(() => undefined),
+    storage.getRaceBySlug(slugB).catch(() => undefined),
+  ]);
+
+  if (!a || !b) {
+    return {
+      title: "Race comparison not found | running.services",
+      description: "One of the races in this comparison wasn't found.",
+      ogType: "website",
+      canonicalUrl: `${SITE_ORIGIN}/vs/${combined}`,
+      is404: true,
+      noindex: true,
+    } as PageMeta;
+  }
+
+  qc.setQueryData(["/api/races", slugA], a);
+  qc.setQueryData(["/api/races", slugB], b);
+
+  // Canonical URL = alphabetical slug order so duplicate URL pairs collapse.
+  const sorted = [slugA, slugB].slice().sort();
+  const canonical = `${SITE_ORIGIN}/vs/${sorted[0]}-vs-${sorted[1]}`;
+  const title = `${a.name} vs ${b.name} — Side-by-side race comparison | running.services`;
+  const description = `Compare ${a.name} (${a.distance}, ${a.city}, ${a.state}) and ${b.name} (${b.distance}, ${b.city}, ${b.state}) on RaceScore, course profile, weather, value, and PR potential.`;
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: `${a.name} vs ${b.name}`,
+    description,
+    url: canonical,
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: 2,
+      itemListElement: [a, b].map((r, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        url: `${SITE_ORIGIN}/races/${r.slug}`,
+        name: r.name,
+      })),
+    },
+  };
+
+  return {
+    title,
+    description,
+    ogType: "article",
+    canonicalUrl: canonical,
+    noindex: false,
+    jsonLd,
+    breadcrumbJsonLd: buildBreadcrumbJsonLd([
+      { name: "Home", href: "/" },
+      { name: "Races", href: "/races" },
+      { name: "Compare" },
+      { name: `${a.name} vs ${b.name}` },
+    ]),
+  } as PageMeta;
+};
+
 function buildBreadcrumbJsonLd(items: Array<{ name: string; href?: string }>) {
   return {
     "@context": "https://schema.org",
@@ -1374,6 +1582,8 @@ const routeMatches: RouteMatch[] = [
   { pattern: /^\/turkey-trots\/([^/]+)$/, prefetch: prefetchTurkeyTrots, paramNames: ["metro"] },
   { pattern: /^\/turkey-trots$/, prefetch: prefetchTurkeyTrots, paramNames: [] },
   { pattern: /^\/best\/([^/]+)$/, prefetch: prefetchBest, paramNames: ["slug"] },
+  { pattern: /^\/best-races\/([^/]+)\/([^/]+)$/, prefetch: prefetchBestDistanceMonth, paramNames: ["distance", "month"] },
+  { pattern: /^\/vs\/([^/]+)$/, prefetch: prefetchRaceVsRace, paramNames: ["slugs"] },
   {
     pattern: /^\/walker-friendly-5k\/([^/]+)$/,
     prefetch: (qc, p) => prefetchConstraint(qc, { ...p, kind: "walker" }),

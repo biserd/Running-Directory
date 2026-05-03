@@ -715,6 +715,41 @@ export default function RaceDetail() {
             <ReviewSection itemType="race" itemId={race.id} />
           </div>
 
+          {/* Section 10b: Auto FAQ for AI overviews + featured snippets */}
+          <section data-testid="section-faq" className="bg-muted/30 rounded-xl p-6">
+            <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-emerald-500 pl-3">Common questions</h2>
+            <div className="space-y-5">
+              <div data-testid="faq-difficulty">
+                <h3 className="font-semibold mb-1">How hard is the {race.name} {race.distance}?</h3>
+                <p className="text-sm text-muted-foreground">
+                  {race.elevationGainM != null && race.elevationGainM >= 300
+                    ? `Hilly — about ${race.elevationGainM} m (${Math.round(race.elevationGainM * 3.28)} ft) of elevation gain on a ${(race.surface || "road").toLowerCase()} course. Pace conservatively on the climbs.`
+                    : race.elevationGainM != null && race.elevationGainM >= 100
+                      ? `Moderate rolling terrain — ~${race.elevationGainM} m (${Math.round(race.elevationGainM * 3.28)} ft) of elevation gain on a ${(race.surface || "road").toLowerCase()} course.`
+                      : race.elevationGainM != null
+                        ? `Flat to gently rolling — ~${race.elevationGainM} m (${Math.round(race.elevationGainM * 3.28)} ft) of elevation gain. A friendly profile for a personal best.`
+                        : `We don't have a verified elevation profile yet — check the organizer's course map for the climb breakdown.`}
+                </p>
+              </div>
+              <div data-testid="faq-wear">
+                <h3 className="font-semibold mb-1">What should I wear?</h3>
+                <p className="text-sm text-muted-foreground">
+                  Dress for ~10°F warmer than the standing temperature once you start running. Throwaway long-sleeve at the start, gloves and a hat for sub-50°F mornings, singlet plus visor when it climbs above 60°F. The race-day forecast above is the source of truth closer to the date.
+                </p>
+              </div>
+              <div data-testid="faq-sellout">
+                <h3 className="font-semibold mb-1">When does it sell out?</h3>
+                <p className="text-sm text-muted-foreground">
+                  {race.registrationOpen === false
+                    ? `Registration is currently closed. Set an alert and we'll let you know the moment next year's signups open.`
+                    : race.registrationDeadline
+                      ? `Registration closes ${race.registrationDeadline}. ${race.fieldSize && race.fieldSize >= 5000 ? "Large-field events usually stay open until the deadline, but the entry fee climbs in tiers." : "Smaller events can sell out before the posted deadline — sign up early."}`
+                      : `No published deadline. Most races raise the entry fee in tiers and can sell out without warning — sign up early if you're committed.`}
+                </p>
+              </div>
+            </div>
+          </section>
+
           {/* Section 11: Similar races */}
           <section data-testid="section-similar-races">
             <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-orange-500 pl-3 flex items-center gap-2"><Lightbulb className="h-5 w-5" />Similar races worth a look</h2>
@@ -730,19 +765,38 @@ export default function RaceDetail() {
                 ? "trail-races"
                 : (race.distance && distMap[race.distance]);
               const citySlug = race.citySlug;
-              if (!distSlug || !citySlug || !race.state) return null;
-              const metroSlug = `${citySlug}-${race.state.toLowerCase()}`;
+              const metroSlug = distSlug && citySlug && race.state ? `${citySlug}-${race.state.toLowerCase()}` : null;
+              const monthIdx = race.date ? new Date(race.date).getUTCMonth() + 1 : null;
+              const monthSlugs = ["january","february","march","april","may","june","july","august","september","october","november","december"];
+              const monthSlug = monthIdx ? monthSlugs[monthIdx - 1] : null;
+              const stateSlug = race.state ? getStateSlug(race.state) : null;
               return (
-                <p className="text-sm text-muted-foreground mt-4">
-                  More like this:{" "}
-                  <Link
-                    href={`/${metroSlug}/${distSlug}`}
-                    className="text-primary hover:underline font-medium"
-                    data-testid="link-more-in-metro"
-                  >
-                    All {race.distance || race.surface} races in {race.city}, {race.state}
-                  </Link>
-                </p>
+                <ul className="text-sm text-muted-foreground mt-4 space-y-1.5">
+                  {metroSlug && (
+                    <li>
+                      <span className="font-medium text-foreground">More like this in this city:</span>{" "}
+                      <Link href={`/${metroSlug}/${distSlug}`} className="text-primary hover:underline" data-testid="link-more-in-metro">
+                        All {race.distance || race.surface} races in {race.city}, {race.state}
+                      </Link>
+                    </li>
+                  )}
+                  {distSlug && monthSlug && (
+                    <li>
+                      <span className="font-medium text-foreground">Same distance, same month:</span>{" "}
+                      <Link href={`/best-races/${distSlug}/${monthSlug}`} className="text-primary hover:underline" data-testid="link-best-distance-month">
+                        Best {race.distance || race.surface} races in {monthSlugs[monthIdx! - 1].charAt(0).toUpperCase() + monthSlugs[monthIdx! - 1].slice(1)}
+                      </Link>
+                    </li>
+                  )}
+                  {distSlug && stateSlug && (
+                    <li>
+                      <span className="font-medium text-foreground">Same distance, statewide:</span>{" "}
+                      <Link href={`/state/${stateSlug}/${distSlug}`} className="text-primary hover:underline" data-testid="link-state-distance">
+                        All {race.distance || race.surface} races in {getStateName(race.state)}
+                      </Link>
+                    </li>
+                  )}
+                </ul>
               );
             })()}
           </section>

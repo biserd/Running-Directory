@@ -203,6 +203,62 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
         entries.push(urlEntry(`/best/${slug}`, { changefreq: "weekly", priority: "0.7", lastmod: today }));
       }
 
+      // Best [distance] in [month] — nationwide rollups, gated ≥5 races
+      try {
+        const distanceSlugs: Array<{ slug: string; distance?: string; surface?: string }> = [
+          { slug: "5k-races", distance: "5K" },
+          { slug: "10k-races", distance: "10K" },
+          { slug: "half-marathons", distance: "Half Marathon" },
+          { slug: "marathons", distance: "Marathon" },
+          { slug: "trail-races", surface: "Trail" },
+        ];
+        const monthSlugs = [
+          "january", "february", "march", "april", "may", "june",
+          "july", "august", "september", "october", "november", "december",
+        ];
+        for (const d of distanceSlugs) {
+          for (let m = 1; m <= 12; m++) {
+            try {
+              const r = await storage.getRacesAdvanced({
+                distance: d.distance,
+                surface: d.surface,
+                month: m,
+                limit: 5,
+              });
+              if (r.length >= 5) {
+                entries.push(urlEntry(`/best-races/${d.slug}/${monthSlugs[m - 1]}`, { changefreq: "weekly", priority: "0.65", lastmod: today }));
+              }
+            } catch {}
+          }
+        }
+      } catch (err) {
+        console.warn("[sitemap-seo] best-distance-month enumeration failed:", (err as Error).message);
+      }
+
+      // Race-vs-race head-to-head: pair each top race with its closest peer
+      // (same distance, same state) to keep the comparison meaningful.
+      try {
+        const top = await storage.getRacesAdvanced({ sort: "quality", limit: 100 } as any).catch(() => []);
+        const seen = new Set<string>();
+        for (const a of top) {
+          if (!a.distance) continue;
+          const peers = await storage.getRacesAdvanced({
+            state: a.state,
+            distance: a.distance,
+            limit: 5,
+          }).catch(() => []);
+          const peer = peers.find((p) => p.id !== a.id);
+          if (!peer) continue;
+          const sorted = [a.slug, peer.slug].slice().sort();
+          const key = `${sorted[0]}-vs-${sorted[1]}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          entries.push(urlEntry(`/vs/${key}`, { changefreq: "monthly", priority: "0.5", lastmod: today }));
+        }
+      } catch (err) {
+        console.warn("[sitemap-seo] race-vs-race enumeration failed:", (err as Error).message);
+      }
+
       // Series public pages
       try {
         const series = await storage.getRaceSeries({ limit: 200 });

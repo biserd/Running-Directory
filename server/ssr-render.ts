@@ -53,6 +53,37 @@ function injectMetaTags(html: string, meta: any): string {
   return html;
 }
 
+// JSON-LD blocks contain mutable user-derived strings (race names, organizer
+// names, FAQ answers). Escape the closing-tag and HTML-comment sequences that
+// would let an attacker break out of the <script> element.
+function safeJsonLd(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
+function injectJsonLdBlocks(html: string, meta: any): string {
+  if (meta.jsonLd) {
+    const script = `<script type="application/ld+json">${safeJsonLd(meta.jsonLd)}</script>`;
+    html = html.replace("</head>", `${script}\n</head>`);
+  }
+  if (meta.breadcrumbJsonLd) {
+    const script = `<script type="application/ld+json">${safeJsonLd(meta.breadcrumbJsonLd)}</script>`;
+    html = html.replace("</head>", `${script}\n</head>`);
+  }
+  if (Array.isArray(meta.extraJsonLd)) {
+    for (const block of meta.extraJsonLd) {
+      if (!block) continue;
+      const script = `<script type="application/ld+json">${safeJsonLd(block)}</script>`;
+      html = html.replace("</head>", `${script}\n</head>`);
+    }
+  }
+  return html;
+}
+
 function injectSSRContent(template: string, appHtml: string, dehydratedState: unknown, meta: any): string {
   let html = injectMetaTags(template, meta);
 
@@ -64,17 +95,7 @@ function injectSSRContent(template: string, appHtml: string, dehydratedState: un
   const stateScript = `<script>window.__REACT_QUERY_STATE__ = ${JSON.stringify(dehydratedState).replace(/</g, "\\u003c")}</script>`;
   html = html.replace("</head>", `${stateScript}\n</head>`);
 
-  if (meta.jsonLd) {
-    const jsonLdScript = `<script type="application/ld+json">${JSON.stringify(meta.jsonLd)}</script>`;
-    html = html.replace("</head>", `${jsonLdScript}\n</head>`);
-  }
-
-  if (meta.breadcrumbJsonLd) {
-    const breadcrumbScript = `<script type="application/ld+json">${JSON.stringify(meta.breadcrumbJsonLd)}</script>`;
-    html = html.replace("</head>", `${breadcrumbScript}\n</head>`);
-  }
-
-  return html;
+  return injectJsonLdBlocks(html, meta);
 }
 
 function getStatusCode(meta: any, prefetchFn: any): number {
@@ -123,12 +144,7 @@ export function setupDevSSR(app: Express, vite: ViteDevServer) {
           try {
             const meta = await prefetchFn(qc);
             const statusCode = getStatusCode(meta, prefetchFn);
-            const htmlWithMeta = injectMetaTags(template, meta);
-            if (meta.jsonLd) {
-              const jsonLdScript = `<script type="application/ld+json">${JSON.stringify(meta.jsonLd)}</script>`;
-              const finalHtml = htmlWithMeta.replace("</head>", `${jsonLdScript}\n</head>`);
-              return res.status(statusCode).set({ "Content-Type": "text/html" }).end(finalHtml);
-            }
+            const htmlWithMeta = injectJsonLdBlocks(injectMetaTags(template, meta), meta);
             return res.status(statusCode).set({ "Content-Type": "text/html" }).end(htmlWithMeta);
           } catch {
             // fall through
