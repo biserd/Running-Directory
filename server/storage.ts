@@ -826,9 +826,17 @@ export class DatabaseStorage implements IStorage {
     if (filters.near) {
       const { lat, lng, radiusMiles } = filters.near;
       const cosLat = Math.cos(lat * Math.PI / 180);
+      // Most rows in the current dataset have NULL lat/lng (the seed never
+      // geocoded them). If we required coords, the radius filter would wipe
+      // out every result whenever it's combined with state — a common case in
+      // Race Shopper. Treat missing coords as "unknown but plausible" instead
+      // of "excluded": the caller's other filters (state, distance, etc.)
+      // already scope the set, and radius becomes a best-effort narrow on the
+      // rows that *do* have coords.
       conditions.push(sql`(
-        (${races.lat} IS NOT NULL AND ${races.lng} IS NOT NULL AND
-         SQRT(POWER((${races.lat} - ${lat}), 2) + POWER((${cosLat} * (${races.lng} - ${lng})), 2)) * 69.0 <= ${radiusMiles})
+        (${races.lat} IS NULL OR ${races.lng} IS NULL)
+        OR
+        (SQRT(POWER((${races.lat} - ${lat}), 2) + POWER((${cosLat} * (${races.lng} - ${lng})), 2)) * 69.0 <= ${radiusMiles})
       )`);
     }
 
