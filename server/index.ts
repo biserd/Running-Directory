@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import compression from "compression";
 import pg from "pg";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
@@ -8,6 +9,11 @@ import { createServer } from "http";
 
 const app = express();
 const httpServer = createServer(app);
+
+// Gzip every text response (HTML, JSON, JS, CSS) before it leaves the server.
+// SSR HTML for hub pages can be ~1 MB raw; gzip typically takes that to
+// 80–120 KB on the wire and shaves hundreds of ms off TTFB on slower networks.
+app.use(compression());
 
 declare module "http" {
   interface IncomingMessage {
