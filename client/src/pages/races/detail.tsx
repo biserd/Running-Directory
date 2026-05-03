@@ -23,6 +23,7 @@ import { ScoreBlock } from "@/components/score-block";
 import { BestForBadges } from "@/components/best-for-badges";
 import { PlanYourTrip } from "@/components/plan-your-trip";
 import { PhotoCarousel } from "@/components/photo-carousel";
+import { RaceScoreBadge } from "@/components/race-score-badge";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   apiGetRace, apiGetRoutes, apiGetWeather, apiGetElevationProfile, apiGetBooks, apiGetPodcasts,
@@ -555,6 +556,9 @@ export default function RaceDetail() {
             </div>
 
             <div className="flex flex-col gap-3 min-w-[220px]">
+              <div className="bg-white/95 backdrop-blur rounded-xl p-3 shadow-lg" data-testid="hero-race-score">
+                <RaceScoreBadge race={race} size="lg" showHeadline testIdSuffix={race.id} />
+              </div>
               {registerHref && (
                 <Button size="lg" className="w-full font-semibold" asChild data-testid="button-register">
                   <a href={registerHref} target="_blank" rel="noopener noreferrer nofollow">

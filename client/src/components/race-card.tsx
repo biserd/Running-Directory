@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { RaceScoreBadge } from "@/components/race-score-badge";
 
 function fmtPrice(min: number | null | undefined, max: number | null | undefined): string | null {
   if (min == null && max == null) return null;
@@ -139,11 +140,14 @@ export function RaceCard({ race, showCompare = true, showAlert = true }: RaceCar
           </div>
         </div>
 
-        <Link href={`/races/${race.slug}`} className="block group-hover:text-primary transition-colors mb-2" data-testid={`link-race-${race.id}`}>
-          <h3 className="font-heading font-bold text-lg leading-tight line-clamp-2">
-            {race.name}
-          </h3>
-        </Link>
+        <div className="flex items-start gap-3 mb-2">
+          <Link href={`/races/${race.slug}`} className="block group-hover:text-primary transition-colors flex-1 min-w-0" data-testid={`link-race-${race.id}`}>
+            <h3 className="font-heading font-bold text-lg leading-tight line-clamp-2">
+              {race.name}
+            </h3>
+          </Link>
+          <RaceScoreBadge race={race} size="sm" testIdSuffix={race.id} />
+        </div>
 
         <div className="grid grid-cols-1 gap-1 text-sm text-muted-foreground mb-3">
           <div className="flex items-center gap-1.5">
@@ -202,9 +206,9 @@ export function RaceCard({ race, showCompare = true, showAlert = true }: RaceCar
 
         {(race.beginnerScore != null || race.prScore != null || race.valueScore != null) && (
           <div className="flex flex-wrap gap-1 mb-3" data-testid={`scores-${race.id}`}>
-            <ScoreChip label="beginner" value={race.beginnerScore} testId={`score-beginner-${race.id}`} />
             <ScoreChip label="PR" value={race.prScore} testId={`score-pr-${race.id}`} />
             <ScoreChip label="value" value={race.valueScore} testId={`score-value-${race.id}`} />
+            <ScoreChip label="vibe" value={race.vibeScore} testId={`score-vibe-${race.id}`} />
           </div>
         )}
 

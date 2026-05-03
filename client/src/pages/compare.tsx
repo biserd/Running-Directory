@@ -14,6 +14,8 @@ import { BestForBadges } from "@/components/best-for-badges";
 import { cn } from "@/lib/utils";
 import { useHomeLocation, haversineMiles, estimateTravel } from "@/hooks/use-home-location";
 import { Car, Plane } from "lucide-react";
+import { RaceScoreBadge } from "@/components/race-score-badge";
+import { computeRaceScore } from "@shared/race-score";
 
 function parseIds(qs: string): number[] {
   const params = new URLSearchParams(qs);
@@ -32,6 +34,14 @@ function fmtPrice(min: number | null | undefined, max: number | null | undefined
 }
 
 function bestIdsFor(races: Race[], key: keyof Race, better: "lower" | "higher"): Set<number> {
+  // Special case: RaceScore row uses computed values, not a raw column.
+  if (key === "id") {
+    const scores = races.map(r => computeRaceScore(r).score);
+    const target = Math.max(...scores);
+    const out = new Set<number>();
+    races.forEach((r, i) => { if (scores[i] === target) out.add(r.id); });
+    return out;
+  }
   const vals = races.map(r => {
     const v = r[key];
     return typeof v === "number" ? v : null;
@@ -57,6 +67,20 @@ type FieldGroup = { heading?: string; rows: FieldRow[] };
 
 function buildFieldGroups(): FieldGroup[] {
   return [
+    {
+      heading: "Headline",
+      rows: [
+        {
+          label: "RaceScore",
+          highlight: { key: "id", better: "higher" }, // overridden by inline best logic below
+          render: r => (
+            <div className="flex items-center justify-start" data-testid={`compare-race-score-${r.id}`}>
+              <RaceScoreBadge race={r} size="md" testIdSuffix={`compare-${r.id}`} />
+            </div>
+          ),
+        },
+      ],
+    },
     {
       rows: [
         { label: "Distance", render: r => <span className="uppercase tracking-wide text-xs font-semibold">{r.distance}</span> },
