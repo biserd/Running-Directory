@@ -308,6 +308,8 @@ export async function registerRoutes(
   app.get("/api/races/map", async (req, res) => {
     const state = typeof req.query.state === "string" ? req.query.state : undefined;
     const distance = typeof req.query.distance === "string" ? req.query.distance : undefined;
+    const dateFrom = typeof req.query.from === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.from) ? req.query.from : undefined;
+    const dateTo = typeof req.query.to === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.to) ? req.query.to : undefined;
     const limit = req.query.limit ? Math.min(parseInt(String(req.query.limit), 10) || 5000, 10000) : 5000;
     let bbox: { minLat: number; minLng: number; maxLat: number; maxLng: number } | undefined;
     if (typeof req.query.bbox === "string") {
@@ -316,7 +318,7 @@ export async function registerRoutes(
         bbox = { minLng: parts[0], minLat: parts[1], maxLng: parts[2], maxLat: parts[3] };
       }
     }
-    const pins = await storage.getRacePins({ state, distance, bbox, limit });
+    const pins = await storage.getRacePins({ state, distance, dateFrom, dateTo, bbox, limit });
     res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
     res.json({ pins });
   });
@@ -459,6 +461,41 @@ export async function registerRoutes(
     geocodeCache.set(key, null);
     return null;
   }
+
+  // Geocode a US ZIP code via Open-Meteo. Used by the travel-cost panel
+  // to derive home lat/lng from a user-entered ZIP. Cached in-memory.
+  const zipCache = new Map<string, { lat: number; lng: number; label: string } | null>();
+  app.get("/api/geocode/zip", async (req, res) => {
+    const zip = typeof req.query.zip === "string" ? req.query.zip.trim() : "";
+    if (!/^\d{5}$/.test(zip)) {
+      return res.status(400).json({ error: "Provide a 5-digit US ZIP code" });
+    }
+    if (zipCache.has(zip)) {
+      const cached = zipCache.get(zip);
+      return cached ? res.json(cached) : res.status(404).json({ error: "ZIP not found" });
+    }
+    try {
+      const r = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${zip}&count=5&countryCode=US&language=en&format=json`
+      );
+      const data = await r.json();
+      const hit = (data.results || []).find((x: any) => x.country_code === "US") || (data.results || [])[0];
+      if (!hit) {
+        zipCache.set(zip, null);
+        return res.status(404).json({ error: "ZIP not found" });
+      }
+      const result = {
+        lat: hit.latitude as number,
+        lng: hit.longitude as number,
+        label: `${hit.name}${hit.admin1 ? ", " + hit.admin1 : ""}`,
+      };
+      zipCache.set(zip, result);
+      res.set("Cache-Control", "public, max-age=86400");
+      res.json(result);
+    } catch {
+      res.status(502).json({ error: "Geocoding service unavailable" });
+    }
+  });
 
   app.get("/api/weather", async (req, res) => {
     const { lat, lng, date, city, state } = req.query;

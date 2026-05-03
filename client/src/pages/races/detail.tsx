@@ -22,6 +22,7 @@ import { ReviewSection } from "@/components/review-section";
 import { ScoreBlock } from "@/components/score-block";
 import { BestForBadges } from "@/components/best-for-badges";
 import { PlanYourTrip } from "@/components/plan-your-trip";
+import { PhotoCarousel } from "@/components/photo-carousel";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   apiGetRace, apiGetRoutes, apiGetWeather, apiGetElevationProfile, apiGetBooks, apiGetPodcasts,
@@ -75,9 +76,33 @@ function fmtPrice(min: number | null | undefined, max: number | null | undefined
   return `$${min ?? max}`;
 }
 
+// PR-window verdict based on race-day temperature. Elite marathon research
+// converges on ~44-50°F as ideal; we widen slightly for amateurs.
+function prVerdict(weather: WeatherData): { label: string; sub: string; color: string } | null {
+  if (weather.type === "unavailable") return null;
+  const high = weather.tempHigh;
+  const low = weather.tempLow;
+  if (high == null || low == null) return null;
+  const avg = (high + low) / 2;
+  const wind = weather.windSpeed ?? 0;
+  const rain = weather.precipProbability ?? 0;
+
+  if (avg >= 40 && avg <= 55 && wind < 12 && rain < 40) {
+    return { label: "PR conditions", sub: "Cool & calm — go for it", color: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30" };
+  }
+  if (avg >= 35 && avg <= 65 && wind < 18) {
+    return { label: "Good for racing", sub: "Solid effort possible", color: "bg-blue-500/10 text-blue-700 border-blue-500/30" };
+  }
+  if (avg >= 30 && avg <= 75) {
+    return { label: "Fair — pace conservatively", sub: "Heat or chill will cost time", color: "bg-amber-500/10 text-amber-700 border-amber-500/30" };
+  }
+  return { label: "Tough conditions", sub: "Run by feel, not by watch", color: "bg-rose-500/10 text-rose-700 border-rose-500/30" };
+}
+
 function WeatherCard({ weather }: { weather: WeatherData }) {
   if (weather.type === "unavailable") return null;
   const isForecast = weather.type === "forecast";
+  const verdict = prVerdict(weather);
   return (
     <div className="bg-gradient-to-b from-sky-50/50 to-transparent border border-t-4 border-sky-400 rounded-xl p-6 shadow-sm" data-testid="card-weather">
       <h3 className="font-heading font-semibold mb-1">Race Day Weather</h3>
@@ -97,6 +122,12 @@ function WeatherCard({ weather }: { weather: WeatherData }) {
           )}
         </div>
       </div>
+      {verdict && (
+        <div className={`mb-4 border rounded-lg px-3 py-2 ${verdict.color}`} data-testid="badge-pr-verdict">
+          <div className="text-xs font-semibold uppercase tracking-wide" data-testid="text-pr-label">{verdict.label}</div>
+          <div className="text-xs opacity-80" data-testid="text-pr-sub">{verdict.sub}</div>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3 text-sm">
         {weather.precipProbability !== undefined && (
           <div className="flex items-center gap-2"><Droplets className="h-4 w-4 text-blue-500" /><span className="text-muted-foreground">{weather.precipProbability}% rain</span></div>
@@ -575,6 +606,11 @@ export default function RaceDetail() {
             </div>
           </section>
 
+          {/* Course preview photos (uploaded by organizer) */}
+          {race.photoUrls && race.photoUrls.length > 0 && (
+            <PhotoCarousel photos={race.photoUrls} raceName={race.name} />
+          )}
+
           {/* Section 5: Course profile / elevation */}
           {elevation && elevation.type === "available" ? (
             <ElevationProfileChart elevation={elevation} />
@@ -750,6 +786,8 @@ export default function RaceDetail() {
             state={race.state}
             date={race.date}
             distance={race.distance}
+            lat={race.lat}
+            lng={race.lng}
           />
 
           {/* Section 14: Difficulty */}

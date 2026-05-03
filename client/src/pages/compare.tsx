@@ -12,6 +12,8 @@ import { parseRaceDate } from "@/lib/dates";
 import { useCompareCart } from "@/hooks/use-compare-cart";
 import { BestForBadges } from "@/components/best-for-badges";
 import { cn } from "@/lib/utils";
+import { useHomeLocation, haversineMiles, estimateTravel } from "@/hooks/use-home-location";
+import { Car, Plane } from "lucide-react";
 
 function parseIds(qs: string): number[] {
   const params = new URLSearchParams(qs);
@@ -62,10 +64,8 @@ function buildFieldGroups(): FieldGroup[] {
         { label: "Start time", render: r => r.startTime || "TBA" },
         { label: "Location", render: r => `${r.city}, ${r.state}` },
         {
-          label: "Travel time",
-          render: () => (
-            <span className="text-xs text-muted-foreground italic" data-testid="cell-travel-time-placeholder">Personalized estimate coming soon — set your starting location.</span>
-          ),
+          label: "Travel from home",
+          render: r => <TravelCell race={r} />,
         },
         { label: "Course type", render: r => r.courseType || "Not stated" },
         { label: "Surface", render: r => r.terrain || r.surface || "—" },
@@ -150,6 +150,33 @@ function buildFieldGroups(): FieldGroup[] {
       ],
     },
   ];
+}
+
+function TravelCell({ race }: { race: Race }) {
+  const { home } = useHomeLocation();
+  if (!home) {
+    return (
+      <span className="text-xs text-muted-foreground italic" data-testid={`cell-travel-needs-home-${race.id}`}>
+        Set your home ZIP on any race page to see drive/flight estimates here.
+      </span>
+    );
+  }
+  if (race.lat == null || race.lng == null) {
+    return <span className="text-xs text-muted-foreground" data-testid={`cell-travel-no-coords-${race.id}`}>Location unknown</span>;
+  }
+  const miles = haversineMiles(home, { lat: race.lat, lng: race.lng });
+  const est = estimateTravel(miles);
+  const Icon = est.mode === "drive" ? Car : Plane;
+  const hours = est.hours < 10 ? est.hours.toFixed(1) : Math.round(est.hours).toString();
+  return (
+    <div className="flex items-center gap-2 text-sm" data-testid={`cell-travel-${race.id}`}>
+      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+      <div>
+        <div className="font-semibold capitalize">{est.mode} · {Math.round(miles).toLocaleString()} mi</div>
+        <div className="text-[11px] text-muted-foreground">~{hours} hr · ~${Math.round(est.cost).toLocaleString()}</div>
+      </div>
+    </div>
+  );
 }
 
 function CellHighlight({ best, children }: { best: boolean; children: React.ReactNode }) {

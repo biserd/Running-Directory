@@ -5,9 +5,41 @@ import { Layout } from "@/components/layout";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Flame, MapPin } from "lucide-react";
 import { apiGetRacePins, apiGetStates, type RacePin } from "@/lib/api";
 
 const DISTANCE_OPTIONS = ["5K", "10K", "Half Marathon", "Marathon", "Ultra", "Trail"];
+
+type DatePreset = "all" | "weekend" | "30d" | "90d" | "year";
+
+const DATE_PRESETS: { value: DatePreset; label: string }[] = [
+  { value: "all", label: "Anytime" },
+  { value: "weekend", label: "This weekend" },
+  { value: "30d", label: "Next 30 days" },
+  { value: "90d", label: "Next 90 days" },
+  { value: "year", label: "Next 12 months" },
+];
+
+function dateRangeFor(preset: DatePreset): { from?: string; to?: string } {
+  if (preset === "all") return {};
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  if (preset === "weekend") {
+    // Friday → Sunday of the current week.
+    const day = now.getDay(); // 0=Sun
+    const friOffset = (5 - day + 7) % 7;
+    const fri = new Date(now);
+    fri.setDate(fri.getDate() + friOffset);
+    const sun = new Date(fri);
+    sun.setDate(sun.getDate() + 2);
+    return { from: fri.toISOString().slice(0, 10), to: sun.toISOString().slice(0, 10) };
+  }
+  const days = preset === "30d" ? 30 : preset === "90d" ? 90 : 365;
+  const end = new Date(now);
+  end.setDate(end.getDate() + days);
+  return { from: today, to: end.toISOString().slice(0, 10) };
+}
 
 function readUrlParam(name: string): string | undefined {
   if (typeof window === "undefined") return undefined;
@@ -34,10 +66,19 @@ async function fetchPublicConfig(): Promise<{ googleMapsApiKey: string | null }>
 export default function MapPage() {
   const [stateFilter, setStateFilter] = useState<string | undefined>(readUrlParam("state"));
   const [distanceFilter, setDistanceFilter] = useState<string | undefined>(readUrlParam("distance"));
+  const [datePreset, setDatePreset] = useState<DatePreset>(
+    (readUrlParam("when") as DatePreset) || "all",
+  );
+  const [heatmap, setHeatmap] = useState<boolean>(readUrlParam("view") === "heatmap");
 
   useEffect(() => {
-    writeUrlParams({ state: stateFilter, distance: distanceFilter });
-  }, [stateFilter, distanceFilter]);
+    writeUrlParams({
+      state: stateFilter,
+      distance: distanceFilter,
+      when: datePreset === "all" ? undefined : datePreset,
+      view: heatmap ? "heatmap" : undefined,
+    });
+  }, [stateFilter, distanceFilter, datePreset, heatmap]);
 
   const { data: states } = useQuery({
     queryKey: ["/api/states"],
@@ -51,9 +92,11 @@ export default function MapPage() {
     staleTime: 1000 * 60 * 60,
   });
 
+  const { from, to } = dateRangeFor(datePreset);
+
   const { data: pinsResp, isLoading } = useQuery({
-    queryKey: ["/api/races/map", { state: stateFilter, distance: distanceFilter }],
-    queryFn: () => apiGetRacePins({ state: stateFilter, distance: distanceFilter, limit: 5000 }),
+    queryKey: ["/api/races/map", { state: stateFilter, distance: distanceFilter, from, to }],
+    queryFn: () => apiGetRacePins({ state: stateFilter, distance: distanceFilter, from, to, limit: 5000 }),
     staleTime: 1000 * 60 * 2,
   });
 
@@ -73,7 +116,7 @@ export default function MapPage() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Select value={stateFilter ?? "_all"} onValueChange={(v) => setStateFilter(v === "_all" ? undefined : v)}>
-              <SelectTrigger className="w-[180px]" data-testid="select-state-filter">
+              <SelectTrigger className="w-[160px]" data-testid="select-state-filter">
                 <SelectValue placeholder="All states" />
               </SelectTrigger>
               <SelectContent>
@@ -86,7 +129,7 @@ export default function MapPage() {
               </SelectContent>
             </Select>
             <Select value={distanceFilter ?? "_all"} onValueChange={(v) => setDistanceFilter(v === "_all" ? undefined : v)}>
-              <SelectTrigger className="w-[180px]" data-testid="select-distance-filter">
+              <SelectTrigger className="w-[160px]" data-testid="select-distance-filter">
                 <SelectValue placeholder="All distances" />
               </SelectTrigger>
               <SelectContent>
@@ -96,6 +139,28 @@ export default function MapPage() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
+              <SelectTrigger className="w-[160px]" data-testid="select-date-preset">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DATE_PRESETS.map((p) => (
+                  <SelectItem key={p.value} value={p.value} data-testid={`option-when-${p.value}`}>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant={heatmap ? "default" : "outline"}
+              size="sm"
+              onClick={() => setHeatmap((v) => !v)}
+              data-testid="button-toggle-heatmap"
+            >
+              {heatmap ? <Flame className="mr-1.5 h-4 w-4" /> : <MapPin className="mr-1.5 h-4 w-4" />}
+              {heatmap ? "Heatmap" : "Pins"}
+            </Button>
             <Badge variant="secondary" data-testid="badge-pin-count">
               {isLoading ? "Loading…" : `${pins.length.toLocaleString()} races`}
             </Badge>
@@ -110,7 +175,7 @@ export default function MapPage() {
           </div>
         )}
         {config?.googleMapsApiKey ? (
-          <RaceMap apiKey={config.googleMapsApiKey} pins={pins} />
+          <RaceMap apiKey={config.googleMapsApiKey} pins={pins} heatmap={heatmap} />
         ) : config && !config.googleMapsApiKey ? (
           <div className="h-full flex items-center justify-center text-center px-6" data-testid="map-no-key">
             <div>
@@ -128,17 +193,21 @@ export default function MapPage() {
   );
 }
 
-// Google Maps JS API + MarkerClusterer. Loaded dynamically so SSR doesn't try
-// to evaluate `window`-dependent code on the server.
+// Google Maps JS API + MarkerClusterer + HeatmapLayer. Loaded dynamically so SSR
+// doesn't try to evaluate `window`-dependent code on the server.
 type MapHandle = {
   map: google.maps.Map;
   clusterer: import("@googlemaps/markerclusterer").MarkerClusterer;
   infoWindow: google.maps.InfoWindow;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  HeatmapLayer: any;
 };
 
-function RaceMap({ apiKey, pins }: { apiKey: string; pins: RacePin[] }) {
+function RaceMap({ apiKey, pins, heatmap }: { apiKey: string; pins: RacePin[]; heatmap: boolean }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [handle, setHandle] = useState<MapHandle | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const heatmapLayerRef = useRef<any>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -149,9 +218,11 @@ function RaceMap({ apiKey, pins }: { apiKey: string; pins: RacePin[] }) {
         import("@googlemaps/js-api-loader"),
         import("@googlemaps/markerclusterer"),
       ]);
-      setOptions({ key: apiKey, v: "weekly" });
+      setOptions({ key: apiKey, v: "weekly", libraries: ["visualization"] });
       const { Map, InfoWindow } = await importLibrary("maps");
       await importLibrary("marker");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const viz = (await importLibrary("visualization" as any)) as any;
       if (cancelled || !containerRef.current) return;
 
       const map = new Map(containerRef.current, {
@@ -166,11 +237,12 @@ function RaceMap({ apiKey, pins }: { apiKey: string; pins: RacePin[] }) {
       const infoWindow = new InfoWindow();
       const clusterer = new MarkerClusterer({ map, markers: [] });
 
-      setHandle({ map, clusterer, infoWindow });
+      setHandle({ map, clusterer, infoWindow, HeatmapLayer: viz.HeatmapLayer });
 
       cleanup = () => {
         clusterer.clearMarkers();
         infoWindow.close();
+        if (heatmapLayerRef.current) heatmapLayerRef.current.setMap(null);
       };
     })().catch((err) => {
       console.error("[map] failed to load Google Maps:", err);
@@ -182,12 +254,29 @@ function RaceMap({ apiKey, pins }: { apiKey: string; pins: RacePin[] }) {
     };
   }, [apiKey]);
 
-  // Re-render markers when pins change.
+  // Re-render markers (or heatmap) when pins or mode change.
   useEffect(() => {
     if (!handle) return;
-    const { map, clusterer, infoWindow } = handle;
+    const { map, clusterer, infoWindow, HeatmapLayer } = handle;
+
+    // Tear down whichever overlay was last rendered.
     clusterer.clearMarkers();
+    if (heatmapLayerRef.current) {
+      heatmapLayerRef.current.setMap(null);
+      heatmapLayerRef.current = null;
+    }
     if (pins.length === 0) return;
+
+    if (heatmap) {
+      const data = pins.map((p) => new google.maps.LatLng(p.lat, p.lng));
+      heatmapLayerRef.current = new HeatmapLayer({
+        data,
+        map,
+        radius: 24,
+        opacity: 0.7,
+      });
+      return;
+    }
 
     const markers = pins.map((p) => {
       const marker = new google.maps.Marker({ position: { lat: p.lat, lng: p.lng } });
@@ -228,7 +317,7 @@ function RaceMap({ apiKey, pins }: { apiKey: string; pins: RacePin[] }) {
       });
       return () => google.maps.event.removeListener(listener);
     }
-  }, [handle, pins]);
+  }, [handle, pins, heatmap]);
 
   return <div ref={containerRef} style={{ height: "100%", width: "100%" }} data-testid="map-container" />;
 }

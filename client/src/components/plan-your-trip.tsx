@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Hotel, Plane, ShoppingBag, Users, ExternalLink } from "lucide-react";
 import { buildOutboundRedirectUrl } from "@/lib/api";
+import { TravelCost } from "@/components/travel-cost";
 
 interface Props {
   raceId: number;
@@ -10,9 +11,11 @@ interface Props {
   state: string;
   date: string;
   distance: string;
+  lat?: number | null;
+  lng?: number | null;
 }
 
-export function PlanYourTrip({ raceId, raceName, city, state, date, distance }: Props) {
+export function PlanYourTrip({ raceId, raceName, city, state, date, distance, lat, lng }: Props) {
   const destination = encodeURIComponent(`${city}, ${state}`);
 
   // Affiliate-ready outbound URLs. Each goes through our tracked /api/outbound/redirect
@@ -78,6 +81,11 @@ export function PlanYourTrip({ raceId, raceName, city, state, date, distance }: 
             testId="link-trip-coach"
           />
         </div>
+
+        <TravelCost
+          destination={lat != null && lng != null ? { lat, lng } : null}
+          destinationLabel={`${city}, ${state}`}
+        />
 
         <p className="text-xs text-muted-foreground mt-4 pl-4">
           We may earn a small commission from these partner links — it helps keep the race data free.

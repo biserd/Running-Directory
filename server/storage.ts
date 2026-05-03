@@ -2001,6 +2001,8 @@ export class DatabaseStorage implements IStorage {
   async getRacePins(filters?: {
     state?: string;
     distance?: string;
+    dateFrom?: string;
+    dateTo?: string;
     bbox?: { minLat: number; minLng: number; maxLat: number; maxLng: number };
     limit?: number;
   }): Promise<Array<{
@@ -2015,6 +2017,8 @@ export class DatabaseStorage implements IStorage {
     ];
     if (filters?.state) conds.push(eq(races.state, filters.state));
     if (filters?.distance) conds.push(eq(races.distance, filters.distance));
+    if (filters?.dateFrom) conds.push(gte(races.date, filters.dateFrom));
+    if (filters?.dateTo) conds.push(lte(races.date, filters.dateTo));
     if (filters?.bbox) {
       conds.push(gte(races.lat, filters.bbox.minLat));
       conds.push(lte(races.lat, filters.bbox.maxLat));

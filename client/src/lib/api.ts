@@ -303,14 +303,33 @@ export type RacePin = {
   priceMin: number | null; qualityScore: number;
 };
 
-export async function apiGetRacePins(params: { state?: string; distance?: string; bbox?: string; limit?: number }): Promise<{ pins: RacePin[] }> {
+export async function apiGetRacePins(params: {
+  state?: string;
+  distance?: string;
+  from?: string;
+  to?: string;
+  bbox?: string;
+  limit?: number;
+}): Promise<{ pins: RacePin[] }> {
   const qs = new URLSearchParams();
   if (params.state) qs.set("state", params.state);
   if (params.distance) qs.set("distance", params.distance);
+  if (params.from) qs.set("from", params.from);
+  if (params.to) qs.set("to", params.to);
   if (params.bbox) qs.set("bbox", params.bbox);
   if (params.limit) qs.set("limit", String(params.limit));
   const res = await fetch(`/api/races/map?${qs.toString()}`);
   if (!res.ok) throw new Error("Failed to load race pins");
+  return res.json();
+}
+
+export type ZipLocation = { lat: number; lng: number; label: string };
+export async function apiGeocodeZip(zip: string): Promise<ZipLocation> {
+  const res = await fetch(`/api/geocode/zip?zip=${encodeURIComponent(zip)}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Geocoding failed" }));
+    throw new Error(err.error || "Geocoding failed");
+  }
   return res.json();
 }
 
