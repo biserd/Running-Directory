@@ -86,10 +86,17 @@ export default function MapPage() {
     staleTime: 1000 * 60 * 60,
   });
 
+  // The map is "click to activate". We don't request the API key (and therefore
+  // don't pay for a Google Maps Dynamic Map Load) until the user explicitly
+  // asks to see the interactive map. This dramatically reduces billable map
+  // loads from bots, link-preview crawlers, and accidental visits.
+  const [mapActivated, setMapActivated] = useState(false);
+
   const { data: config } = useQuery({
     queryKey: ["/api/config/public"],
     queryFn: fetchPublicConfig,
     staleTime: 1000 * 60 * 60,
+    enabled: mapActivated,
   });
 
   const { from, to } = dateRangeFor(datePreset);
@@ -174,7 +181,31 @@ export default function MapPage() {
             <Skeleton className="h-12 w-48" />
           </div>
         )}
-        {config?.googleMapsApiKey ? (
+        {!mapActivated ? (
+          <div
+            className="h-full flex items-center justify-center text-center px-6 bg-[radial-gradient(circle_at_30%_30%,hsl(var(--muted))_0%,hsl(var(--background))_60%)]"
+            data-testid="map-placeholder"
+          >
+            <div className="max-w-md">
+              <MapPin className="h-10 w-10 mx-auto text-primary mb-3" />
+              <h2 className="font-heading font-bold text-2xl mb-2">
+                {pins.length.toLocaleString()} races nationwide
+              </h2>
+              <p className="text-muted-foreground text-sm mb-5">
+                The interactive map uses the Google Maps API. Click below to load it — your filter selections are already applied.
+              </p>
+              <Button
+                type="button"
+                size="lg"
+                onClick={() => setMapActivated(true)}
+                data-testid="button-activate-map"
+              >
+                <MapPin className="mr-2 h-4 w-4" />
+                Show interactive map
+              </Button>
+            </div>
+          </div>
+        ) : config?.googleMapsApiKey ? (
           <RaceMap apiKey={config.googleMapsApiKey} pins={pins} heatmap={heatmap} />
         ) : config && !config.googleMapsApiKey ? (
           <div className="h-full flex items-center justify-center text-center px-6" data-testid="map-no-key">
@@ -214,15 +245,16 @@ function RaceMap({ apiKey, pins, heatmap }: { apiKey: string; pins: RacePin[]; h
     let cleanup: (() => void) | null = null;
 
     (async () => {
+      // Don't request the visualization library up front — it's only needed
+      // when the user toggles heatmap mode. Loading it lazily keeps the
+      // initial Maps payload smaller for the common pin-view case.
       const [{ setOptions, importLibrary }, { MarkerClusterer }] = await Promise.all([
         import("@googlemaps/js-api-loader"),
         import("@googlemaps/markerclusterer"),
       ]);
-      setOptions({ key: apiKey, v: "weekly", libraries: ["visualization"] });
+      setOptions({ key: apiKey, v: "weekly" });
       const { Map, InfoWindow } = await importLibrary("maps");
       await importLibrary("marker");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const viz = (await importLibrary("visualization" as any)) as any;
       if (cancelled || !containerRef.current) return;
 
       const map = new Map(containerRef.current, {
@@ -237,7 +269,7 @@ function RaceMap({ apiKey, pins, heatmap }: { apiKey: string; pins: RacePin[]; h
       const infoWindow = new InfoWindow();
       const clusterer = new MarkerClusterer({ map, markers: [] });
 
-      setHandle({ map, clusterer, infoWindow, HeatmapLayer: viz.HeatmapLayer });
+      setHandle({ map, clusterer, infoWindow, HeatmapLayer: null });
 
       cleanup = () => {
         clusterer.clearMarkers();
@@ -257,7 +289,8 @@ function RaceMap({ apiKey, pins, heatmap }: { apiKey: string; pins: RacePin[]; h
   // Re-render markers (or heatmap) when pins or mode change.
   useEffect(() => {
     if (!handle) return;
-    const { map, clusterer, infoWindow, HeatmapLayer } = handle;
+    const { map, clusterer, infoWindow } = handle;
+    let cancelled = false;
 
     // Tear down whichever overlay was last rendered.
     clusterer.clearMarkers();
@@ -268,14 +301,28 @@ function RaceMap({ apiKey, pins, heatmap }: { apiKey: string; pins: RacePin[]; h
     if (pins.length === 0) return;
 
     if (heatmap) {
-      const data = pins.map((p) => new google.maps.LatLng(p.lat, p.lng));
-      heatmapLayerRef.current = new HeatmapLayer({
-        data,
-        map,
-        radius: 24,
-        opacity: 0.7,
-      });
-      return;
+      // Lazy-load the visualization library the first time heatmap is toggled.
+      (async () => {
+        let HeatmapLayer = handle.HeatmapLayer;
+        if (!HeatmapLayer) {
+          const { importLibrary } = await import("@googlemaps/js-api-loader");
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const viz = (await importLibrary("visualization" as any)) as any;
+          HeatmapLayer = viz.HeatmapLayer;
+          setHandle((h) => (h ? { ...h, HeatmapLayer } : h));
+        }
+        if (cancelled) return;
+        const data = pins.map((p) => new google.maps.LatLng(p.lat, p.lng));
+        heatmapLayerRef.current = new HeatmapLayer({
+          data,
+          map,
+          radius: 24,
+          opacity: 0.7,
+        });
+      })().catch((err) => console.error("[map] heatmap load failed:", err));
+      return () => {
+        cancelled = true;
+      };
     }
 
     const markers = pins.map((p) => {

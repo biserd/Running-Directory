@@ -294,12 +294,38 @@ export async function registerRoutes(
   ]);
 
   // Exposes a small set of public config values to the client. The Google Maps
-  // JS API key is "public by design" — security comes from HTTP referrer
-  // restrictions configured in the Google Cloud Console, not from key secrecy.
-  app.get("/api/config/public", (_req, res) => {
-    res.set("Cache-Control", "public, max-age=300");
+  // JS API key is "public by design" — but we still gate it behind a same-origin
+  // Referer / Origin check so casual scrapers can't grab the key from this
+  // endpoint and run up our billing. The real defense lives in the Google Cloud
+  // Console (HTTP referrer restrictions on the key); this is defense in depth.
+  app.get("/api/config/public", (req, res) => {
+    res.set("Cache-Control", "private, max-age=300");
+    res.set("Vary", "Origin, Referer");
+
+    const allowedHosts = new Set<string>([
+      "running.services",
+      "www.running.services",
+    ]);
+    // Allow the current request host (covers preview / replit.app / localhost)
+    // and any explicit override from env (comma-separated).
+    if (req.hostname) allowedHosts.add(req.hostname.toLowerCase());
+    for (const extra of (process.env.MAPS_KEY_ALLOWED_HOSTS || "").split(",")) {
+      const h = extra.trim().toLowerCase();
+      if (h) allowedHosts.add(h);
+    }
+
+    const fromHeader = (raw: string | undefined): string | null => {
+      if (!raw) return null;
+      try { return new URL(raw).hostname.toLowerCase(); } catch { return null; }
+    };
+    const refererHost = fromHeader(req.get("referer") || undefined);
+    const originHost = fromHeader(req.get("origin") || undefined);
+    const sameOrigin =
+      (refererHost && allowedHosts.has(refererHost)) ||
+      (originHost && allowedHosts.has(originHost));
+
     res.json({
-      googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || null,
+      googleMapsApiKey: sameOrigin ? (process.env.GOOGLE_MAPS_API_KEY || null) : null,
     });
   });
 
