@@ -9,6 +9,7 @@ import { SmartSearch } from "@/components/smart-search";
 
 const PRIMARY_NAV: { label: string; href: string; testId: string }[] = [
   { label: "Find races", href: "/races", testId: "link-races" },
+  { label: "Map", href: "/map", testId: "link-map" },
   { label: "Turkey Trots", href: "/races?turkeyTrot=true", testId: "link-turkey-trots" },
   { label: "5K", href: "/races?distance=5K", testId: "link-distance-5k" },
   { label: "10K", href: "/races?distance=10K", testId: "link-distance-10k" },
@@ -193,6 +194,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <h4 className="font-heading font-semibold mb-4">Find a race</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="/races" className="hover:text-primary" data-testid="link-find-races-footer">Find races</Link></li>
+                <li><Link href="/map" className="hover:text-primary" data-testid="link-map-footer">Race map</Link></li>
                 <li><Link href="/races?turkeyTrot=true" className="hover:text-primary" data-testid="link-turkey-trots-footer">Turkey Trots</Link></li>
                 <li><Link href="/races?distance=5K" className="hover:text-primary" data-testid="link-5k-footer">5Ks</Link></li>
                 <li><Link href="/races?distance=10K" className="hover:text-primary" data-testid="link-10k-footer">10Ks</Link></li>
