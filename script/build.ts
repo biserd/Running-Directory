@@ -70,8 +70,23 @@ async function buildAll() {
     entryPoints: ["server/index.ts"],
     platform: "node",
     bundle: true,
-    format: "cjs",
-    outfile: "dist/index.cjs",
+    // ESM matches package.json "type": "module" and lets us use import.meta
+    // natively (server/ssr-render.ts and server/vite.ts both depend on it).
+    // The banner shims __dirname / __filename / require so existing CJS-style
+    // references (server/index.ts, server/static.ts) keep working inside the
+    // bundle.
+    format: "esm",
+    outfile: "dist/index.js",
+    banner: {
+      js: [
+        "import { createRequire as __cjsCompatCreateRequire } from 'module';",
+        "import { fileURLToPath as __cjsCompatFileURLToPath } from 'url';",
+        "import { dirname as __cjsCompatDirname } from 'path';",
+        "const require = __cjsCompatCreateRequire(import.meta.url);",
+        "const __filename = __cjsCompatFileURLToPath(import.meta.url);",
+        "const __dirname = __cjsCompatDirname(__filename);",
+      ].join("\n"),
+    },
     define: {
       "process.env.NODE_ENV": '"production"',
     },
