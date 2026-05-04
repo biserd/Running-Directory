@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Layout } from "@/components/layout";
 import { RaceCard } from "@/components/race-card";
 import { SponsorshipSlot } from "@/components/sponsorship-slot";
@@ -237,9 +237,14 @@ function activeChipCount(f: FilterState, ignoreSort = true): number {
   return n;
 }
 
+const ZIP_RE = /^\d{5}$/;
+
 function clientSideFilter(races: Race[], f: FilterState): Race[] {
   let out = races;
-  if (f.q) {
+  // A 5-digit ZIP in the search box is handled by the near-radius effect that
+  // resolves it to lat/lng. Don't also try to text-match the digits against
+  // race names/cities — that always returns 0 results.
+  if (f.q && !ZIP_RE.test(f.q.trim())) {
     const needle = f.q.toLowerCase();
     out = out.filter(r =>
       r.name.toLowerCase().includes(needle) ||
@@ -574,6 +579,38 @@ export default function RacesSearchPage() {
     setFilters({ ...EMPTY_FILTERS, state: stateData?.abbreviation || "" });
     navigate(stateSlug ? `/races/state/${stateSlug}` : "/races", { replace: true });
   };
+
+  // When the search box contains a 5-digit US ZIP, transparently swap
+  // free-text matching for a near-radius filter using /api/geocode/zip.
+  // We track the last ZIP we resolved so we don't re-fetch on every render
+  // and so clearing the chip restores the prior view.
+  const resolvedZipRef = useRef<string | null>(null);
+  useEffect(() => {
+    const trimmed = filters.q.trim();
+    if (!ZIP_RE.test(trimmed)) {
+      resolvedZipRef.current = null;
+      return;
+    }
+    if (resolvedZipRef.current === trimmed) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/geocode/zip?zip=${trimmed}`);
+        if (!r.ok || cancelled) return;
+        const data = await r.json();
+        if (typeof data.lat !== "number" || typeof data.lng !== "number") return;
+        resolvedZipRef.current = trimmed;
+        updateFilters(prev => ({
+          ...prev,
+          near: true,
+          lat: Number(data.lat.toFixed(4)),
+          lng: Number(data.lng.toFixed(4)),
+        }));
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.q]);
 
   const apiQs = filtersToApiQs(filters);
   const { data: races, isLoading } = useQuery<Race[]>({
@@ -980,6 +1017,17 @@ function activeFilterChips(
   if (f.registrationOpen) chips.push({ key: "regopen", label: "Reg open", clear: update("registrationOpen", false) });
   if (f.priceIncreaseSoon) chips.push({ key: "priceup", label: "Price up soon", clear: update("priceIncreaseSoon", false) });
   if (f.transitFriendly) chips.push({ key: "transit", label: "Transit friendly", clear: update("transitFriendly", false) });
-  if (f.q) chips.push({ key: "q", label: `"${f.q}"`, clear: update("q", "") });
+  if (f.q) {
+    const isZip = /^\d{5}$/.test(f.q.trim());
+    chips.push({
+      key: "q",
+      label: isZip ? `ZIP ${f.q.trim()}` : `"${f.q}"`,
+      // Clearing a ZIP-driven chip also tears down the near-radius filter that
+      // got applied when we resolved the ZIP to coords.
+      clear: isZip
+        ? () => updateFilters(prev => ({ ...prev, q: "", near: false, lat: null, lng: null }))
+        : update("q", ""),
+    });
+  }
   return chips;
 }
