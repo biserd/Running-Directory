@@ -704,6 +704,7 @@ export type RaceSearchFilters = {
   charity?: boolean;
   bostonQualifier?: boolean;
   isTurkeyTrot?: boolean;
+  isFeatured?: boolean;
   vibeTag?: string;
   registrationOpen?: boolean;
   priceIncreaseSoon?: boolean;

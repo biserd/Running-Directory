@@ -119,6 +119,7 @@ export type RaceSearchParams = {
   terrain?: string;
   month?: number;
   isTurkeyTrot?: boolean;
+  isFeatured?: boolean;
   walkerFriendly?: boolean;
   strollerFriendly?: boolean;
   charity?: boolean;

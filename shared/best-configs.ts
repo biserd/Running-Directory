@@ -12,6 +12,7 @@ export type BestSearchParams = {
   terrain?: string;
   month?: number;
   isTurkeyTrot?: boolean;
+  isFeatured?: boolean;
   walkerFriendly?: boolean;
   strollerFriendly?: boolean;
   dogFriendly?: boolean;
@@ -130,6 +131,18 @@ export const BEST_CONFIGS: Record<string, BestConfig> = {
     related: [
       { label: "Scenic 10Ks", href: "/best/scenic-10ks" },
       { label: "Charity races", href: "/best/charity-races" },
+    ],
+  },
+  "top-us-races": {
+    title: "Top US Races",
+    intro: "Our editor-curated list of the most iconic running events in the United States — World Marathon Majors, signature half marathons, and bucket-list 10Ks and 5Ks. Verified annual dates, sorted by what's coming up next.",
+    eyebrow: "Editor's picks",
+    search: { isFeatured: true, sort: "date", limit: 100 },
+    emptyBody: "Our top-races list is being refreshed. Check back shortly.",
+    related: [
+      { label: "Best beginner half marathons", href: "/best/beginner-half-marathons" },
+      { label: "Flat & fast marathons", href: "/best/flat-fast-marathons" },
+      { label: "Browse all races", href: "/races" },
     ],
   },
   "this-weekend": {

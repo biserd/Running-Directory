@@ -853,6 +853,7 @@ export async function registerRoutes(
     charity: optBool,
     bostonQualifier: optBool,
     isTurkeyTrot: optBool,
+    isFeatured: optBool,
     vibeTag: optStr,
     registrationOpen: optBool,
     priceIncreaseSoon: optBool,

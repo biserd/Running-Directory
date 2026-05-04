@@ -825,6 +825,7 @@ export class DatabaseStorage implements IStorage {
     if (filters.charity) conditions.push(eq(races.charity, true));
     if (filters.bostonQualifier) conditions.push(eq(races.bostonQualifier, true));
     if (filters.isTurkeyTrot) conditions.push(eq(races.isTurkeyTrot, true));
+    if (filters.isFeatured) conditions.push(eq(races.isFeatured, true));
     if (filters.transitFriendly) conditions.push(eq(races.transitFriendly, true));
     if (filters.vibeTag) conditions.push(sql`${filters.vibeTag} = ANY(${races.vibeTags})`);
     if (filters.registrationOpen) conditions.push(or(eq(races.registrationOpen, true), sql`${races.registrationOpen} IS NULL`)!);
