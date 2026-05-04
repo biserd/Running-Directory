@@ -782,6 +782,17 @@ export class DatabaseStorage implements IStorage {
   async getRacesAdvanced(filters: RaceSearchFilters): Promise<Race[]> {
     const conditions = [eq(races.isActive, true)];
 
+    if (filters.q && filters.q.trim()) {
+      // Free-text search across race name, city, and state. Matches the
+      // client-facing search box on /races. Server-side so paginated results
+      // don't get filtered down to whatever happened to be in the first page.
+      const pattern = `%${filters.q.trim()}%`;
+      conditions.push(sql`(
+        ${races.name} ILIKE ${pattern}
+        OR ${races.city} ILIKE ${pattern}
+        OR ${races.state} ILIKE ${pattern}
+      )`);
+    }
     if (filters.state) conditions.push(eq(races.state, filters.state));
     if (filters.city) conditions.push(eq(races.city, filters.city));
     if (filters.cityId) conditions.push(eq(races.cityId, filters.cityId));

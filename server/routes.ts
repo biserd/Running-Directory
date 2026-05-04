@@ -827,6 +827,7 @@ export async function registerRoutes(
   const optInt = z.preprocess(v => v == null || v === "" ? undefined : Number(v), z.number().int().optional());
 
   const raceSearchSchema = z.object({
+    q: optStr,
     state: optStr,
     city: optStr,
     cityId: optInt,

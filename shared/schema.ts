@@ -678,6 +678,7 @@ export type ScoreBreakdown = {
 };
 
 export type RaceSearchFilters = {
+  q?: string;
   state?: string;
   city?: string;
   cityId?: number;

@@ -159,6 +159,9 @@ function parseFiltersFromUrl(search: string, stateAbbr?: string): FilterState {
 
 function filtersToApiQs(f: FilterState): string {
   const qs = new URLSearchParams();
+  // Send q to the server unless it's a 5-digit ZIP — those drive the
+  // near-radius lookup and shouldn't also try to text-match race names.
+  if (f.q && !ZIP_RE.test(f.q.trim())) qs.set("q", f.q.trim());
   if (f.distance) qs.set("distance", f.distance);
   if (f.surface) qs.set("surface", f.surface);
   if (f.terrain) qs.set("terrain", f.terrain);
@@ -241,17 +244,8 @@ const ZIP_RE = /^\d{5}$/;
 
 function clientSideFilter(races: Race[], f: FilterState): Race[] {
   let out = races;
-  // A 5-digit ZIP in the search box is handled by the near-radius effect that
-  // resolves it to lat/lng. Don't also try to text-match the digits against
-  // race names/cities — that always returns 0 results.
-  if (f.q && !ZIP_RE.test(f.q.trim())) {
-    const needle = f.q.toLowerCase();
-    out = out.filter(r =>
-      r.name.toLowerCase().includes(needle) ||
-      r.city.toLowerCase().includes(needle) ||
-      r.state.toLowerCase().includes(needle)
-    );
-  }
+  // q is now applied server-side (so pagination works). 5-digit ZIPs are
+  // turned into a near-radius lookup by the effect in the page component.
   if (f.elevationBucket) {
     const bucket = ELEVATION_BUCKETS.find(b => b.label === f.elevationBucket);
     if (bucket) {
