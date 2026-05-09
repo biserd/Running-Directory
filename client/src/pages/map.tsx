@@ -103,7 +103,7 @@ export default function MapPage() {
 
   const { data: pinsResp, isLoading } = useQuery({
     queryKey: ["/api/races/map", { state: stateFilter, distance: distanceFilter, from, to }],
-    queryFn: () => apiGetRacePins({ state: stateFilter, distance: distanceFilter, from, to, limit: 5000 }),
+    queryFn: () => apiGetRacePins({ state: stateFilter, distance: distanceFilter, from, to, limit: 20000 }),
     staleTime: 1000 * 60 * 2,
   });
 

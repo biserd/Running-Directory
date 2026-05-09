@@ -336,7 +336,7 @@ export async function registerRoutes(
     const distance = typeof req.query.distance === "string" ? req.query.distance : undefined;
     const dateFrom = typeof req.query.from === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.from) ? req.query.from : undefined;
     const dateTo = typeof req.query.to === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.to) ? req.query.to : undefined;
-    const limit = req.query.limit ? Math.min(parseInt(String(req.query.limit), 10) || 5000, 10000) : 5000;
+    const limit = req.query.limit ? Math.min(parseInt(String(req.query.limit), 10) || 5000, 25000) : 5000;
     let bbox: { minLat: number; minLng: number; maxLat: number; maxLng: number } | undefined;
     if (typeof req.query.bbox === "string") {
       const parts = req.query.bbox.split(",").map(parseFloat);

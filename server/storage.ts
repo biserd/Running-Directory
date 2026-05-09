@@ -2045,7 +2045,7 @@ export class DatabaseStorage implements IStorage {
       conds.push(gte(races.lng, filters.bbox.minLng));
       conds.push(lte(races.lng, filters.bbox.maxLng));
     }
-    const limit = Math.min(Math.max(filters?.limit ?? 5000, 1), 10000);
+    const limit = Math.min(Math.max(filters?.limit ?? 5000, 1), 25000);
     const rows = await db.select({
       id: races.id, slug: races.slug, name: races.name,
       city: races.city, state: races.state, distance: races.distance,
