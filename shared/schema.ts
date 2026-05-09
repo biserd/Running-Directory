@@ -172,6 +172,7 @@ export const raceOccurrences = pgTable("race_occurrences", {
   index("race_occurrences_year_idx").on(table.year),
   index("race_occurrences_year_month_idx").on(table.year, table.month),
   index("race_occurrences_date_idx").on(table.startDate),
+  uniqueIndex("race_occurrences_race_start_uniq").on(table.raceId, table.startDate),
 ]);
 
 export const raceClaims = pgTable("race_claims", {

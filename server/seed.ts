@@ -496,6 +496,38 @@ export async function seedDatabase() {
     console.error("[top-races] Failed to seed curated marquee races:", err);
   }
 
+  // One-shot fix: earlier ingest runs inserted duplicate race_occurrences for
+  // the same (race_id, start_date) because the table had no unique constraint.
+  // Drop the duplicates (keep the smallest id per pair) and add the unique
+  // index so future inserts using ON CONFLICT DO NOTHING actually dedupe.
+  // Idempotent — costs ~one query per startup once the index exists.
+  try {
+    const { sql } = await import("drizzle-orm");
+    const idxCheck = await db.execute(sql`
+      SELECT 1 FROM pg_indexes
+      WHERE schemaname = 'public' AND indexname = 'race_occurrences_race_start_uniq'
+      LIMIT 1
+    `);
+    if (idxCheck.rows.length === 0) {
+      const dupes = await db.execute(sql`
+        DELETE FROM race_occurrences a USING race_occurrences b
+        WHERE a.race_id = b.race_id AND a.start_date = b.start_date AND a.id > b.id
+      `);
+      const removed = (dupes as unknown as { rowCount?: number }).rowCount ?? 0;
+      await db.execute(sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS race_occurrences_race_start_uniq
+        ON race_occurrences(race_id, start_date)
+      `);
+      if (removed > 0) {
+        console.log(`[race_occurrences] De-duplicated ${removed} duplicate rows and added unique (race_id, start_date) index.`);
+      } else {
+        console.log(`[race_occurrences] Added unique (race_id, start_date) index.`);
+      }
+    }
+  } catch (err) {
+    console.error("[race_occurrences] Failed to dedupe / add unique index:", err);
+  }
+
   console.log("Database seeding complete.");
 
   setImmediate(async () => {
