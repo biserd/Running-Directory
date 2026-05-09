@@ -10,12 +10,10 @@ import { SmartSearch } from "@/components/smart-search";
 const PRIMARY_NAV: { label: string; href: string; testId: string }[] = [
   { label: "Find races", href: "/races", testId: "link-races" },
   { label: "Map", href: "/map", testId: "link-map" },
-  { label: "Turkey Trots", href: "/races?turkeyTrot=true", testId: "link-turkey-trots" },
-  { label: "5K", href: "/races?distance=5K", testId: "link-distance-5k" },
-  { label: "10K", href: "/races?distance=10K", testId: "link-distance-10k" },
   { label: "Half", href: "/races?distance=Half+Marathon", testId: "link-distance-half" },
   { label: "Marathon", href: "/races?distance=Marathon", testId: "link-distance-marathon" },
   { label: "Trail", href: "/races?surface=Trail", testId: "link-surface-trail" },
+  { label: "Blog", href: "/blog", testId: "link-blog" },
   { label: "For organizers", href: "/for-organizers", testId: "link-for-organizers" },
   { label: "Pricing", href: "/pricing", testId: "link-pricing" },
 ];
@@ -75,6 +73,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <DropdownMenuItem asChild><Link href="/races?turkeyTrot=true" data-testid="link-turkey-trots-md">Turkey Trots</Link></DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Link href="/blog" className={cn("hover:text-primary", isActive(location, "/blog") ? "text-primary" : "text-foreground/80")} data-testid="link-blog-md">Blog</Link>
             <Link href="/for-organizers" className={cn("hover:text-primary", isActive(location, "/for-organizers") ? "text-primary" : "text-foreground/80")} data-testid="link-for-organizers-md">For organizers</Link>
             <Link href="/pricing" className={cn("hover:text-primary", isActive(location, "/pricing") ? "text-primary" : "text-foreground/80")} data-testid="link-pricing-md">Pricing</Link>
           </nav>
@@ -181,7 +180,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       <footer className="border-t bg-muted/30 pt-16 pb-8">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-8 mb-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-2 md:col-span-1">
               <Link href="/" className="font-heading font-bold text-lg tracking-tighter">
                 running<span className="text-primary">.services</span>
@@ -201,6 +200,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <li><Link href="/races?distance=Half+Marathon" className="hover:text-primary" data-testid="link-half-footer">Half marathons</Link></li>
                 <li><Link href="/races?distance=Marathon" className="hover:text-primary" data-testid="link-marathon-footer">Marathons</Link></li>
                 <li><Link href="/races?surface=Trail" className="hover:text-primary" data-testid="link-trail-footer">Trail races</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-heading font-semibold mb-4">Guides & tools</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><Link href="/blog" className="hover:text-primary" data-testid="link-blog-footer">Race guides blog</Link></li>
+                <li><Link href="/best/top-us-races" className="hover:text-primary" data-testid="link-best-top-footer">Top US races</Link></li>
+                <li><Link href="/best-races/marathons/may" className="hover:text-primary" data-testid="link-best-marathons-may-footer">Best marathons in May</Link></li>
+                <li><Link href="/race-shopper" className="hover:text-primary" data-testid="link-shopper-footer">Race Shopper</Link></li>
+                <li><Link href="/compare" className="hover:text-primary" data-testid="link-compare-footer">Compare races</Link></li>
+                <li><Link href="/this-weekend" className="hover:text-primary" data-testid="link-weekend-footer">Races this weekend</Link></li>
+                <li><Link href="/turkey-trots" className="hover:text-primary" data-testid="link-turkey-trots-hub-footer">Turkey Trots hub</Link></li>
+                <li><Link href="/tools" className="hover:text-primary" data-testid="link-tools-footer">Runner tools</Link></li>
               </ul>
             </div>
             <div>
