@@ -86,17 +86,12 @@ export default function MapPage() {
     staleTime: 1000 * 60 * 60,
   });
 
-  // The map is "click to activate". We don't request the API key (and therefore
-  // don't pay for a Google Maps Dynamic Map Load) until the user explicitly
-  // asks to see the interactive map. This dramatically reduces billable map
-  // loads from bots, link-preview crawlers, and accidental visits.
-  const [mapActivated, setMapActivated] = useState(false);
-
+  // Load the Google Maps API key as soon as the page mounts so the interactive
+  // map renders without an extra click.
   const { data: config } = useQuery({
     queryKey: ["/api/config/public"],
     queryFn: fetchPublicConfig,
     staleTime: 1000 * 60 * 60,
-    enabled: mapActivated,
   });
 
   const { from, to } = dateRangeFor(datePreset);
@@ -181,31 +176,7 @@ export default function MapPage() {
             <Skeleton className="h-12 w-48" />
           </div>
         )}
-        {!mapActivated ? (
-          <div
-            className="h-full flex items-center justify-center text-center px-6 bg-[radial-gradient(circle_at_30%_30%,hsl(var(--muted))_0%,hsl(var(--background))_60%)]"
-            data-testid="map-placeholder"
-          >
-            <div className="max-w-md">
-              <MapPin className="h-10 w-10 mx-auto text-primary mb-3" />
-              <h2 className="font-heading font-bold text-2xl mb-2">
-                {pins.length.toLocaleString()} races nationwide
-              </h2>
-              <p className="text-muted-foreground text-sm mb-5">
-                The interactive map uses the Google Maps API. Click below to load it — your filter selections are already applied.
-              </p>
-              <Button
-                type="button"
-                size="lg"
-                onClick={() => setMapActivated(true)}
-                data-testid="button-activate-map"
-              >
-                <MapPin className="mr-2 h-4 w-4" />
-                Show interactive map
-              </Button>
-            </div>
-          </div>
-        ) : config?.googleMapsApiKey ? (
+        {config?.googleMapsApiKey ? (
           <RaceMap apiKey={config.googleMapsApiKey} pins={pins} heatmap={heatmap} />
         ) : config && !config.googleMapsApiKey ? (
           <div className="h-full flex items-center justify-center text-center px-6" data-testid="map-no-key">
