@@ -238,7 +238,32 @@ function RaceMap({ apiKey, pins, heatmap }: { apiKey: string; pins: RacePin[]; h
         clickableIcons: false,
       });
       const infoWindow = new InfoWindow();
-      const clusterer = new MarkerClusterer({ map, markers: [] });
+      // Custom renderer: every cluster uses the same brand color, sized by
+      // race count. Keeps the map looking consistent at all zoom levels.
+      const renderer = {
+        render: ({ count, position }: { count: number; position: google.maps.LatLng }) => {
+          const radius = Math.min(28, 14 + Math.log10(count) * 6);
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${radius * 2}" height="${radius * 2}">
+            <circle cx="${radius}" cy="${radius}" r="${radius - 2}" fill="hsl(217,91%,40%)" fill-opacity="0.9" stroke="white" stroke-width="2"/>
+          </svg>`;
+          return new google.maps.Marker({
+            position,
+            icon: {
+              url: `data:image/svg+xml;charset=UTF-8;base64,${btoa(svg)}`,
+              scaledSize: new google.maps.Size(radius * 2, radius * 2),
+              anchor: new google.maps.Point(radius, radius),
+            },
+            label: {
+              text: count.toLocaleString(),
+              color: "white",
+              fontSize: count >= 1000 ? "11px" : "12px",
+              fontWeight: "700",
+            },
+            zIndex: 1000 + count,
+          });
+        },
+      };
+      const clusterer = new MarkerClusterer({ map, markers: [], renderer });
 
       setHandle({ map, clusterer, infoWindow, HeatmapLayer: null });
 
