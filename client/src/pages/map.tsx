@@ -321,8 +321,16 @@ function RaceMap({ apiKey, pins, heatmap }: { apiKey: string; pins: RacePin[]; h
       };
     }
 
+    const singleSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+      <circle cx="10" cy="10" r="7" fill="hsl(217,91%,40%)" fill-opacity="0.95" stroke="white" stroke-width="2"/>
+    </svg>`;
+    const singleIcon = {
+      url: `data:image/svg+xml;charset=UTF-8;base64,${btoa(singleSvg)}`,
+      scaledSize: new google.maps.Size(20, 20),
+      anchor: new google.maps.Point(10, 10),
+    };
     const markers = pins.map((p) => {
-      const marker = new google.maps.Marker({ position: { lat: p.lat, lng: p.lng } });
+      const marker = new google.maps.Marker({ position: { lat: p.lat, lng: p.lng }, icon: singleIcon });
       const dateStr = (() => {
         try {
           return new Date(p.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
