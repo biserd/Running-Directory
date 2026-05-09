@@ -46,8 +46,6 @@ Disallow: /books
 Disallow: /books/
 Disallow: /collections
 Disallow: /collections/
-Disallow: /blog
-Disallow: /blog/
 Disallow: /guides
 Disallow: /guides/
 Disallow: /routes
@@ -201,6 +199,33 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
       const { BEST_SLUGS } = await import("@shared/best-configs");
       for (const slug of BEST_SLUGS) {
         entries.push(urlEntry(`/best/${slug}`, { changefreq: "weekly", priority: "0.7", lastmod: today }));
+      }
+
+      // Blog: rolling 12 months × distance, gated ≥5 races (year-aware)
+      try {
+        const { BLOG_DISTANCE_SLUGS, blogPostHref, rollingMonths } = await import("@shared/blog-months");
+        const { DISTANCE_SLUG_TO_LABEL } = await import("@shared/metro");
+        entries.push(urlEntry("/blog", { changefreq: "daily", priority: "0.7", lastmod: today }));
+        const months = rollingMonths(new Date(), 12);
+        for (const distanceSlug of BLOG_DISTANCE_SLUGS) {
+          const cfg = DISTANCE_SLUG_TO_LABEL[distanceSlug];
+          for (const { monthNum, year } of months) {
+            try {
+              const r = await storage.getRacesAdvanced({
+                distance: cfg.distance || undefined,
+                surface: cfg.surface,
+                month: monthNum,
+                year,
+                limit: 5,
+              });
+              if (r.length >= 5) {
+                entries.push(urlEntry(blogPostHref(distanceSlug, monthNum, year), { changefreq: "weekly", priority: "0.7", lastmod: today }));
+              }
+            } catch {}
+          }
+        }
+      } catch (err) {
+        console.warn("[sitemap-seo] blog enumeration failed:", (err as Error).message);
       }
 
       // Best [distance] in [month] — nationwide rollups, gated ≥5 races
@@ -423,7 +448,6 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
     { regex: /^\/books(\/.*)?$/, label: "Running Books", suggestion: "Browse races", suggestionPath: "/races" },
     { regex: /^\/collections(\/.*)?$/, label: "Race Collections", suggestion: "Try the Race Shopper", suggestionPath: "/race-shopper" },
     { regex: /^\/guides(\/.*)?$/, label: "Running Guides", suggestion: "Browse races", suggestionPath: "/races" },
-    { regex: /^\/blog(\/.*)?$/, label: "Blog", suggestion: "Browse races", suggestionPath: "/races" },
   ];
 
   app.use((req, res, next) => {

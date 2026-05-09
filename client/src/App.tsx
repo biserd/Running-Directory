@@ -36,6 +36,7 @@ import PrivacyPolicy from "@/pages/privacy";
 import AboutPage from "@/pages/about";
 import ContactPage from "@/pages/contact";
 import BlogPage from "@/pages/blog";
+import BlogPostPage from "@/pages/blog-post";
 import AuthVerifyPage from "@/pages/auth/verify";
 import FavoritesPage from "@/pages/favorites";
 import AlertsPage from "@/pages/alerts";
@@ -99,6 +100,7 @@ function AppRouter() {
       <Route path="/about" component={AboutPage} />
       <Route path="/contact" component={ContactPage} />
       <Route path="/blog" component={BlogPage} />
+      <Route path="/blog/:slug" component={BlogPostPage} />
       <Route path="/race-shopper/:goal" component={RaceShopperPage} />
       <Route path="/race-shopper" component={RaceShopperPage} />
       <Route path="/shopper/:goal" component={RaceShopperPage} />

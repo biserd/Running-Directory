@@ -4,6 +4,8 @@ import type { PageMeta } from "../client/src/entry-server";
 import { getStateName } from "@shared/states";
 import { DISTANCE_SLUG_TO_LABEL, isValidDistanceSlug, isValidMonthSlug, MONTH_NAMES as METRO_MONTH_NAMES, MONTH_SLUG_TO_NUM, buildMetroSlug } from "@shared/metro";
 import { BEST_CONFIGS, buildBestSearchQs, resolveBestSearch, type BestSearchParams } from "@shared/best-configs";
+import { parseBlogPostSlug, blogPostHref } from "@shared/blog-months";
+import { computeRaceScore } from "@shared/race-score";
 
 type PrefetchFn = (queryClient: QueryClient, params: Record<string, string>) => Promise<PageMeta>;
 
@@ -868,15 +870,162 @@ const prefetchContact: PrefetchFn = async () => ({
   canonicalUrl: "https://running.services/contact",
 });
 
-const prefetchBlog: PrefetchFn = async () => ({
-  title: "Blog | running.services",
-  description: "Tips, guides, and race insights for runners of every level — from choosing your first marathon to advanced training strategies.",
-  ogTitle: "running.services Blog",
-  ogDescription: "Tips, guides, and race insights for runners of every level.",
-  ogType: "website",
-  canonicalUrl: "https://running.services/blog",
-  noindex: true,
-});
+const prefetchBlog: PrefetchFn = async () => {
+  const url = "https://running.services/blog";
+  return {
+    title: "Race Guides Blog: Best Marathons, Half Marathons & 5Ks by Month | running.services",
+    description: "Month-by-month guides to the best marathons, half marathons, 10Ks, 5Ks, and trail races in the USA. Updated continuously and ranked by RaceScore.",
+    ogTitle: "Race Guides Blog — Best Races by Month",
+    ogDescription: "Month-by-month USA race guides ranked by RaceScore.",
+    ogType: "website",
+    canonicalUrl: url,
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "Blog",
+      name: "running.services Race Guides",
+      url,
+      description: "Month-by-month USA race guides ranked by RaceScore.",
+      publisher: { "@type": "Organization", name: "running.services", url: "https://running.services" },
+    },
+  };
+};
+
+const prefetchBlogPost: PrefetchFn = async (qc, params) => {
+  const parsed = params.slug ? parseBlogPostSlug(params.slug) : null;
+  if (!parsed) {
+    return {
+      title: "Article not found | running.services",
+      description: "That blog URL isn't recognized.",
+      ogType: "website",
+      is404: true,
+      noindex: true,
+    } as PageMeta;
+  }
+  const { distanceSlug, distanceCfg, monthNum, monthLabel, year } = parsed;
+
+  const search = {
+    distance: distanceCfg.distance || undefined,
+    surface: distanceCfg.surface || undefined,
+    month: monthNum,
+    year,
+    sort: "date" as const,
+    limit: 60,
+  };
+  // Build the same QS the client uses so React Query hydrates from cache.
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(search)) {
+    if (v == null || v === "" || v === false) continue;
+    qs.set(k, String(v));
+  }
+  const apiQs = qs.toString();
+
+  const races = await storage.getRacesAdvanced(search).catch(() => []);
+  qc.setQueryData(["/api/races/search", apiQs], races);
+
+  // Match the page's RaceScore-based ranking so JSON-LD ItemList and the
+  // FAQ "best race" answer agree with what the user actually sees.
+  const ranked = races.slice().sort(
+    (a, b) => computeRaceScore(b as any).score - computeRaceScore(a as any).score,
+  );
+
+  const url = `${SITE_ORIGIN}${blogPostHref(distanceSlug, monthNum, year)}`;
+  const distLower = distanceCfg.label.toLowerCase();
+  const distPluralLower = distanceCfg.plural.toLowerCase();
+  const top = ranked.slice(0, 10);
+  const dateRangeLabel = `${monthLabel} ${year}`;
+
+  const title = `Best ${distanceCfg.plural} in ${monthLabel} ${year} (USA) | running.services`;
+  const description = `The top ${distPluralLower} happening across the USA in ${dateRangeLabel}, ranked by RaceScore. ${top.length > 0 ? `Featured: ${top.slice(0, 3).map(r => r.name).join(", ")}.` : ""}`;
+
+  // Article + ItemList + FAQPage JSON-LD bundled in @graph.
+  const jsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Article",
+        headline: `Best ${distanceCfg.plural} in ${monthLabel} ${year} (USA)`,
+        description,
+        url,
+        datePublished: `${year}-${String(monthNum).padStart(2, "0")}-01`,
+        author: { "@type": "Organization", name: "running.services" },
+        publisher: {
+          "@type": "Organization",
+          name: "running.services",
+          logo: { "@type": "ImageObject", url: "https://running.services/og-default.png" },
+        },
+        mainEntityOfPage: url,
+      },
+      {
+        "@type": "ItemList",
+        name: `Best ${distanceCfg.plural} in ${monthLabel} ${year}`,
+        itemListElement: top.map((r, i) => ({
+          "@type": "ListItem",
+          position: i + 1,
+          url: `https://running.services/races/${r.slug}`,
+          name: r.name,
+        })),
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: [
+          {
+            "@type": "Question",
+            name: `What is the best ${distLower} in ${monthLabel} ${year}?`,
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: top[0]
+                ? `Based on RaceScore, the highest-rated ${distLower} in ${dateRangeLabel} is ${top[0].name} in ${top[0].city}, ${top[0].state}.`
+                : `We don't yet have enough confirmed ${distPluralLower} for ${dateRangeLabel} to recommend one.`,
+            },
+          },
+          {
+            "@type": "Question",
+            name: `How many ${distPluralLower} are there in the USA in ${monthLabel} ${year}?`,
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: `running.services tracks ${races.length} confirmed ${distPluralLower} on the ${dateRangeLabel} calendar.`,
+            },
+          },
+          {
+            "@type": "Question",
+            name: `Is ${monthLabel} a good month to run a ${distLower}?`,
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: monthAdviceText(monthNum, distanceCfg.label),
+            },
+          },
+        ],
+      },
+    ],
+  };
+
+  return {
+    title,
+    description,
+    ogTitle: `Best ${distanceCfg.plural} in ${monthLabel} ${year} (USA)`,
+    ogDescription: description,
+    ogType: "article",
+    canonicalUrl: url,
+    noindex: races.length < 5,
+    jsonLd,
+    breadcrumbJsonLd: buildBreadcrumbJsonLd([
+      { name: "Home", href: "/" },
+      { name: "Blog", href: "/blog" },
+      { name: `${distanceCfg.plural} in ${monthLabel} ${year}` },
+    ]),
+  } as PageMeta;
+};
+
+function monthAdviceText(monthNum: number, distance: string): string {
+  const cool = monthNum === 3 || monthNum === 4 || monthNum === 10 || monthNum === 11;
+  const cold = monthNum === 12 || monthNum === 1 || monthNum === 2;
+  const hot = monthNum >= 6 && monthNum <= 8;
+  const name = MONTH_NAMES[monthNum - 1];
+  if (cool) return `${name} is one of the best months in the USA for a ${distance.toLowerCase()} — cool, stable temperatures across most of the country make it prime PR season.`;
+  if (cold) return `${name} runs cold in most of the country, which favors distance running but watch for icy starts; southern races tend to draw the biggest fields.`;
+  if (hot) return `${name} can be hot and humid, especially in the Southeast and Midwest — look for early-morning starts and mountain or coastal courses.`;
+  return `${name} sits in the shoulder season — expect mild weather and a mix of championship and casual events.`;
+}
 
 const prefetchAuthVerify: PrefetchFn = async () => ({
   title: "Sign In | running.services",
@@ -1563,6 +1712,7 @@ const routeMatches: RouteMatch[] = [
   { pattern: /^\/reports\/([^/]+)\/([^/]+)$/, prefetch: prefetchReports, paramNames: ["metro", "distance"] },
   { pattern: /^\/contact$/, prefetch: prefetchContact, paramNames: [] },
   { pattern: /^\/blog$/, prefetch: prefetchBlog, paramNames: [] },
+  { pattern: /^\/blog\/([^/]+)$/, prefetch: prefetchBlogPost, paramNames: ["slug"] },
   { pattern: /^\/auth\/verify$/, prefetch: prefetchAuthVerify, paramNames: [] },
   { pattern: /^\/favorites$/, prefetch: prefetchFavorites, paramNames: [] },
   { pattern: /^\/alerts$/, prefetch: prefetchAlerts, paramNames: [] },

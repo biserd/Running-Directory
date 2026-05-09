@@ -118,6 +118,7 @@ export type RaceSearchParams = {
   surface?: string;
   terrain?: string;
   month?: number;
+  year?: number;
   isTurkeyTrot?: boolean;
   isFeatured?: boolean;
   walkerFriendly?: boolean;
