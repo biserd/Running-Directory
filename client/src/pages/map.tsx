@@ -325,6 +325,11 @@ function RaceMap({ apiKey, pins, heatmap }: { apiKey: string; pins: RacePin[]; h
       return marker;
     });
     clusterer.addMarkers(markers);
+    // Force an immediate cluster render. Without this, MarkerClusterer waits
+    // for the next map "idle" event — so on first load the user sees raw red
+    // markers until they pan/zoom. Calling render() makes the blue cluster
+    // bubbles appear right away.
+    clusterer.render();
 
     if (pins.length <= 500) {
       const bounds = new google.maps.LatLngBounds();
