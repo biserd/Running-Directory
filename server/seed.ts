@@ -486,6 +486,16 @@ export async function seedDatabase() {
   await storage.seedBooks(SEED_BOOKS);
   console.log(`Seeded ${SEED_BOOKS.length} books`);
 
+  try {
+    const { seedTopRaces } = await import("../script/seed-top-races");
+    const { written, total } = await seedTopRaces();
+    if (written > 0) {
+      console.log(`[top-races] Seeded ${written}/${total} curated marquee races (others already up to date).`);
+    }
+  } catch (err) {
+    console.error("[top-races] Failed to seed curated marquee races:", err);
+  }
+
   console.log("Database seeding complete.");
 
   setImmediate(async () => {

@@ -5,16 +5,16 @@
  * Why: the regular ingest is RunSignUp-driven, so World Marathon Majors and
  * other signature events never get refreshed (NYC, Boston, Chicago, etc.
  * register through their own platforms). The /best/top-us-races page reads
- * `is_featured = true`, so this script is the single source of truth for
- * which races appear there.
+ * `is_featured = true`, so this is the single source of truth for which
+ * races appear there.
  *
  * Idempotent: every row is upserted by slug. Re-run any time the calendar
- * advances or the list changes.
+ * advances or the list changes. Also invoked automatically at server
+ * startup from server/seed.ts so production deployments stay in sync.
  *
- * Usage: `tsx script/seed-top-races.ts`
+ * Standalone usage: `tsx script/seed-top-races.ts`
  */
 import { db } from "../server/db";
-import { races } from "../shared/schema";
 import { sql } from "drizzle-orm";
 
 type Top = {
@@ -34,7 +34,7 @@ type Top = {
 // Verified next-edition dates for marquee US races (2026 season unless noted).
 // Source: each event's official site; stored as text dates in the existing
 // schema. Update annually.
-const TOP_RACES: Top[] = [
+export const TOP_RACES: Top[] = [
   // ---- World Marathon Majors (US) ----
   { slug: "boston-marathon", name: "Boston Marathon", date: "2026-04-20", city: "Boston", state: "MA", distance: "Marathon", website: "https://www.baa.org/races/boston-marathon", fieldSize: 30000, description: "The world's oldest annual marathon, run point-to-point from Hopkinton to Boylston Street on Patriots' Day. Entry by qualification or charity bib." },
   { slug: "chicago-marathon", name: "Bank of America Chicago Marathon", date: "2026-10-11", city: "Chicago", state: "IL", distance: "Marathon", website: "https://www.chicagomarathon.com/", fieldSize: 50000, description: "Flat, fast, and famously PR-friendly. One of the largest marathons in the world with a lottery-based entry." },
@@ -122,19 +122,37 @@ async function upsert(t: Top) {
   `);
 }
 
+/**
+ * Idempotent — safe to call on every server start. Only re-runs the writes
+ * when a featured race is missing or its date drifted from the curated value,
+ * so day-to-day startups are essentially free.
+ */
+export async function seedTopRaces(): Promise<{ written: number; total: number }> {
+  // Pull existing rows one-by-one and only write when something drifted, so
+  // day-to-day server starts that already have the curated set are cheap.
+  let written = 0;
+  for (const t of TOP_RACES) {
+    const cur = await db.execute(sql`
+      SELECT date, is_featured FROM races WHERE slug = ${t.slug} LIMIT 1
+    `);
+    const row = cur.rows[0] as { date: string; is_featured: boolean } | undefined;
+    if (row && row.is_featured && row.date === t.date) continue;
+    await upsert(t);
+    written++;
+  }
+  return { written, total: TOP_RACES.length };
+}
+
 async function main() {
   console.log(`[top-races] upserting ${TOP_RACES.length} curated races…`);
-  let n = 0;
-  for (const t of TOP_RACES) {
-    await upsert(t);
-    n++;
-    if (n % 10 === 0) console.log(`  ${n}/${TOP_RACES.length}`);
-  }
-  console.log(`[top-races] done — ${n} races upserted, all marked is_featured=true.`);
+  const { written, total } = await seedTopRaces();
+  console.log(`[top-races] done — ${written}/${total} races written (rest already up to date).`);
   process.exit(0);
 }
 
-main().catch((err) => {
-  console.error("[top-races] fatal:", err);
-  process.exit(1);
-});
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((err) => {
+    console.error("[top-races] fatal:", err);
+    process.exit(1);
+  });
+}
