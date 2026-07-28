@@ -20,6 +20,7 @@ import RoutesCityPage from "@/pages/routes/city";
 import RouteDetail from "@/pages/routes/detail";
 import ToolsHub from "@/pages/tools/index";
 import ToolDetail from "@/pages/tools/detail";
+import GoalCheckPage from "@/pages/goal-check";
 import GuidesHub from "@/pages/guides/index";
 import CollectionsHub from "@/pages/collections/index";
 import CollectionDetail from "@/pages/collections/detail";
@@ -84,6 +85,7 @@ function AppRouter() {
       <Route path="/routes/:slug" component={RouteDetail} />
       <Route path="/tools" component={ToolsHub} />
       <Route path="/tools/:slug" component={ToolDetail} />
+      <Route path="/goal-check" component={GoalCheckPage} />
       <Route path="/guides" component={GuidesHub} />
       <Route path="/collections" component={CollectionsHub} />
       <Route path="/collections/:slug" component={CollectionDetail} />
