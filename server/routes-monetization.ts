@@ -134,8 +134,7 @@ export function registerMonetizationRoutes(app: Express) {
           organizerName = orgs.find(o => o.id === created.organizerId)?.name ?? null;
         } catch {}
       }
-      // Fire-and-forget admin email
-      sendMonetizationRequestAdminNotification({
+      const notificationSent = await sendMonetizationRequestAdminNotification({
         requestId: created.id,
         kind: created.kind as "pro" | "report" | "api" | "sponsorship",
         contactEmail: created.contactEmail,
@@ -143,8 +142,9 @@ export function registerMonetizationRoutes(app: Express) {
         organizerName,
         scope: created.scope,
         message: created.message,
-      }).catch(err => console.error("[monetization] admin email failed:", err));
-      res.json({ ok: true, requestId: created.id });
+      });
+      if (!notificationSent) console.error("[monetization] admin notification failed for request", created.id);
+      res.json({ ok: true, requestId: created.id, notificationSent });
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid input", errors: err.errors });
@@ -302,7 +302,7 @@ export function registerMonetizationRoutes(app: Express) {
           organizerName = orgs.find(o => o.id === user.organizerId)?.name ?? null;
         } catch {}
       }
-      sendMonetizationRequestAdminNotification({
+      const notificationSent = await sendMonetizationRequestAdminNotification({
         requestId: created.id,
         kind: "api",
         contactEmail: user.email,
@@ -310,8 +310,9 @@ export function registerMonetizationRoutes(app: Express) {
         organizerName,
         scope: created.scope,
         message,
-      }).catch(err => console.error("[monetization] admin email failed:", err));
-      res.json({ ok: true, requestId: created.id });
+      });
+      if (!notificationSent) console.error("[monetization] admin notification failed for request", created.id);
+      res.json({ ok: true, requestId: created.id, notificationSent });
     } catch (err) {
       console.error("[api-keys] request failed:", err);
       res.status(500).json({ message: "Could not submit request" });
@@ -384,8 +385,8 @@ export function registerMonetizationRoutes(app: Express) {
         monthlyLimit: input.monthlyLimit,
       });
       if (input.notify !== false) {
-        sendApiKeyIssuedEmail(user.email, apiKey.name, plaintext, apiKey.monthlyLimit)
-          .catch(err => console.error("[api-keys] issued email failed:", err));
+        const notificationSent = await sendApiKeyIssuedEmail(user.email, apiKey.name, plaintext, apiKey.monthlyLimit);
+        if (!notificationSent) console.error("[api-keys] issued email failed for key", apiKey.id);
       }
       res.json({
         ok: true,

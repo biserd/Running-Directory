@@ -112,7 +112,8 @@ export async function registerRoutes(
     const isNewUser = !user;
     if (!user) {
       user = await storage.createUser(record.email);
-      sendAdminNewUserNotification(record.email).catch(() => {});
+      const adminNotified = await sendAdminNewUserNotification(record.email);
+      if (!adminNotified) console.error("[auth] new-user admin notification failed");
     }
 
     await storage.updateUserLastLogin(user.id);
@@ -1187,9 +1188,23 @@ export async function registerRoutes(
       // row. That way ownership proof is "received the token at this exact
       // address" — never to a different mailbox the requester didn't enter.
       const baseUrl = getTrustedBaseUrl(req);
-      sendClaimVerificationEmail(claimData.claimerEmail, race.name, race.city, race.state, verificationToken, baseUrl).catch((err) => {
-        console.error("[claim] verification email failed:", err);
-      });
+      const verificationSent = await sendClaimVerificationEmail(
+        claimData.claimerEmail,
+        race.name,
+        race.city,
+        race.state,
+        verificationToken,
+        baseUrl,
+      );
+      if (!verificationSent) {
+        return {
+          status: 503,
+          payload: {
+            message: "Your claim was saved, but the verification email could not be sent. Please try again shortly.",
+            claimId: claim.id,
+          },
+        };
+      }
 
       return {
         status: 201,
@@ -1489,12 +1504,14 @@ export async function registerRoutes(
       };
       if (!data.contactEmail) return res.status(400).json({ message: "contactEmail required" });
       const created = await storage.createFeaturedRequest(data);
-      sendFeaturedRequestAdminNotification(
+      const notificationSent = await sendFeaturedRequestAdminNotification(
         owned.name, owned.slug, ctx.organizer.name, data.contactEmail,
         input.plan, input.durationDays, input.message ?? null, created.id,
-      ).catch((err) => console.error("[featured] admin notify failed:", err));
+      );
+      if (!notificationSent) console.error("[featured] admin notification failed for request", created.id);
       res.status(201).json({
         ok: true,
+        notificationSent,
         request: created,
         message: "Thanks! Our team will review your featured listing request and email you within 2 business days.",
       });

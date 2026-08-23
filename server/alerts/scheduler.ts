@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { Resend } from "resend";
+import { env } from "cloudflare:workers";
 import { storage } from "../storage";
 import {
   buildPriceIncreaseEmail,
@@ -13,9 +13,7 @@ import {
 import type { Race, RaceSearchFilters } from "@shared/schema";
 import { ELEVATION_BUCKETS, RACE_SIZE_BUCKETS, matchesBucket } from "@shared/race-buckets";
 
-const FROM_EMAIL = "running.services <hello@running.services>";
-
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const FROM_EMAIL: EmailAddress = { name: "running.services", email: "hello@running.services" };
 
 // Per-process lock so the hourly cron doesn't double-fire when multiple ticks overlap.
 let running = false;
@@ -90,35 +88,25 @@ async function sendAlertEmail(params: {
   });
   if (!dispatch) return false; // someone else already claimed this dispatchKey
 
-  if (resend) {
-    try {
-      const result = await resend.emails.send({
-        from: FROM_EMAIL,
-        to: params.userEmail,
-        subject: envelope.subject,
-        html: envelope.html,
-        text: envelope.text,
-        headers: {
-          "List-Unsubscribe": `<${baseUrl}/api/alerts/unsubscribe?t=${unsubToken}>`,
-          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-        },
-      });
-      if (result.error) {
-        // Definitive provider rejection — safe to release the reservation so the next
-        // tick can retry without sending a duplicate.
-        console.error("[alerts] Resend error", result.error, "for", envelope.subject);
-        await storage.deleteAlertDispatch(dispatch.id);
-        return false;
-      }
-    } catch (err) {
-      // Network/timeout exceptions can be "phantom failures" where the email was
-      // actually delivered but we lost the response. Keep the reservation to avoid
-      // duplicate sends on retry; an operator can manually clear if needed.
-      console.error("[alerts] send threw (reservation kept to prevent dupes)", err);
-      return false;
-    }
-  } else {
-    console.log(`[alerts] (no Resend key) would send "${envelope.subject}" to ${params.userEmail}`);
+  try {
+    const result = await env.EMAIL.send({
+      from: FROM_EMAIL,
+      to: params.userEmail,
+      subject: envelope.subject,
+      html: envelope.html,
+      text: envelope.text,
+      headers: {
+        "List-Unsubscribe": `<${baseUrl}/api/alerts/unsubscribe?t=${unsubToken}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
+    });
+    console.log(JSON.stringify({ event: "alert_email_sent", messageId: result.messageId, subject: envelope.subject }));
+  } catch (err) {
+    // Network/timeout exceptions can be "phantom failures" where the email was
+    // actually delivered but we lost the response. Keep the reservation to avoid
+    // duplicate sends on retry; an operator can manually clear if needed.
+    console.error("[alerts] send threw (reservation kept to prevent dupes)", err);
+    return false;
   }
 
   return true;

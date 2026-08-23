@@ -1,20 +1,32 @@
-import { Resend } from "resend";
+import { env } from "cloudflare:workers";
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-
-const FROM_EMAIL = "running.services <hello@running.services>";
+const FROM_EMAIL: EmailAddress = { name: "running.services", email: "hello@running.services" };
 const ADMIN_EMAIL = "hello@bigappledigital.nyc";
 
+async function sendEmail(message: {
+  to: string;
+  subject: string;
+  html?: string;
+  text?: string;
+  headers?: Record<string, string>;
+}): Promise<boolean> {
+  try {
+    const result = await env.EMAIL.send({ ...message, from: FROM_EMAIL });
+    console.log(JSON.stringify({ event: "email_sent", messageId: result.messageId, subject: message.subject }));
+    return true;
+  } catch (error) {
+    console.error("Cloudflare Email Sending failed:", error);
+    return false;
+  }
+}
+
 export async function sendMagicLinkEmail(email: string, token: string, baseUrl: string): Promise<boolean> {
-  if (!resend) return false;
   const magicLink = `${baseUrl}/auth/verify?token=${token}`;
 
-  try {
-    const result = await resend.emails.send({
-      from: FROM_EMAIL,
-      to: email,
-      subject: "Sign in to running.services",
-      html: `
+  return sendEmail({
+    to: email,
+    subject: "Sign in to running.services",
+    html: `
         <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
           <div style="text-align: center; margin-bottom: 32px;">
             <h1 style="font-family: 'Outfit', sans-serif; font-size: 24px; font-weight: 700; color: #111; margin: 0;">running.services</h1>
@@ -34,17 +46,7 @@ export async function sendMagicLinkEmail(email: string, token: string, baseUrl: 
           </div>
         </div>
       `,
-    });
-    console.log("Resend magic link response:", JSON.stringify(result));
-    if (result.error) {
-      console.error("Resend API error:", result.error);
-      return false;
-    }
-    return true;
-  } catch (error) {
-    console.error("Failed to send magic link email:", error);
-    return false;
-  }
+  });
 }
 
 export async function sendClaimVerificationEmail(
@@ -55,14 +57,11 @@ export async function sendClaimVerificationEmail(
   token: string,
   baseUrl: string,
 ): Promise<boolean> {
-  if (!resend) return false;
   const verifyLink = `${baseUrl}/auth/verify-claim?token=${token}`;
-  try {
-    const result = await resend.emails.send({
-      from: FROM_EMAIL,
-      to: email,
-      subject: `Verify your claim: ${raceName}`,
-      html: `
+  return sendEmail({
+    to: email,
+    subject: `Verify your claim: ${raceName}`,
+    html: `
         <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
           <div style="text-align: center; margin-bottom: 32px;">
             <h1 style="font-family: 'Outfit', sans-serif; font-size: 24px; font-weight: 700; color: #111; margin: 0;">running.services</h1>
@@ -86,16 +85,7 @@ export async function sendClaimVerificationEmail(
           </div>
         </div>
       `,
-    });
-    if (result.error) {
-      console.error("Resend claim verify error:", result.error);
-      return false;
-    }
-    return true;
-  } catch (error) {
-    console.error("Failed to send claim verification email:", error);
-    return false;
-  }
+  });
 }
 
 export async function sendFeaturedRequestAdminNotification(
@@ -107,14 +97,11 @@ export async function sendFeaturedRequestAdminNotification(
   durationDays: number,
   message: string | null,
   requestId: number,
-): Promise<void> {
-  if (!resend) return;
-  try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
-      to: ADMIN_EMAIL,
-      subject: `Featured listing request: ${raceName}`,
-      html: `
+): Promise<boolean> {
+  return sendEmail({
+    to: ADMIN_EMAIL,
+    subject: `Featured listing request: ${raceName}`,
+    html: `
         <div style="font-family: 'Inter', -apple-system, sans-serif; padding: 20px; max-width: 600px;">
           <h2 style="margin: 0 0 12px;">Featured listing request #${requestId}</h2>
           <p style="margin: 0 0 8px;"><strong>Race:</strong> ${raceName} (<a href="https://running.services/races/${raceSlug}">/races/${raceSlug}</a>)</p>
@@ -125,10 +112,7 @@ export async function sendFeaturedRequestAdminNotification(
           <p style="margin-top: 16px; color: #666; font-size: 13px;">Approve via POST /api/admin/featured/${requestId}/approve</p>
         </div>
       `,
-    });
-  } catch (error) {
-    console.error("Failed to send featured request admin notification:", error);
-  }
+  });
 }
 
 export async function sendMonetizationRequestAdminNotification(opts: {
@@ -139,8 +123,7 @@ export async function sendMonetizationRequestAdminNotification(opts: {
   organizerName?: string | null;
   scope?: string | null;
   message?: string | null;
-}): Promise<void> {
-  if (!resend) return;
+}): Promise<boolean> {
   const labels: Record<string, string> = {
     pro: "Race Pro upgrade",
     report: "Local market report access",
@@ -148,12 +131,10 @@ export async function sendMonetizationRequestAdminNotification(opts: {
     sponsorship: "Sponsorship placement",
   };
   const label = labels[opts.kind] ?? opts.kind;
-  try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
-      to: ADMIN_EMAIL,
-      subject: `Monetization request (${label}) #${opts.requestId}`,
-      html: `
+  return sendEmail({
+    to: ADMIN_EMAIL,
+    subject: `Monetization request (${label}) #${opts.requestId}`,
+    html: `
         <div style="font-family: 'Inter', -apple-system, sans-serif; padding: 20px; max-width: 600px;">
           <h2 style="margin: 0 0 12px;">${label} request #${opts.requestId}</h2>
           <p style="margin: 0 0 8px;"><strong>Contact:</strong> ${opts.contactName ? `${opts.contactName} &lt;${opts.contactEmail}&gt;` : opts.contactEmail}</p>
@@ -163,20 +144,14 @@ export async function sendMonetizationRequestAdminNotification(opts: {
           <p style="margin-top: 16px; color: #666; font-size: 13px;">Resolve via the /admin/monetization queue.</p>
         </div>
       `,
-    });
-  } catch (error) {
-    console.error("Failed to send monetization request notification:", error);
-  }
+  });
 }
 
-export async function sendApiKeyIssuedEmail(email: string, keyName: string, plaintext: string, monthlyLimit: number): Promise<void> {
-  if (!resend) return;
-  try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
-      to: email,
-      subject: "Your running.services API key",
-      html: `
+export async function sendApiKeyIssuedEmail(email: string, keyName: string, plaintext: string, monthlyLimit: number): Promise<boolean> {
+  return sendEmail({
+    to: email,
+    subject: "Your running.services API key",
+    html: `
         <div style="font-family: 'Inter', -apple-system, sans-serif; padding: 24px; max-width: 600px;">
           <h2 style="margin: 0 0 12px;">Your API key is ready</h2>
           <p style="color: #555;">A new API key for running.services has been issued for <strong>${keyName}</strong>.</p>
@@ -186,20 +161,14 @@ export async function sendApiKeyIssuedEmail(email: string, keyName: string, plai
           <p style="color: #555; font-size: 13px;">Monthly request limit: <strong>${monthlyLimit.toLocaleString()}</strong>. Read the docs at <a href="https://running.services/developers">running.services/developers</a>.</p>
         </div>
       `,
-    });
-  } catch (error) {
-    console.error("Failed to send API key issued email:", error);
-  }
+  });
 }
 
-export async function sendAdminNewUserNotification(userEmail: string): Promise<void> {
-  if (!resend) return;
-  try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
-      to: ADMIN_EMAIL,
-      subject: `New user registered: ${userEmail}`,
-      html: `
+export async function sendAdminNewUserNotification(userEmail: string): Promise<boolean> {
+  return sendEmail({
+    to: ADMIN_EMAIL,
+    subject: `New user registered: ${userEmail}`,
+    html: `
         <div style="font-family: 'Inter', -apple-system, sans-serif; padding: 20px;">
           <h2>New User Registration</h2>
           <p>A new user has registered on running.services:</p>
@@ -207,8 +176,5 @@ export async function sendAdminNewUserNotification(userEmail: string): Promise<v
           <p><strong>Time:</strong> ${new Date().toISOString()}</p>
         </div>
       `,
-    });
-  } catch (error) {
-    console.error("Failed to send admin notification:", error);
-  }
+  });
 }

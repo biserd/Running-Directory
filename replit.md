@@ -53,7 +53,7 @@ Development uses `npm run dev` to start the Express server via `tsx` and the Vit
 - **PostgreSQL**: Primary database.
 
 ### External Services
-- **Resend**: Used for sending transactional emails (magic links, alerts, notifications).
+- **Cloudflare Email Service**: Sends transactional emails through the Worker's native `EMAIL` binding (magic links, alerts, and notifications).
 - **RunSignUp API**: Primary external source for ingesting race event data.
 - **Open-Meteo**: Used for geocoding and weather data.
 - **Google Maps JavaScript API**: Powers map-based browsing features.
