@@ -914,7 +914,7 @@ const prefetchBlogPost: PrefetchFn = async (qc, params) => {
   // Build the same QS the client uses so React Query hydrates from cache.
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(search)) {
-    if (v == null || v === "" || v === false) continue;
+    if (v == null || v === "") continue;
     qs.set(k, String(v));
   }
   const apiQs = qs.toString();

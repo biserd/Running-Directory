@@ -96,7 +96,7 @@ export const TOP_RACES: Top[] = [
 async function upsert(t: Top) {
   const surface = t.surface ?? "Road";
   const elevation = t.elevation ?? "Rolling";
-  await db.execute(sql`
+  await db.run(sql`
     INSERT INTO races (
       slug, name, date, city, state, distance, surface, elevation,
       description, website, field_size, is_featured, is_active
@@ -104,7 +104,7 @@ async function upsert(t: Top) {
       ${t.slug}, ${t.name}, ${t.date}, ${t.city}, ${t.state}, ${t.distance},
       ${surface}, ${elevation},
       ${t.description ?? null}, ${t.website ?? null}, ${t.fieldSize ?? null},
-      true, true
+      1, 1
     )
     ON CONFLICT (slug) DO UPDATE SET
       name = EXCLUDED.name,
@@ -132,11 +132,10 @@ export async function seedTopRaces(): Promise<{ written: number; total: number }
   // day-to-day server starts that already have the curated set are cheap.
   let written = 0;
   for (const t of TOP_RACES) {
-    const cur = await db.execute(sql`
+    const row = await db.get<{ date: string; is_featured: number }>(sql`
       SELECT date, is_featured FROM races WHERE slug = ${t.slug} LIMIT 1
     `);
-    const row = cur.rows[0] as { date: string; is_featured: boolean } | undefined;
-    if (row && row.is_featured && row.date === t.date) continue;
+    if (row && row.is_featured === 1 && row.date === t.date) continue;
     await upsert(t);
     written++;
   }

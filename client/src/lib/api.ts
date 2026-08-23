@@ -18,7 +18,7 @@ export async function apiSendMagicLink(email: string) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
-  const data = await res.json();
+  const data = await res.json() as { message?: string };
   if (!res.ok) throw new Error(data.message || "Failed to send magic link");
   return data;
 }
@@ -200,7 +200,7 @@ export async function apiSubmitRaceClaim(slug: string, body: { claimerEmail: str
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const json = await res.json();
+  const json = await res.json() as { message?: string };
   if (!res.ok) throw new Error(json.message || "Claim failed");
   return json as {
     message: string;
@@ -226,7 +226,7 @@ export interface OrganizerLite {
 
 export async function apiClaimVerify(token: string) {
   const res = await fetch(`/api/race-claims/verify?token=${encodeURIComponent(token)}`);
-  const data = await res.json();
+  const data = await res.json() as { message?: string };
   if (!res.ok) throw new Error(data.message || "Verification failed");
   return data as {
     ok: true;
@@ -238,7 +238,7 @@ export async function apiClaimVerify(token: string) {
 
 export async function apiOrganizerMe() {
   const res = await fetch("/api/organizers/me");
-  const data = await res.json();
+  const data = await res.json() as { message?: string };
   if (!res.ok) throw new Error(data.message || "Failed to load organizer");
   return data as { organizer: OrganizerLite; races: Race[]; isPro: boolean };
 }
@@ -329,7 +329,7 @@ export type ZipLocation = { lat: number; lng: number; label: string };
 export async function apiGeocodeZip(zip: string): Promise<ZipLocation> {
   const res = await fetch(`/api/geocode/zip?zip=${encodeURIComponent(zip)}`);
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Geocoding failed" }));
+    const err = await res.json().catch(() => ({ error: "Geocoding failed" })) as { error?: string };
     throw new Error(err.error || "Geocoding failed");
   }
   return res.json();
@@ -362,7 +362,7 @@ export async function apiUpdateOrganizerRace(raceId: number, partial: EditableRa
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(partial),
   });
-  const data = await res.json();
+  const data = await res.json() as { message?: string };
   if (!res.ok) throw new Error(data.message || "Update failed");
   return data as { ok: true; race: Race };
 }
@@ -376,7 +376,7 @@ export interface RaceAnalytics {
 
 export async function apiOrganizerRaceAnalytics(raceId: number, days = 30) {
   const res = await fetch(`/api/organizers/me/races/${raceId}/analytics?days=${days}`);
-  const data = await res.json();
+  const data = await res.json() as { message?: string };
   if (!res.ok) throw new Error(data.message || "Analytics failed");
   return data as RaceAnalytics;
 }
@@ -387,7 +387,7 @@ export async function apiCreateFeaturedRequest(raceId: number, body: { plan?: "f
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = await res.json();
+  const data = await res.json() as { message?: string };
   if (!res.ok) throw new Error(data.message || "Request failed");
   return data as { ok: true; message: string };
 }
@@ -557,7 +557,7 @@ export async function apiSubmitReview(data: { itemType: string; itemId: number; 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  const json = await res.json();
+  const json = await res.json() as { message?: string };
   if (!res.ok) throw new Error(json.message || "Failed to submit review");
   return json as Review;
 }
@@ -614,7 +614,7 @@ export async function apiSubmitMonetizationRequest(body: MonetizationRequestBody
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = await res.json();
+  const data = await res.json() as { message?: string };
   if (!res.ok) throw new Error(data.message || "Could not submit request");
   return data as { ok: true; requestId: number };
 }
@@ -674,7 +674,7 @@ export async function apiRequestApiKey(body: { tier?: string; message?: string }
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = await res.json();
+  const data = await res.json() as { message?: string };
   if (!res.ok) throw new Error(data.message || "Could not submit request");
   return data as { ok: true; requestId: number };
 }

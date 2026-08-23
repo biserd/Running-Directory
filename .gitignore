@@ -1,4 +1,9 @@
 node_modules
+.dev.vars
+.wrangler
+.wrangler-config
+.migration
+.local-test-fixture.sql
 dist
 .DS_Store
 server/public

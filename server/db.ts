@@ -1,9 +1,5 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import pg from "pg";
+import { env } from "cloudflare:workers";
+import { drizzle } from "drizzle-orm/d1";
 import * as schema from "@shared/schema";
 
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-export const db = drizzle(pool, { schema });
+export const db = drizzle(env.DB, { schema });

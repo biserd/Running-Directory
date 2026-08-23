@@ -1,11 +1,12 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const FROM_EMAIL = "running.services <hello@running.services>";
 const ADMIN_EMAIL = "hello@bigappledigital.nyc";
 
 export async function sendMagicLinkEmail(email: string, token: string, baseUrl: string): Promise<boolean> {
+  if (!resend) return false;
   const magicLink = `${baseUrl}/auth/verify?token=${token}`;
 
   try {
@@ -54,6 +55,7 @@ export async function sendClaimVerificationEmail(
   token: string,
   baseUrl: string,
 ): Promise<boolean> {
+  if (!resend) return false;
   const verifyLink = `${baseUrl}/auth/verify-claim?token=${token}`;
   try {
     const result = await resend.emails.send({
@@ -106,6 +108,7 @@ export async function sendFeaturedRequestAdminNotification(
   message: string | null,
   requestId: number,
 ): Promise<void> {
+  if (!resend) return;
   try {
     await resend.emails.send({
       from: FROM_EMAIL,
@@ -137,6 +140,7 @@ export async function sendMonetizationRequestAdminNotification(opts: {
   scope?: string | null;
   message?: string | null;
 }): Promise<void> {
+  if (!resend) return;
   const labels: Record<string, string> = {
     pro: "Race Pro upgrade",
     report: "Local market report access",
@@ -166,6 +170,7 @@ export async function sendMonetizationRequestAdminNotification(opts: {
 }
 
 export async function sendApiKeyIssuedEmail(email: string, keyName: string, plaintext: string, monthlyLimit: number): Promise<void> {
+  if (!resend) return;
   try {
     await resend.emails.send({
       from: FROM_EMAIL,
@@ -188,6 +193,7 @@ export async function sendApiKeyIssuedEmail(email: string, keyName: string, plai
 }
 
 export async function sendAdminNewUserNotification(userEmail: string): Promise<void> {
+  if (!resend) return;
   try {
     await resend.emails.send({
       from: FROM_EMAIL,

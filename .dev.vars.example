@@ -1,0 +1,4 @@
+SESSION_SECRET=replace-with-a-long-random-value
+ADMIN_API_KEY=replace-with-the-admin-api-key
+RESEND_API_KEY=replace-with-the-resend-api-key
+GOOGLE_MAPS_API_KEY=replace-with-the-google-maps-api-key

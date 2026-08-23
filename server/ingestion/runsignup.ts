@@ -241,7 +241,7 @@ export async function fetchRacesByState(
         break;
       }
 
-      const data = await response.json();
+      const data = await response.json() as { races?: Array<{ race: RunSignUpRace }> };
       const races: Array<{ race: RunSignUpRace }> = data.races || [];
 
       if (races.length === 0) {

@@ -248,10 +248,10 @@ export class DatabaseStorage implements IStorage {
     if (filters?.city) conditions.push(eq(races.city, filters.city));
     if (filters?.cityId) conditions.push(eq(races.cityId, filters.cityId));
     if (filters?.year) {
-      conditions.push(sql`EXTRACT(YEAR FROM ${races.date}::date) = ${filters.year}`);
+      conditions.push(sql`CAST(strftime('%Y', ${races.date}) AS INTEGER) = ${filters.year}`);
     }
     if (filters?.month) {
-      conditions.push(sql`EXTRACT(MONTH FROM ${races.date}::date) = ${filters.month}`);
+      conditions.push(sql`CAST(strftime('%m', ${races.date}) AS INTEGER) = ${filters.month}`);
     }
 
     return db.select().from(races)
@@ -470,7 +470,7 @@ export class DatabaseStorage implements IStorage {
 
   async getRacesNearby(lat: number, lng: number, limit: number = 20): Promise<(Race & { distanceMiles: number })[]> {
     const cosLat = Math.cos(lat * Math.PI / 180);
-    const results = await db.execute(sql`
+    const rows = await db.all<Record<string, unknown>>(sql`
       SELECT r.*,
         CASE
           WHEN r.lat IS NOT NULL AND r.lng IS NOT NULL THEN
@@ -481,17 +481,17 @@ export class DatabaseStorage implements IStorage {
         END AS distance_miles
       FROM races r
       LEFT JOIN cities c ON r.city_id = c.id
-      WHERE r.is_active = true
-        AND r.date >= CURRENT_DATE::text
+      WHERE r.is_active = 1
+        AND r.date >= date('now')
         AND (
           (r.lat IS NOT NULL AND r.lng IS NOT NULL)
           OR (c.lat IS NOT NULL AND c.lng IS NOT NULL)
         )
-      ORDER BY distance_miles ASC NULLS LAST
+      ORDER BY distance_miles ASC
       LIMIT ${limit}
     `);
 
-    return (results.rows as Record<string, unknown>[]).map(row => {
+    return rows.map(row => {
       const camel: Record<string, unknown> = {};
       for (const k of Object.keys(row)) {
         const ck = k.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
@@ -641,7 +641,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async cleanExpiredTokens(): Promise<void> {
-    await db.delete(magicLinkTokens).where(sql`${magicLinkTokens.expiresAt} < NOW()`);
+    await db.delete(magicLinkTokens).where(sql`${magicLinkTokens.expiresAt} < unixepoch() * 1000`);
   }
 
   async getRacesByIds(ids: number[]): Promise<Race[]> {
@@ -697,7 +697,7 @@ export class DatabaseStorage implements IStorage {
       db.select({
         id: races.id, name: races.name, slug: races.slug, city: races.city, state: races.state, distance: races.distance, date: races.date
       }).from(races)
-        .where(and(eq(races.isActive, true), sql`(${races.name} ILIKE ${pattern} OR ${races.city} ILIKE ${pattern})`))
+        .where(and(eq(races.isActive, true), sql`(lower(${races.name}) LIKE lower(${pattern}) OR lower(${races.city}) LIKE lower(${pattern}))`))
         .orderBy(desc(races.qualityScore))
         .limit(limit),
 
@@ -706,14 +706,14 @@ export class DatabaseStorage implements IStorage {
         stateSlug: states.slug, stateName: states.name
       }).from(cities)
         .innerJoin(states, eq(cities.stateId, states.id))
-        .where(sql`${cities.name} ILIKE ${pattern}`)
+        .where(sql`lower(${cities.name}) LIKE lower(${pattern})`)
         .orderBy(desc(cities.population))
         .limit(limit),
 
       db.select({
         id: organizers.id, name: organizers.name, slug: organizers.slug, state: organizers.state, raceCount: organizers.raceCount
       }).from(organizers)
-        .where(sql`${organizers.name} ILIKE ${pattern}`)
+        .where(sql`lower(${organizers.name}) LIKE lower(${pattern})`)
         .orderBy(desc(organizers.raceCount))
         .limit(limit),
     ]);
@@ -749,7 +749,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .select({
         avgRating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
-        count: sql<number>`COUNT(*)::int`,
+        count: sql<number>`COUNT(*)`,
       })
       .from(reviews)
       .where(and(eq(reviews.itemType, itemType), eq(reviews.itemId, itemId)));
@@ -788,9 +788,9 @@ export class DatabaseStorage implements IStorage {
       // don't get filtered down to whatever happened to be in the first page.
       const pattern = `%${filters.q.trim()}%`;
       conditions.push(sql`(
-        ${races.name} ILIKE ${pattern}
-        OR ${races.city} ILIKE ${pattern}
-        OR ${races.state} ILIKE ${pattern}
+        lower(${races.name}) LIKE lower(${pattern})
+        OR lower(${races.city}) LIKE lower(${pattern})
+        OR lower(${races.state}) LIKE lower(${pattern})
       )`);
     }
     if (filters.state) conditions.push(eq(races.state, filters.state));
@@ -801,12 +801,12 @@ export class DatabaseStorage implements IStorage {
     if (filters.surface) conditions.push(eq(races.surface, filters.surface));
     if (filters.terrain) conditions.push(eq(races.terrain, filters.terrain));
 
-    if (filters.year) conditions.push(sql`EXTRACT(YEAR FROM ${races.date}::date) = ${filters.year}`);
-    if (filters.month) conditions.push(sql`EXTRACT(MONTH FROM ${races.date}::date) = ${filters.month}`);
+    if (filters.year) conditions.push(sql`CAST(strftime('%Y', ${races.date}) AS INTEGER) = ${filters.year}`);
+    if (filters.month) conditions.push(sql`CAST(strftime('%m', ${races.date}) AS INTEGER) = ${filters.month}`);
     if (filters.dateFrom) conditions.push(sql`${races.date} >= ${filters.dateFrom}`);
     if (filters.dateTo) conditions.push(sql`${races.date} <= ${filters.dateTo}`);
     if (!filters.year && !filters.month && !filters.dateFrom) {
-      conditions.push(sql`${races.date} >= CURRENT_DATE::text`);
+      conditions.push(sql`${races.date} >= date('now')`);
     }
 
     if (filters.priceMin != null) conditions.push(sql`COALESCE(${races.priceMin}, ${races.priceMax}, 0) >= ${filters.priceMin}`);
@@ -827,10 +827,10 @@ export class DatabaseStorage implements IStorage {
     if (filters.isTurkeyTrot) conditions.push(eq(races.isTurkeyTrot, true));
     if (filters.isFeatured) conditions.push(eq(races.isFeatured, true));
     if (filters.transitFriendly) conditions.push(eq(races.transitFriendly, true));
-    if (filters.vibeTag) conditions.push(sql`${filters.vibeTag} = ANY(${races.vibeTags})`);
+    if (filters.vibeTag) conditions.push(sql`EXISTS (SELECT 1 FROM json_each(${races.vibeTags}) WHERE value = ${filters.vibeTag})`);
     if (filters.registrationOpen) conditions.push(or(eq(races.registrationOpen, true), sql`${races.registrationOpen} IS NULL`)!);
     if (filters.priceIncreaseSoon) {
-      conditions.push(sql`${races.nextPriceIncreaseAt} IS NOT NULL AND ${races.nextPriceIncreaseAt}::date <= (CURRENT_DATE + INTERVAL '14 days')::date`);
+      conditions.push(sql`${races.nextPriceIncreaseAt} IS NOT NULL AND date(${races.nextPriceIncreaseAt}) <= date('now', '+14 days')`);
     }
     if (filters.organizerId) conditions.push(eq(races.organizerId, filters.organizerId));
     if (filters.seriesId) conditions.push(eq(races.seriesId, filters.seriesId));
@@ -933,8 +933,8 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(races.isActive, true),
         isNotNull(races.nextPriceIncreaseAt),
-        sql`${races.nextPriceIncreaseAt}::date <= (CURRENT_DATE + INTERVAL '1 day' * ${safeDays})::date`,
-        sql`${races.nextPriceIncreaseAt}::date >= CURRENT_DATE`,
+        sql`date(${races.nextPriceIncreaseAt}) <= date('now', '+' || ${safeDays} || ' days')`,
+        sql`date(${races.nextPriceIncreaseAt}) >= date('now')`,
       ))
       .orderBy(asc(races.nextPriceIncreaseAt))
       .limit(safeLimit);
@@ -1019,7 +1019,7 @@ export class DatabaseStorage implements IStorage {
       .select({ city: cities, state: states })
       .from(cities)
       .innerJoin(states, eq(cities.stateId, states.id))
-      .where(and(eq(cities.slug, citySlug), sql`LOWER(${states.abbreviation}) = ${stateAbbr}`))
+      .where(and(eq(cities.slug, citySlug), sql`LOWER(${states.abbreviation}) = LOWER(${stateAbbr})`))
       .limit(1);
     if (!row) return undefined;
     return { ...row.city, state: row.state };
@@ -1030,12 +1030,12 @@ export class DatabaseStorage implements IStorage {
       .select({
         city: cities,
         state: states,
-        raceCount: sql<number>`COUNT(${races.id})::int`.as("race_count"),
+        raceCount: sql<number>`COUNT(${races.id})`.as("race_count"),
       })
       .from(races)
       .innerJoin(cities, eq(races.cityId, cities.id))
       .innerJoin(states, eq(cities.stateId, states.id))
-      .where(and(eq(races.isActive, true), sql`${races.date} >= CURRENT_DATE::text`))
+      .where(and(eq(races.isActive, true), sql`${races.date} >= date('now')`))
       .groupBy(cities.id, states.id)
       .having(sql`COUNT(${races.id}) >= ${minRaces}`)
       .orderBy(sql`COUNT(${races.id}) DESC`, cities.name)
@@ -1159,7 +1159,7 @@ export class DatabaseStorage implements IStorage {
     since.setDate(since.getDate() - sinceDays);
     const rows = await db.select({
       destination: outboundClicks.destination,
-      count: sql<number>`COUNT(*)::int`,
+      count: sql<number>`COUNT(*)`,
     }).from(outboundClicks)
       .where(and(eq(outboundClicks.raceId, raceId), sql`${outboundClicks.createdAt} >= ${since}`))
       .groupBy(outboundClicks.destination);
@@ -1285,8 +1285,8 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(favorites.itemType, "race"),
         eq(races.isActive, true),
-        sql`${races.date}::date >= CURRENT_DATE`,
-        sql`${races.date}::date <= (CURRENT_DATE + INTERVAL '1 day' * ${daysOut})::date`,
+        sql`date(${races.date}) >= date('now')`,
+        sql`date(${races.date}) <= date('now', '+' || ${daysOut} || ' days')`,
       ));
     return rows;
   }
@@ -1304,9 +1304,9 @@ export class DatabaseStorage implements IStorage {
     since.setDate(since.getDate() - sinceDays);
     const rows = await db.select({
       alertType: alertDispatches.alertType,
-      sent: sql<number>`COUNT(*)::int`,
-      opened: sql<number>`COUNT(${alertDispatches.openedAt})::int`,
-      clicked: sql<number>`COUNT(${alertDispatches.clickedAt})::int`,
+      sent: sql<number>`COUNT(*)`,
+      opened: sql<number>`COUNT(${alertDispatches.openedAt})`,
+      clicked: sql<number>`COUNT(${alertDispatches.clickedAt})`,
     }).from(alertDispatches)
       .where(sql`${alertDispatches.dispatchedAt} >= ${since}`)
       .groupBy(alertDispatches.alertType);
@@ -1496,36 +1496,36 @@ export class DatabaseStorage implements IStorage {
     const sinceDay = sinceDate.toISOString().slice(0, 10);
 
     const [viewsTotal, viewsRows, savesTotal, clicksTotal, clicksRows, destRows] = await Promise.all([
-      db.select({ total: sql<number>`COALESCE(SUM(${racePageViews.count}), 0)::int` })
+      db.select({ total: sql<number>`COALESCE(SUM(${racePageViews.count}), 0)` })
         .from(racePageViews)
         .where(and(eq(racePageViews.raceId, raceId), sql`${racePageViews.day} >= ${sinceDay}`)),
       db.select({ day: racePageViews.day, count: racePageViews.count })
         .from(racePageViews)
         .where(and(eq(racePageViews.raceId, raceId), sql`${racePageViews.day} >= ${sinceDay}`)),
-      db.select({ total: sql<number>`COUNT(*)::int` })
+      db.select({ total: sql<number>`COUNT(*)` })
         .from(favorites)
         .where(and(eq(favorites.itemType, "race"), eq(favorites.itemId, raceId), sql`${favorites.createdAt} >= ${sinceDate}`)),
-      db.select({ total: sql<number>`COUNT(*)::int` })
+      db.select({ total: sql<number>`COUNT(*)` })
         .from(outboundClicks)
         .where(and(eq(outboundClicks.raceId, raceId), sql`${outboundClicks.createdAt} >= ${sinceDate}`)),
       db.select({
-        day: sql<string>`to_char(${outboundClicks.createdAt}, 'YYYY-MM-DD')`,
-        count: sql<number>`COUNT(*)::int`,
+        day: sql<string>`strftime('%Y-%m-%d', ${outboundClicks.createdAt} / 1000, 'unixepoch')`,
+        count: sql<number>`COUNT(*)`,
       }).from(outboundClicks)
         .where(and(eq(outboundClicks.raceId, raceId), sql`${outboundClicks.createdAt} >= ${sinceDate}`))
-        .groupBy(sql`to_char(${outboundClicks.createdAt}, 'YYYY-MM-DD')`),
-      db.select({ destination: outboundClicks.destination, count: sql<number>`COUNT(*)::int` })
+        .groupBy(sql`strftime('%Y-%m-%d', ${outboundClicks.createdAt} / 1000, 'unixepoch')`),
+      db.select({ destination: outboundClicks.destination, count: sql<number>`COUNT(*)` })
         .from(outboundClicks)
         .where(and(eq(outboundClicks.raceId, raceId), sql`${outboundClicks.createdAt} >= ${sinceDate}`))
         .groupBy(outboundClicks.destination),
     ]);
 
     const savesRows = await db.select({
-      day: sql<string>`to_char(${favorites.createdAt}, 'YYYY-MM-DD')`,
-      count: sql<number>`COUNT(*)::int`,
+      day: sql<string>`strftime('%Y-%m-%d', ${favorites.createdAt} / 1000, 'unixepoch')`,
+      count: sql<number>`COUNT(*)`,
     }).from(favorites)
       .where(and(eq(favorites.itemType, "race"), eq(favorites.itemId, raceId), sql`${favorites.createdAt} >= ${sinceDate}`))
-      .groupBy(sql`to_char(${favorites.createdAt}, 'YYYY-MM-DD')`);
+      .groupBy(sql`strftime('%Y-%m-%d', ${favorites.createdAt} / 1000, 'unixepoch')`);
 
     const map = new Map<string, { day: string; views: number; clicks: number; saves: number }>();
     for (let i = 0; i < safeDays; i++) {
@@ -1615,8 +1615,8 @@ export class DatabaseStorage implements IStorage {
     const conditions = [
       eq(races.isActive, true),
       isNotNull(races.featuredUntil),
-      sql`${races.featuredUntil} > NOW()`,
-      sql`${races.date} >= CURRENT_DATE::text`,
+      sql`${races.featuredUntil} > unixepoch() * 1000`,
+      sql`${races.date} >= date('now')`,
     ];
     if (filter?.cityId) conditions.push(eq(races.cityId, filter.cityId));
     if (filter?.distance) conditions.push(eq(races.distance, filter.distance));
@@ -1671,14 +1671,14 @@ export class DatabaseStorage implements IStorage {
     const [viewRows, saveRows, clickRows] = await Promise.all([
       db.select({
         raceId: racePageViews.raceId,
-        total: sql<number>`COALESCE(SUM(${racePageViews.count}), 0)::int`,
+        total: sql<number>`COALESCE(SUM(${racePageViews.count}), 0)`,
       })
         .from(racePageViews)
         .where(and(inArray(racePageViews.raceId, allIds), sql`${racePageViews.day} >= ${sinceDay}`))
         .groupBy(racePageViews.raceId),
       db.select({
         raceId: favorites.itemId,
-        total: sql<number>`COUNT(*)::int`,
+        total: sql<number>`COUNT(*)`,
       })
         .from(favorites)
         .where(and(
@@ -1689,7 +1689,7 @@ export class DatabaseStorage implements IStorage {
         .groupBy(favorites.itemId),
       db.select({
         raceId: outboundClicks.raceId,
-        total: sql<number>`COUNT(*)::int`,
+        total: sql<number>`COUNT(*)`,
       })
         .from(outboundClicks)
         .where(and(
@@ -1783,23 +1783,23 @@ export class DatabaseStorage implements IStorage {
     // the call is allowed (under limit, or window just rolled over). This keeps
     // monthly_usage from growing unbounded for clients that keep retrying past
     // the cap.
-    const result = await db.execute(sql`
+    const rows = await db.all<{ monthly_usage: number; monthly_limit: number }>(sql`
       UPDATE api_keys
       SET
         monthly_usage = CASE
-          WHEN monthly_reset_at < NOW() - INTERVAL '30 days' THEN 1
+          WHEN monthly_reset_at < unixepoch('now', '-30 days') * 1000 THEN 1
           ELSE monthly_usage + 1
         END,
         monthly_reset_at = CASE
-          WHEN monthly_reset_at < NOW() - INTERVAL '30 days' THEN NOW()
+          WHEN monthly_reset_at < unixepoch('now', '-30 days') * 1000 THEN unixepoch() * 1000
           ELSE monthly_reset_at
         END,
-        last_used_at = NOW()
+        last_used_at = unixepoch() * 1000
       WHERE id = ${id}
-        AND (monthly_reset_at < NOW() - INTERVAL '30 days' OR monthly_usage < monthly_limit)
+        AND (monthly_reset_at < unixepoch('now', '-30 days') * 1000 OR monthly_usage < monthly_limit)
       RETURNING monthly_usage, monthly_limit
     `);
-    const row = (result.rows as Array<{ monthly_usage: number | string; monthly_limit: number | string }>)[0];
+    const row = rows[0];
     if (!row) {
       // Either the key was missing or the cap was already reached.
       const [keyRow] = await db.select({ monthlyLimit: apiKeys.monthlyLimit, monthlyUsage: apiKeys.monthlyUsage })
@@ -1837,8 +1837,8 @@ export class DatabaseStorage implements IStorage {
     const conditions = [
       eq(sponsorships.placement, filter.placement),
       eq(sponsorships.status, "active"),
-      sql`${sponsorships.startDate} <= NOW()`,
-      or(sql`${sponsorships.endDate} IS NULL`, sql`${sponsorships.endDate} >= NOW()`)!,
+      sql`${sponsorships.startDate} <= unixepoch() * 1000`,
+      or(sql`${sponsorships.endDate} IS NULL`, sql`${sponsorships.endDate} >= unixepoch() * 1000`)!,
     ];
     if (filter.cityId !== undefined) {
       conditions.push(or(eq(sponsorships.cityId, filter.cityId), sql`${sponsorships.cityId} IS NULL`)!);
@@ -1979,7 +1979,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(marketReportAccess.userId, userId),
         or(eq(marketReportAccess.scope, scope), eq(marketReportAccess.scope, "all"))!,
-        sql`${marketReportAccess.expiresAt} > NOW()`,
+        sql`${marketReportAccess.expiresAt} > unixepoch() * 1000`,
       ))
       .limit(1);
     return Boolean(row);
@@ -2082,22 +2082,32 @@ export class DatabaseStorage implements IStorage {
     const in30 = new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10);
 
     const [agg] = await db.select({
-      raceCount: sql<number>`COUNT(*)::int`,
-      avgPriceMin: sql<number | null>`AVG(${races.priceMin})::float`,
-      avgPriceMax: sql<number | null>`AVG(${races.priceMax})::float`,
-      medianQualityScore: sql<number | null>`PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${races.qualityScore})::float`,
-      next30Days: sql<number>`COUNT(*) FILTER (WHERE ${races.date} >= ${today} AND ${races.date} <= ${in30})::int`,
-      registrationClosingSoon: sql<number>`COUNT(*) FILTER (WHERE ${races.registrationDeadline} IS NOT NULL AND ${races.registrationDeadline} >= ${today} AND ${races.registrationDeadline} <= ${in30})::int`,
+      raceCount: sql<number>`COUNT(*)`,
+      avgPriceMin: sql<number | null>`AVG(${races.priceMin})`,
+      avgPriceMax: sql<number | null>`AVG(${races.priceMax})`,
+      next30Days: sql<number>`COUNT(*) FILTER (WHERE ${races.date} >= ${today} AND ${races.date} <= ${in30})`,
+      registrationClosingSoon: sql<number>`COUNT(*) FILTER (WHERE ${races.registrationDeadline} IS NOT NULL AND ${races.registrationDeadline} >= ${today} AND ${races.registrationDeadline} <= ${in30})`,
     }).from(races).where(and(...conds));
+
+    const qualityScores = await db.select({ value: races.qualityScore })
+      .from(races)
+      .where(and(...conds))
+      .orderBy(asc(races.qualityScore));
+    const middle = Math.floor(qualityScores.length / 2);
+    const medianQualityScore = qualityScores.length === 0
+      ? null
+      : qualityScores.length % 2 === 1
+        ? qualityScores[middle].value
+        : Math.round((qualityScores[middle - 1].value + qualityScores[middle].value) / 2);
 
     const mix = await db.select({
       distance: races.distance,
-      count: sql<number>`COUNT(*)::int`,
+      count: sql<number>`COUNT(*)`,
     }).from(races).where(and(...conds)).groupBy(races.distance).orderBy(desc(sql`COUNT(*)`)).limit(8);
 
     const byDist = await db.select({
       distance: races.distance,
-      avgPriceMin: sql<number | null>`AVG(${races.priceMin})::float`,
+      avgPriceMin: sql<number | null>`AVG(${races.priceMin})`,
     }).from(races).where(and(...conds, isNotNull(races.priceMin)))
       .groupBy(races.distance).orderBy(desc(sql`COUNT(*)`)).limit(6);
 
@@ -2105,7 +2115,7 @@ export class DatabaseStorage implements IStorage {
       raceCount: agg?.raceCount ?? 0,
       avgPriceMin: agg?.avgPriceMin != null ? Math.round(agg.avgPriceMin) : null,
       avgPriceMax: agg?.avgPriceMax != null ? Math.round(agg.avgPriceMax) : null,
-      medianQualityScore: agg?.medianQualityScore != null ? Math.round(agg.medianQualityScore) : null,
+      medianQualityScore,
       distanceMix: mix,
       next30Days: agg?.next30Days ?? 0,
       registrationClosingSoon: agg?.registrationClosingSoon ?? 0,

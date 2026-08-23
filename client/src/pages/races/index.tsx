@@ -591,14 +591,15 @@ export default function RacesSearchPage() {
       try {
         const r = await fetch(`/api/geocode/zip?zip=${trimmed}`);
         if (!r.ok || cancelled) return;
-        const data = await r.json();
+        const data = await r.json() as { lat?: number; lng?: number };
         if (typeof data.lat !== "number" || typeof data.lng !== "number") return;
+        const { lat, lng } = data;
         resolvedZipRef.current = trimmed;
         updateFilters(prev => ({
           ...prev,
           near: true,
-          lat: Number(data.lat.toFixed(4)),
-          lng: Number(data.lng.toFixed(4)),
+          lat: Number(lat.toFixed(4)),
+          lng: Number(lng.toFixed(4)),
         }));
       } catch {}
     })();
@@ -795,7 +796,7 @@ export default function RacesSearchPage() {
             {/* Active filter chips */}
             {activeCount > 0 && (
               <div className="flex flex-wrap gap-1.5" data-testid="active-filter-chips">
-                {activeFilterChips(filters, setFilter).map(chip => (
+                {activeFilterChips(filters, setFilter, updateFilters).map(chip => (
                   <Badge key={chip.key} variant="secondary" className="gap-1">
                     {chip.label}
                     <button onClick={chip.clear} className="ml-1 hover:text-foreground" data-testid={`chip-clear-${chip.key}`}>
@@ -991,6 +992,7 @@ function filtersToQueryJson(f: FilterState): Record<string, unknown> {
 function activeFilterChips(
   f: FilterState,
   setFilter: <K extends keyof FilterState>(key: K, value: FilterState[K]) => void,
+  updateFilters: (updater: (prev: FilterState) => FilterState) => void,
 ): { key: string; label: string; clear: () => void }[] {
   const chips: { key: string; label: string; clear: () => void }[] = [];
   const update = <K extends keyof FilterState>(key: K, value: FilterState[K]) => () => setFilter(key, value);

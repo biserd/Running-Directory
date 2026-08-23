@@ -89,7 +89,7 @@ export function SmartSearch({ className, variant = "desktop" }: { className?: st
     try {
       const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json() as SearchResults;
         setResults(data);
         setIsOpen(true);
         setSelectedIndex(-1);

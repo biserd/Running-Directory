@@ -19,18 +19,25 @@ import { computeRaceScores, deriveRaceFlags } from "./scoring";
  * scrape), and surfaced by the /price-watch page once that data lands.
  */
 export async function backfillPricingFromOccurrences(): Promise<{ updated: number }> {
-  const result = await db.execute(sql`
+  const result = await db.run(sql`
     WITH latest_occ AS (
-      SELECT DISTINCT ON (race_id)
-        race_id,
-        price_min,
-        price_max,
-        course_elevation_gain_m
-      FROM ${raceOccurrences}
-      WHERE start_date >= CURRENT_DATE::text
-      ORDER BY race_id, start_date ASC, COALESCE(last_modified_at, NOW()) DESC
+      SELECT race_id, price_min, price_max, course_elevation_gain_m
+      FROM (
+        SELECT
+          race_id,
+          price_min,
+          price_max,
+          course_elevation_gain_m,
+          ROW_NUMBER() OVER (
+            PARTITION BY race_id
+            ORDER BY start_date ASC, COALESCE(last_modified_at, 0) DESC
+          ) AS row_number
+        FROM ${raceOccurrences}
+        WHERE start_date >= date('now')
+      )
+      WHERE row_number = 1
     )
-    UPDATE ${races} r
+    UPDATE ${races} AS r
     SET
       price_min = COALESCE(r.price_min, lo.price_min),
       price_max = COALESCE(r.price_max, lo.price_max),
@@ -43,7 +50,7 @@ export async function backfillPricingFromOccurrences(): Promise<{ updated: numbe
         OR (r.elevation_gain_m IS NULL AND lo.course_elevation_gain_m IS NOT NULL)
       )
   `);
-  const updated = (result as { rowCount?: number }).rowCount ?? 0;
+  const updated = result.meta.changes ?? 0;
   return { updated };
 }
 
@@ -58,7 +65,7 @@ export async function backfillRaceScores(opts: { force?: boolean; batchSize?: nu
       ? sql`${races.id} > ${lastId}`
       : and(
           sql`${races.id} > ${lastId}`,
-          or(isNull(races.scoresUpdatedAt), sql`${races.scoresUpdatedAt} < NOW() - INTERVAL '7 days'`)
+          or(isNull(races.scoresUpdatedAt), sql`${races.scoresUpdatedAt} < unixepoch('now', '-7 days') * 1000`)
         );
 
     const batch = await db.select().from(races)
@@ -116,8 +123,8 @@ export async function recomputeUrgencyScores(): Promise<{ processed: number }> {
       .where(and(
         sql`${races.id} > ${lastId}`,
         eq(races.isActive, true),
-        sql`${races.date} >= CURRENT_DATE::text`,
-        sql`${races.date} <= (CURRENT_DATE + INTERVAL '120 days')::text`
+        sql`${races.date} >= date('now')`,
+        sql`${races.date} <= date('now', '+120 days')`
       ))
       .orderBy(races.id)
       .limit(batchSize);

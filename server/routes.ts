@@ -475,10 +475,11 @@ export async function registerRoutes(
       const geoRes = await fetch(
         `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=5&language=en&format=json`
       );
-      const geo = await geoRes.json();
-      if (geo.results?.length > 0) {
-        const usResult = geo.results.find((r: any) => r.country_code === "US");
-        const pick = usResult || geo.results[0];
+      const geo = await geoRes.json() as { results?: any[] };
+      const results = geo.results ?? [];
+      if (results.length > 0) {
+        const usResult = results.find((r: any) => r.country_code === "US");
+        const pick = usResult || results[0];
         const result = { lat: pick.latitude, lng: pick.longitude };
         geocodeCache.set(key, result);
         return result;
@@ -504,7 +505,7 @@ export async function registerRoutes(
       const r = await fetch(
         `https://geocoding-api.open-meteo.com/v1/search?name=${zip}&count=5&countryCode=US&language=en&format=json`
       );
-      const data = await r.json();
+      const data = await r.json() as { results?: any[] };
       const hit = (data.results || []).find((x: any) => x.country_code === "US") || (data.results || [])[0];
       if (!hit) {
         zipCache.set(zip, null);
@@ -561,21 +562,22 @@ export async function registerRoutes(
         const forecastRes = await fetch(
           `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,weather_code&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=auto&forecast_days=16`
         );
-        const forecast = await forecastRes.json();
+        const forecast = await forecastRes.json() as { daily?: Record<string, any[]> };
+        const daily = forecast.daily;
 
         const dateStr = (date as string).substring(0, 10);
-        const idx = forecast.daily?.time?.indexOf(dateStr);
+        const idx = daily?.time?.indexOf(dateStr);
 
-        if (idx !== undefined && idx >= 0) {
+        if (daily && idx !== undefined && idx >= 0) {
           result = {
             type: "forecast",
             date: dateStr,
-            tempHigh: Math.round(forecast.daily.temperature_2m_max[idx]),
-            tempLow: Math.round(forecast.daily.temperature_2m_min[idx]),
-            precipProbability: forecast.daily.precipitation_probability_max[idx],
-            precipAmount: forecast.daily.precipitation_sum[idx],
-            windSpeed: Math.round(forecast.daily.wind_speed_10m_max[idx]),
-            weatherCode: forecast.daily.weather_code[idx],
+            tempHigh: Math.round(daily.temperature_2m_max[idx]),
+            tempLow: Math.round(daily.temperature_2m_min[idx]),
+            precipProbability: daily.precipitation_probability_max[idx],
+            precipAmount: daily.precipitation_sum[idx],
+            windSpeed: Math.round(daily.wind_speed_10m_max[idx]),
+            weatherCode: daily.weather_code[idx],
           };
         }
       }
@@ -591,20 +593,21 @@ export async function registerRoutes(
         const climateRes = await fetch(
           `https://climate-api.open-meteo.com/v1/climate?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&start_date=2020-01-01&end_date=2024-12-31&models=EC_Earth3P_HR`
         );
-        const climate = await climateRes.json();
+        const climate = await climateRes.json() as { daily?: Record<string, any[]> };
+        const daily = climate.daily;
 
-        if (climate.daily?.time) {
+        if (daily?.time) {
           const targetMonth = raceDate.getMonth();
           const targetDay = raceDate.getDate();
           let tempHighSum = 0, tempLowSum = 0, precipSum = 0, windSum = 0, count = 0;
 
-          climate.daily.time.forEach((t: string, i: number) => {
+          daily.time.forEach((t: string, i: number) => {
             const d = new Date(t);
             if (d.getMonth() === targetMonth && Math.abs(d.getDate() - targetDay) <= 7) {
-              tempHighSum += climate.daily.temperature_2m_max[i] || 0;
-              tempLowSum += climate.daily.temperature_2m_min[i] || 0;
-              precipSum += climate.daily.precipitation_sum[i] || 0;
-              windSum += climate.daily.wind_speed_10m_max[i] || 0;
+              tempHighSum += daily.temperature_2m_max[i] || 0;
+              tempLowSum += daily.temperature_2m_min[i] || 0;
+              precipSum += daily.precipitation_sum[i] || 0;
+              windSum += daily.wind_speed_10m_max[i] || 0;
               count++;
             }
           });
@@ -681,7 +684,7 @@ export async function registerRoutes(
       const elevRes = await fetch(
         `https://api.open-meteo.com/v1/elevation?latitude=${lats.join(",")}&longitude=${lngs.join(",")}`
       );
-      const elevData = await elevRes.json();
+      const elevData = await elevRes.json() as { elevation?: number[] };
 
       if (elevData.elevation) {
         const profile = elevData.elevation.map((elev: number, i: number) => ({

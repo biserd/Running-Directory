@@ -77,7 +77,7 @@ async function geocode(city: string, state: string): Promise<Coords | null> {
 
 async function loadPairs(): Promise<{ city: string; state: string; n: number }[]> {
   const rows = await db.execute<{ city: string; state: string; n: number }>(sql`
-    SELECT city, state, COUNT(*)::int AS n
+    SELECT city, state, COUNT(*) AS n
     FROM races
     WHERE lat IS NULL AND city IS NOT NULL AND state IS NOT NULL
     GROUP BY city, state

@@ -1,7 +1,31 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, real, boolean, serial, timestamp, jsonb, uniqueIndex, index } from "drizzle-orm/pg-core";
+import {
+  sqliteTable,
+  text as sqliteText,
+  integer as sqliteInteger,
+  real,
+  uniqueIndex,
+  index,
+} from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// Keep the existing schema declarations readable while mapping PostgreSQL
+// column helpers to D1/SQLite-native storage types.
+const pgTable = sqliteTable;
+const text = sqliteText;
+const varchar = sqliteText;
+const integer = sqliteInteger;
+const serial = (name: string) => sqliteInteger(name).primaryKey({ autoIncrement: true });
+const boolean = (name: string) => sqliteInteger(name, { mode: "boolean" });
+const timestamp = (name: string, _options?: unknown) => {
+  const column = sqliteInteger(name, { mode: "timestamp_ms" });
+  return Object.assign(column, {
+    defaultNow: () => column.default(sql`(unixepoch() * 1000)`),
+  });
+};
+const jsonb = (name: string) => sqliteText(name, { mode: "json" });
+const textArray = (name: string) => sqliteText(name, { mode: "json" }).$type<string[]>();
 
 export const states = pgTable("states", {
   id: serial("id").primaryKey(),
@@ -11,7 +35,7 @@ export const states = pgTable("states", {
   fips: text("fips"),
   raceCount: integer("race_count").notNull().default(0),
   routeCount: integer("route_count").notNull().default(0),
-  popularCities: text("popular_cities").array().notNull().default(sql`'{}'`),
+  popularCities: textArray("popular_cities").notNull().default([]),
 });
 
 export const cities = pgTable("cities", {
@@ -117,7 +141,7 @@ export const races = pgTable("races", {
   charity: boolean("charity"),
   charityPartner: text("charity_partner"),
 
-  vibeTags: text("vibe_tags").array().notNull().default(sql`'{}'`),
+  vibeTags: textArray("vibe_tags").notNull().default([]),
   isTurkeyTrot: boolean("is_turkey_trot").notNull().default(false),
   isHalloween: boolean("is_halloween").notNull().default(false),
   isJingleBell: boolean("is_jingle_bell").notNull().default(false),
@@ -132,7 +156,7 @@ export const races = pgTable("races", {
   couponCode: text("coupon_code"),
   couponDiscount: text("coupon_discount"),
   couponExpiresAt: text("coupon_expires_at"),
-  photoUrls: text("photo_urls").array().notNull().default(sql`'{}'`),
+  photoUrls: textArray("photo_urls").notNull().default([]),
   faq: jsonb("faq"),
 
   sourceUrl: text("source_url"),
@@ -377,7 +401,7 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   name: text("name"),
-  unsubscribedAlertTypes: text("unsubscribed_alert_types").array().notNull().default(sql`'{}'`),
+  unsubscribedAlertTypes: textArray("unsubscribed_alert_types").notNull().default([]),
   unsubscribedAll: boolean("unsubscribed_all").notNull().default(false),
   isOrganizer: boolean("is_organizer").notNull().default(false),
   organizerId: integer("organizer_id").references(() => organizers.id, { onDelete: "set null" }),
