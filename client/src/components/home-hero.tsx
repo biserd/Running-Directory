@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { MapPin, Sparkles, ChevronDown, Heart, Trophy, Smile, DollarSign, TreePine, Gift, Users, Bell, Send, Plus, ListChecks } from "lucide-react";
+import { MapPin, Sparkles, ChevronDown, Heart, Trophy, Smile, DollarSign, TreePine, Gift, Users, Bell, Send, Plus, ListChecks, Target, ArrowRight } from "lucide-react";
 import heroImage from "@/assets/images/hero-races.jpg";
 
 const DISTANCES = ["", "5K", "10K", "Half Marathon", "Marathon", "Trail", "Ultra"];
@@ -74,11 +74,14 @@ export function HomeHero() {
       <div className="container relative z-10 px-4 mx-auto py-14 md:py-20">
         <div className="text-center max-w-4xl mx-auto mb-8">
           <h1 className="font-heading font-extrabold text-4xl md:text-6xl tracking-tight mb-4" data-testid="text-hero-headline">
-            Find the right race.
+            Find the right race. Run the right goal.
           </h1>
           <p className="text-lg md:text-xl text-slate-200 leading-relaxed" data-testid="text-hero-subheadline">
-            Not just the next race. Compare every USA race by goal, weather, vibe, price, and difficulty — backed by real data, not hype.
+            Compare races by goal, weather, vibe, price, and difficulty—then check whether your target time is realistic.
           </p>
+          <Button asChild size="lg" className="mt-6 bg-white text-slate-950 hover:bg-slate-100 font-semibold" data-testid="button-goal-check">
+            <Link href="/goal-check"><Target className="mr-2 h-5 w-5" /> Check my race goal <ArrowRight className="ml-2 h-4 w-4" /></Link>
+          </Button>
         </div>
 
         <form

@@ -19,7 +19,7 @@ PORT = "5000"
 [deployment]
 deploymentTarget = "autoscale"
 build = ["npm", "run", "build"]
-run = ["node", "dist/index.js"]
+run = ["npm", "start"]
 
 [workflows]
 runButton = "Project"
