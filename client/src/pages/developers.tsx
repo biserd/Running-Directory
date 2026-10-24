@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation } from "@tanstack/react-query";
 import { apiSubmitMonetizationRequest } from "@/lib/api";
+import { trackLead } from "@/lib/analytics";
 import { Cpu, Code, KeyRound, Gauge } from "lucide-react";
 
 const ENDPOINTS: Array<{ method: string; path: string; description: string }> = [
@@ -59,6 +60,7 @@ function RequestKeyDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
       message: message.trim() || undefined,
     }),
     onSuccess: () => {
+      trackLead("api");
       toast({ title: "Request received", description: "We'll email your API key within 2 business days." });
       onOpenChange(false);
       setMessage("");
