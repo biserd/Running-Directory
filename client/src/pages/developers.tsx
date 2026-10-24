@@ -175,6 +175,9 @@ export default function DevelopersPage() {
 
           <div>
             <h2 className="text-2xl font-heading font-bold mb-3" data-testid="text-endpoints-heading">Endpoints</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Use the <a className="text-primary underline" href="/openapi.json">OpenAPI description</a> or <a className="text-primary underline" href="/.well-known/api-catalog">API catalog</a> to discover the read-only API.
+            </p>
             <div className="space-y-3">
               {ENDPOINTS.map((ep) => (
                 <Card key={ep.path} data-testid={`endpoint-${ep.path}`}>
