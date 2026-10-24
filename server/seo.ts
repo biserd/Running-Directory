@@ -29,6 +29,7 @@ ${entries.join("\n")}
 export function registerSEORoutes(app: Express) {
   app.get("/robots.txt", (_req, res) => {
     const robotsTxt = `User-agent: *
+Content-Signal: ai-train=no, search=yes, ai-input=yes
 Allow: /
 Disallow: /api/
 Disallow: /admin
