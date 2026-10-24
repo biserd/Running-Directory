@@ -153,7 +153,7 @@ const prefetchRacesCity: PrefetchFn = async (qc, params) => {
       title: `${cityData.name} Races, ${stateName} | running.services`,
       description: `Find running races in ${cityData.name}, ${stateName}. Browse 5Ks, half marathons, and marathons.`,
       ogType: "website",
-      canonicalUrl: `https://running.services/races/state/${stateSlug}/city/${citySlug}`,
+      canonicalUrl: `https://running.services/state/${stateSlug}/city/${citySlug}`,
       jsonLd: {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
@@ -377,7 +377,8 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
       race.city &&
       race.state &&
       race.distance &&
-      (race.registrationUrl || race.website)
+      (race.registrationUrl || race.website) &&
+      race.date >= new Date().toISOString().slice(0, 10)
     );
 
     return {
@@ -750,6 +751,7 @@ const prefetchCityHub: PrefetchFn = async (qc, params) => {
   qc.setQueryData(["/api/states", stateSlug], stateData);
   if (cityData) {
     qc.setQueryData(["/api/cities", stateSlug, citySlug], cityData);
+    let indexable = false;
     if (stateData) {
       const [races, routes, siblingCities] = await Promise.all([
         storage.getRaces({ city: cityData.name, state: stateData.abbreviation }),
@@ -759,6 +761,7 @@ const prefetchCityHub: PrefetchFn = async (qc, params) => {
       qc.setQueryData(["/api/races", { city: cityData.name, state: stateData.abbreviation }], races);
       qc.setQueryData(["/api/routes", { city: cityData.name, state: stateData.abbreviation }], routes);
       qc.setQueryData(["/api/states", stateSlug, "cities"], siblingCities);
+      indexable = races.length >= 5;
     }
 
     const stateName = stateData?.name || stateSlug;
@@ -769,6 +772,7 @@ const prefetchCityHub: PrefetchFn = async (qc, params) => {
       ogDescription: `Discover races and routes in ${cityData.name}, ${stateName}.`,
       ogType: "website",
       canonicalUrl: `https://running.services/state/${stateSlug}/city/${citySlug}`,
+      noindex: !indexable,
       jsonLd: {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
@@ -1100,6 +1104,13 @@ const prefetchPriceWatch: PrefetchFn = async (qc) => {
     canonicalUrl: "https://running.services/price-watch",
   };
 };
+
+const prefetchForOrganizers: PrefetchFn = async () => ({
+  title: "Claim Your Race Listing | running.services",
+  description: "Claim your race listing for free. Update race details and see page views, saves, and registration clicks from runners.",
+  ogType: "website",
+  canonicalUrl: "https://running.services/for-organizers",
+});
 
 const prefetchOrganizers: PrefetchFn = async (qc, params) => {
   const slug = params.slug;
@@ -1726,7 +1737,7 @@ const routeMatches: RouteMatch[] = [
   { pattern: /^\/organizers\/dashboard$/, prefetch: prefetchOrganizers, paramNames: [] },
   { pattern: /^\/organizers\/([^/]+)$/, prefetch: prefetchOrganizerDetail, paramNames: ["slug"] },
   { pattern: /^\/organizers$/, prefetch: prefetchOrganizers, paramNames: [] },
-  { pattern: /^\/for-organizers$/, prefetch: prefetchOrganizers, paramNames: [] },
+  { pattern: /^\/for-organizers$/, prefetch: prefetchForOrganizers, paramNames: [] },
   { pattern: /^\/auth\/verify-claim$/, prefetch: prefetchAuthVerify, paramNames: [] },
   { pattern: /^\/series\/([^/]+)$/, prefetch: prefetchSeries, paramNames: ["slug"] },
   { pattern: /^\/turkey-trots\/([^/]+)$/, prefetch: prefetchTurkeyTrots, paramNames: ["metro"] },

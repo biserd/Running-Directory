@@ -240,7 +240,7 @@ export class DatabaseStorage implements IStorage {
     const conditions = [];
     conditions.push(eq(races.isActive, true));
     if (!filters?.includeAll && !filters?.year && !filters?.month) {
-      conditions.push(sql`${races.date} >= '2025-01-01'`);
+      conditions.push(sql`${races.date} >= date('now')`);
     }
     if (filters?.state) conditions.push(eq(races.state, filters.state));
     if (filters?.distance) conditions.push(eq(races.distance, filters.distance));
@@ -270,7 +270,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(races.state, stateAbbr),
         eq(races.isActive, true),
-        sql`${races.date} >= '2025-01-01'`
+        sql`${races.date} >= date('now')`
       ))
       .orderBy(races.date)
       .limit(500);

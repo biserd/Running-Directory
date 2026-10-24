@@ -89,7 +89,6 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
       urlEntry("/for-organizers", { changefreq: "monthly", priority: "0.6", lastmod: today }),
       urlEntry("/pricing", { changefreq: "monthly", priority: "0.6", lastmod: today }),
       urlEntry("/developers", { changefreq: "monthly", priority: "0.6", lastmod: today }),
-      urlEntry("/reports", { changefreq: "weekly", priority: "0.6", lastmod: today }),
       urlEntry("/about", { changefreq: "monthly", priority: "0.6" }),
       urlEntry("/contact", { changefreq: "monthly", priority: "0.5" }),
       urlEntry("/terms", { changefreq: "yearly", priority: "0.3" }),
@@ -107,7 +106,9 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
     try {
       const allRaces = await storage.getRaces({ limit: SITEMAP_MAX });
 
-      const entries = allRaces.map(r =>
+      const entries = allRaces.filter(r =>
+        r.date && r.city && r.state && r.distance && (r.registrationUrl || r.website)
+      ).map(r =>
         urlEntry(`/races/${r.slug}`, {
           changefreq: "weekly",
           priority: "0.7",
@@ -140,16 +141,11 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
 
   app.get("/sitemap-cities.xml", async (_req, res) => {
     try {
-      const statesList = await storage.getStates();
-      const entries: string[] = [];
-
-      for (const s of statesList) {
-        const citiesList = await storage.getCitiesByState(s.id);
-        for (const c of citiesList) {
-          entries.push(urlEntry(`/state/${s.slug}/city/${c.slug}`, { changefreq: "weekly", priority: "0.7" }));
-          entries.push(urlEntry(`/races/state/${s.slug}/city/${c.slug}`, { changefreq: "weekly", priority: "0.6" }));
-        }
-      }
+      // Only publish cities with enough upcoming races to make a useful landing page.
+      const metros = await storage.getMetrosWithRaceCount(5, 4000);
+      const entries = metros.map(({ city, state }) =>
+        urlEntry(`/state/${state.slug}/city/${city.slug}`, { changefreq: "weekly", priority: "0.7" })
+      );
 
       res.set("Content-Type", "application/xml").send(wrapUrlset(entries));
     } catch {
@@ -162,10 +158,8 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
       const today = new Date().toISOString().split("T")[0];
       const entries: string[] = [
         urlEntry("/race-shopper", { changefreq: "weekly", priority: "0.9", lastmod: today }),
-        urlEntry("/compare", { changefreq: "monthly", priority: "0.8", lastmod: today }),
         urlEntry("/this-weekend", { changefreq: "daily", priority: "0.9", lastmod: today }),
         urlEntry("/price-watch", { changefreq: "daily", priority: "0.9", lastmod: today }),
-        urlEntry("/organizers", { changefreq: "weekly", priority: "0.7", lastmod: today }),
       ];
 
       try {

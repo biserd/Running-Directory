@@ -42,7 +42,7 @@ import FavoritesPage from "@/pages/favorites";
 import AlertsPage from "@/pages/alerts";
 import RaceShopperPage from "@/pages/race-shopper";
 import ComparePage from "@/pages/compare";
-import { ThisWeekendPage, PriceWatchPage, OrganizersPage } from "@/pages/coming-soon";
+import { ThisWeekendPage, PriceWatchPage } from "@/pages/coming-soon";
 import ForOrganizersPage from "@/pages/organizers/for-organizers";
 import OrganizerDashboardPage from "@/pages/organizers/dashboard";
 import OrganizerDetailPage from "@/pages/organizers/detail";
@@ -110,7 +110,7 @@ function AppRouter() {
       <Route path="/price-watch" component={PriceWatchPage} />
       <Route path="/organizers/dashboard" component={OrganizerDashboardPage} />
       <Route path="/organizers/:slug" component={OrganizerDetailPage} />
-      <Route path="/organizers" component={OrganizersPage} />
+      <Route path="/organizers" component={ForOrganizersPage} />
       <Route path="/for-organizers" component={ForOrganizersPage} />
       <Route path="/series/:slug" component={SeriesDetailPage} />
       <Route path="/pricing" component={PricingPage} />
