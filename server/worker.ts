@@ -83,6 +83,8 @@ app.use((req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
   next();
 });
 
+app.get("/organizers", (_req, res) => res.redirect(301, "/for-organizers"));
+
 registerSEORoutes(app);
 await registerRoutes(server, app);
 
