@@ -37,6 +37,7 @@ import type { Race, RaceAlert } from "@shared/schema";
 import { getStateSlug, getStateName } from "@/lib/states";
 import { useAuth } from "@/hooks/use-auth";
 import { setPendingAction } from "@/lib/pending-action";
+import { trackLead } from "@/lib/analytics";
 import { useToast } from "@/hooks/use-toast";
 import { useCompareCart } from "@/hooks/use-compare-cart";
 import { cn } from "@/lib/utils";
@@ -272,6 +273,7 @@ function ClaimRaceCard({ race }: { race: Race }) {
     setSubmitting(true);
     try {
       const res = await apiSubmitRaceClaim(race.slug, { claimerEmail: email, claimerName: name || undefined, claimerRole: role || undefined, message: message || undefined });
+      trackLead("race_claim");
       // High-trust: claimer email domain matched the race website domain. The
       // server already signed the user in; jump them straight to the dashboard.
       if (res.verifiedVia === "domain-match" && res.redirect) {
