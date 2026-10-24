@@ -10,6 +10,7 @@ import { createServer } from "node:http";
 import { D1SessionStore } from "./d1-session-store";
 import { registerRoutes } from "./routes";
 import { registerSEORoutes } from "./seo";
+import { registerAgentDiscoveryRoutes } from "./agent-discovery";
 import { setupWorkerSSR } from "./ssr-render";
 
 const APP_PORT = 8787;
@@ -85,6 +86,7 @@ app.use((req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
 
 app.get("/organizers", (_req, res) => res.redirect(301, "/for-organizers"));
 
+registerAgentDiscoveryRoutes(app);
 registerSEORoutes(app);
 await registerRoutes(server, app);
 
