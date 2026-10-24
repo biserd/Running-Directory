@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation } from "@tanstack/react-query";
 import { apiSubmitMonetizationRequest, type MonetizationRequestBody } from "@/lib/api";
+import { trackLead } from "@/lib/analytics";
 import { Sparkles, BarChart3, FileText, Cpu, Megaphone, Check, ArrowRight } from "lucide-react";
 
 type PlanKind = "pro" | "report" | "api" | "sponsorship";
@@ -103,6 +104,7 @@ function RequestDialog({ kind, planName, open, onOpenChange }: { kind: PlanKind;
   const mutation = useMutation({
     mutationFn: (body: MonetizationRequestBody) => apiSubmitMonetizationRequest(body),
     onSuccess: () => {
+      trackLead(kind);
       toast({ title: "Request received", description: "We'll get back to you within 2 business days." });
       onOpenChange(false);
       setMessage("");
