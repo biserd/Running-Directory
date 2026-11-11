@@ -1,13 +1,19 @@
 
 # Daily SEO for running.services
 
-[GitHub Actions](https://github.com/biserd/Running-Directory/actions/workflows/daily-seo.yml) runs at 7:15 a.m. America/New_York. Use **Run workflow** on the default branch for a manual run. The workflow serializes runs. The [history branch](https://github.com/biserd/Running-Directory/tree/seo-run-history) holds the run log and the pending measurements.
+The **Running Services Daily SEO** Codex automation runs on the signed-in computer at 7:15 a.m. America/New_York. It uses the existing Codex, GitHub and Wrangler sign-ins. The computer and Codex session must be available for the local run. The [history branch](https://github.com/biserd/Running-Directory/tree/seo-run-history) holds the run log and pending measurements.
+
+[GitHub Actions](https://github.com/biserd/Running-Directory/actions/workflows/daily-seo.yml) remains a manual fallback. Use **Run workflow** on the default branch only when the local automation is idle.
 
 The three skills are vendored byte for byte at the commit in skill-lock.json. The prompt explicitly invokes all three and supplies the repository's autonomous publishing instructions. Build and deploy use the same Vite, TypeScript, and Wrangler commands as the production Worker. A change must pass build and production proof checks. On a protected branch, the workflow uses an ordinary PR and auto-merge when GitHub permissions and branch rules allow it. Set `SEO_GITHUB_TOKEN` only if the repository's workflow token cannot open PRs or trigger required checks. In that case use a fine-grained credential with this repository's Contents and Pull requests write permissions, and enable repository auto-merge. The current default branch accepts direct pushes.
 
-## Credentials
+## Local runtime
 
-Set these in [Actions secrets and variables](https://github.com/biserd/Running-Directory/settings/secrets/actions).
+Use Node 24 with the repository's locked dependencies. On Windows, if Python does not have the IANA time zone database, install `tzdata` into a checkout-local virtual environment or add a local package directory to `PYTHONPATH` for the evidence script. The audit and technical fixes can run with the existing sign-ins. For editorial metrics and visibility tracking, use the existing signed-in data integrations when accessible and record unavailable sources as unchecked.
+
+## Optional GitHub fallback credentials
+
+These apply to the separate GitHub-hosted fallback. The local Codex automation does not use the repository's Actions secrets. See [Actions secrets and variables](https://github.com/biserd/Running-Directory/settings/secrets/actions) if running the fallback.
 
 | Name | Type | Purpose |
 | --- | --- | --- |

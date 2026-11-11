@@ -1,9 +1,6 @@
 
-name: Daily SEO
+name: SEO manual fallback
 on:
-  schedule:
-    - cron: '15 7 * * *'
-      timezone: America/New_York
   workflow_dispatch:
 
 concurrency:
