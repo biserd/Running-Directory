@@ -1,0 +1,97 @@
+{
+  "date": "2026-11-11",
+  "status": "audit and build completed; editorial stage blocked",
+  "run": "https://github.com/biserd/Running-Directory/actions/runs/43041829554",
+  "audit": {
+    "sitemaps": 7,
+    "sitemap_urls": 1465,
+    "pages_checked": 157,
+    "internal_targets_checked": 90,
+    "issues": [
+      {
+        "url": "https://running.services/sitemap-seo.xml",
+        "kind": "Invalid sitemap",
+        "detail": "Sitemap did not return a direct 200"
+      },
+      {
+        "url": "https://running.services/collections",
+        "kind": "Broken internal link or redirect chain",
+        "status": 410,
+        "chain": [],
+        "linked_from": [
+          "https://running.services/races/holiday-5k-10k-at-panama-city-fl-49",
+          "https://running.services/races/holiday-5k-10k-at-panama-city-fl-51",
+          "https://running.services/races/holiday-5k-10k-at-raleigh-nc-50",
+          "https://running.services/races/holiday-5k-10k-at-westminster-md-50",
+          "https://running.services/races/holiday-5k-13-1m-at-hickory-nc-49"
+        ]
+      },
+      {
+        "url": "https://running.services/races/holiday-5k-10k-at-panama-city-fl-49",
+        "kind": "Duplicate description in sample",
+        "also": [
+          "https://running.services/races/holiday-5k-10k-at-panama-city-fl-51"
+        ]
+      }
+    ]
+  },
+  "stages": {
+    "seo-autopilot": "Public audit completed",
+    "blog-refresher": "Missing SEO_GSC_SERVICE_ACCOUNT_JSON",
+    "seo-title-optimization": "Missing SEO_GSC_SERVICE_ACCOUNT_JSON"
+  },
+  "blockers": {
+    "Search Console": "Missing SEO_GSC_SERVICE_ACCOUNT_JSON",
+    "Analytics": "Missing SEO_GA4_PROPERTY_ID or Google service account",
+    "SERP": "Missing SERPAPI_KEY",
+    "Codex": "Missing OPENAI_API_KEY",
+    "Cloudflare": "Missing CLOUDFLARE_API_TOKEN"
+  },
+  "changed_urls": [],
+  "changes": [],
+  "index_inspections": [],
+  "title_followups": {},
+  "blog_tracking": [],
+  "keyword_overlaps": [],
+  "analytics": {
+    "unchecked": "Missing SEO_GA4_PROPERTY_ID or Google service account"
+  },
+  "ai_visibility": [
+    {
+      "query": "What websites let me compare upcoming running races in the United States?",
+      "ChatGPT Search": {
+        "unchecked": "No hosted consumer ChatGPT Search connector"
+      },
+      "Google AI Overviews": {
+        "unchecked": "Missing SERPAPI_KEY"
+      },
+      "Perplexity": {
+        "unchecked": "Missing PERPLEXITY_API_KEY"
+      }
+    },
+    {
+      "query": "Where can a race director claim and update a US running race listing?",
+      "ChatGPT Search": {
+        "unchecked": "No hosted consumer ChatGPT Search connector"
+      },
+      "Google AI Overviews": {
+        "unchecked": "Missing SERPAPI_KEY"
+      },
+      "Perplexity": {
+        "unchecked": "Missing PERPLEXITY_API_KEY"
+      }
+    },
+    {
+      "query": "What APIs provide upcoming US road race data for developers?",
+      "ChatGPT Search": {
+        "unchecked": "No hosted consumer ChatGPT Search connector"
+      },
+      "Google AI Overviews": {
+        "unchecked": "Missing SERPAPI_KEY"
+      },
+      "Perplexity": {
+        "unchecked": "Missing PERPLEXITY_API_KEY"
+      }
+    }
+  ]
+}
