@@ -1,0 +1,87 @@
+{
+  "date": "2026-11-11",
+  "status": "audit and build completed; editorial stage blocked",
+  "run": "https://github.com/biserd/Running-Directory/actions/runs/43042858629",
+  "audit": {
+    "sitemaps": 7,
+    "sitemap_urls": 1562,
+    "pages_checked": 157,
+    "internal_targets_checked": 90,
+    "issues": [
+      {
+        "url": "https://running.services/state/west-virginia/city/lansing",
+        "kind": "Noindex on sitemap or priority URL"
+      },
+      {
+        "url": "https://running.services/state/wisconsin/city/greenville",
+        "kind": "Noindex on sitemap or priority URL"
+      },
+      {
+        "url": "https://running.services/best/this-weekend",
+        "kind": "Duplicate title in sample",
+        "also": [
+          "https://running.services/this-weekend"
+        ]
+      }
+    ]
+  },
+  "stages": {
+    "seo-autopilot": "Public audit completed",
+    "blog-refresher": "Missing SEO_GSC_SERVICE_ACCOUNT_JSON",
+    "seo-title-optimization": "Missing SEO_GSC_SERVICE_ACCOUNT_JSON"
+  },
+  "blockers": {
+    "Search Console": "Missing SEO_GSC_SERVICE_ACCOUNT_JSON",
+    "Analytics": "Missing SEO_GA4_PROPERTY_ID or Google service account",
+    "SERP": "Missing SERPAPI_KEY",
+    "Codex": "Missing OPENAI_API_KEY",
+    "Cloudflare": "Missing CLOUDFLARE_API_TOKEN"
+  },
+  "changed_urls": [],
+  "changes": [],
+  "index_inspections": [],
+  "title_followups": {},
+  "blog_tracking": [],
+  "keyword_overlaps": [],
+  "analytics": {
+    "unchecked": "Missing SEO_GA4_PROPERTY_ID or Google service account"
+  },
+  "ai_visibility": [
+    {
+      "query": "What websites let me compare upcoming running races in the United States?",
+      "ChatGPT Search": {
+        "unchecked": "No hosted consumer ChatGPT Search connector"
+      },
+      "Google AI Overviews": {
+        "unchecked": "Missing SERPAPI_KEY"
+      },
+      "Perplexity": {
+        "unchecked": "Missing PERPLEXITY_API_KEY"
+      }
+    },
+    {
+      "query": "Where can a race director claim and update a US running race listing?",
+      "ChatGPT Search": {
+        "unchecked": "No hosted consumer ChatGPT Search connector"
+      },
+      "Google AI Overviews": {
+        "unchecked": "Missing SERPAPI_KEY"
+      },
+      "Perplexity": {
+        "unchecked": "Missing PERPLEXITY_API_KEY"
+      }
+    },
+    {
+      "query": "What APIs provide upcoming US road race data for developers?",
+      "ChatGPT Search": {
+        "unchecked": "No hosted consumer ChatGPT Search connector"
+      },
+      "Google AI Overviews": {
+        "unchecked": "Missing SERPAPI_KEY"
+      },
+      "Perplexity": {
+        "unchecked": "Missing PERPLEXITY_API_KEY"
+      }
+    }
+  ]
+}
