@@ -1,0 +1,24 @@
+{
+  "date": "2026-11-11",
+  "runner": "Manual Codex rerun with signed-in Search Console browser",
+  "deployment_status": "No qualifying title or H1 changes",
+  "changed_urls": [],
+  "search_console": {
+    "source": "Signed-in Search Console Web search performance report",
+    "window": {
+      "start": "2026-10-12",
+      "end": "2026-11-08"
+    },
+    "result": "Insufficient page and device impressions for the workflow's 100-impression threshold and comparable-position CTR benchmark."
+  },
+  "stages": {
+    "seo-autopilot": "Rechecked seven sitemaps, 157 pages and 90 linked destinations. Flagged duplicate descriptions on two race listings for review.",
+    "blog-refresher": "No query had sufficient impressions to qualify for a refresh.",
+    "seo-title-optimization": "No page qualified for an evidence-supported title or H1 edit."
+  },
+  "audit": {
+    "sitemap_urls": 1549,
+    "pages_checked": 157,
+    "internal_targets_checked": 90
+  }
+}
