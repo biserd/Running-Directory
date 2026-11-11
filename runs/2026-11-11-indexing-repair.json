@@ -1,0 +1,65 @@
+{
+  "date": "2026-11-11",
+  "runner": "Codex using signed-in Search Console",
+  "coverage_report": {
+    "last_updated": "2026-11-05",
+    "indexed": 5,
+    "unindexed_reasons": [
+      "404",
+      "soft 404",
+      "5xx",
+      "noindex",
+      "robots.txt",
+      "crawled currently not indexed",
+      "discovered currently not indexed"
+    ]
+  },
+  "findings": [
+    {
+      "url": "https://running.services/",
+      "recorded": "Googlebot last recorded a 5xx on July 30",
+      "live": "Google live test passed"
+    },
+    {
+      "url": "https://running.services/races",
+      "recorded": "Discovered, currently not indexed",
+      "live_before": "Soft 404. Google rendered an empty directory after the production client discarded the server results and the robots policy prevented the browser-rendered data request.",
+      "live_after": "Google live test passed after preserving server-rendered HTML and preloaded query state"
+    },
+    {
+      "url": "https://running.services/pricing",
+      "recorded": "Historical 5xx",
+      "live": "Google live test passed"
+    },
+    {
+      "url": "https://running.services/developers",
+      "recorded": "Historical 404",
+      "live": "Google live test passed"
+    },
+    {
+      "url": "https://running.services/for-organizers",
+      "live": "URL Inspection reported already indexed"
+    }
+  ],
+  "deployment": {
+    "status": "deployed and verified",
+    "pr": "https://github.com/biserd/Running-Directory/pull/10",
+    "commit": "d876c55",
+    "worker_version": "43d477ea-1eb4-46fb-8a90-bd7b15988f43"
+  },
+  "indexing_requests": {
+    "status": "Accepted by Google Search Console, priority crawl queue",
+    "urls": [
+      "https://running.services/",
+      "https://running.services/races",
+      "https://running.services/blog",
+      "https://running.services/pricing",
+      "https://running.services/developers"
+    ]
+  },
+  "sitemap": {
+    "url": "https://running.services/sitemap.xml",
+    "status": "Success",
+    "last_read": "2026-11-06"
+  }
+}
