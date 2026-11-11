@@ -1,0 +1,157 @@
+
+name: Daily SEO
+on:
+  schedule:
+    - cron: '15 7 * * *'
+      timezone: America/New_York
+  workflow_dispatch:
+
+concurrency:
+  group: running-services-production-seo
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  TZ: America/New_York
+
+jobs:
+  research:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CODEX_READY: ${{ secrets.OPENAI_API_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Load measurement history
+        run: |
+          mkdir -p .seo-work/history
+          if git ls-remote --exit-code --heads origin seo-run-history >/dev/null; then
+            git fetch --no-tags origin refs/heads/seo-run-history
+            git show FETCH_HEAD:state.json > .seo-work/history/state.json
+          fi
+          printf '\n/.seo-work/\n' >> "$(git rev-parse --git-path info/exclude)"
+      - name: Collect production, search, and visibility evidence
+        env:
+          SEO_GSC_SERVICE_ACCOUNT_JSON: ${{ secrets.SEO_GSC_SERVICE_ACCOUNT_JSON }}
+          SEO_GA4_PROPERTY_ID: ${{ vars.SEO_GA4_PROPERTY_ID }}
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+        run: python script/seo_evidence.py
+      - name: Save trusted evidence before agent edits
+        uses: actions/upload-artifact@v4
+        with:
+          name: seo-evidence-${{ github.run_attempt }}
+          path: .seo-work/evidence.json
+          include-hidden-files: true
+          retention-days: 7
+      - name: Invoke seo-autopilot, blog-refresher, and seo-title-optimization
+        id: codex
+        if: env.CODEX_READY == 'true'
+        uses: openai/codex-action@1d82a3dba7c7988ec71ecae1ed5b8e8db96495c5
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: seo/prompt.md
+          permission-profile: ':workspace'
+          codex-args: '["--search", "--ephemeral"]'
+      - name: Export proposal and source diff
+        if: steps.codex.outcome == 'success'
+        run: |
+          git show HEAD:script/seo_release.py > "$RUNNER_TEMP/seo_release.py"
+          git show HEAD:script/seo_audit.py > "$RUNNER_TEMP/seo_audit.py"
+          python "$RUNNER_TEMP/seo_release.py" patch
+      - name: Save candidate
+        if: steps.codex.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: seo-candidate-${{ github.run_attempt }}
+          path: |
+            .seo-work/proposal.json
+            .seo-work/candidate.patch
+          include-hidden-files: true
+          retention-days: 7
+
+  publish:
+    needs: research
+    if: always() && !cancelled() && needs.research.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      CODEX_READY: ${{ secrets.OPENAI_API_KEY != '' }}
+      CF_READY: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.SEO_GITHUB_TOKEN || github.token }}
+      - name: Prepare history branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          mkdir -p .seo-work
+          printf '\n/.seo-work/\n' >> "$(git rev-parse --git-path info/exclude)"
+          if git ls-remote --exit-code --heads origin seo-run-history >/dev/null; then
+            git fetch --no-tags origin refs/heads/seo-run-history
+            git worktree add --detach .seo-work/history FETCH_HEAD
+          else
+            git init -b seo-run-history .seo-work/history
+            git -C .seo-work/history config user.name 'github-actions[bot]'
+            git -C .seo-work/history config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          fi
+      - uses: actions/download-artifact@v4
+        with:
+          name: seo-evidence-${{ github.run_attempt }}
+          path: .seo-work
+      - uses: actions/download-artifact@v4
+        if: env.CODEX_READY == 'true' && needs.research.result == 'success'
+        with:
+          name: seo-candidate-${{ github.run_attempt }}
+          path: .seo-work
+      - name: Validate candidate and capture live baselines
+        run: |
+          echo 'candidate validation failed' > .seo-work/deployment-status
+          python script/seo_release.py validate
+          echo 'build or SEO checks failed' > .seo-work/deployment-status
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - name: Check Cloudflare bundle
+        run: npx --no-install wrangler deploy --dry-run --outdir "$RUNNER_TEMP/seo-worker"
+      - name: Publish qualifying edits and verify production
+        env:
+          GH_TOKEN: ${{ secrets.SEO_GITHUB_TOKEN || github.token }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: bash script/seo_publish.sh
+      - name: Record the daily result
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.SEO_GITHUB_TOKEN || github.token }}
+          RESEARCH_RESULT: ${{ needs.research.result }}
+        run: |
+          status=$(cat .seo-work/deployment-status 2>/dev/null || echo 'workflow failed before release')
+          if [[ "$RESEARCH_RESULT" != success && "$status" == 'workflow failed before release' ]]; then
+            status='research failed; no production deployment'
+          fi
+          python script/seo_release.py record .seo-work/history "$status"
+          git -C .seo-work/history add -- state.json runs/
+          git -C .seo-work/history commit -m "Record SEO run $GITHUB_RUN_ID/$GITHUB_RUN_ATTEMPT"
+          if git -C .seo-work/history remote get-url origin >/dev/null 2>&1; then
+            git -C .seo-work/history push origin HEAD:refs/heads/seo-run-history
+          else
+            gh auth setup-git
+            git -C .seo-work/history push "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" HEAD:refs/heads/seo-run-history
+          fi
