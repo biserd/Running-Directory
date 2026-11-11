@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-11",
+  "run": "https://github.com/biserd/Running-Directory/actions/runs/43041829554",
+  "pull_request": "https://github.com/biserd/Running-Directory/pull/6",
+  "deployment": {
+    "status": "deployed and verified in-session using the existing authenticated Wrangler pipeline",
+    "version": "172732d0-868e-45ad-a15b-d8846008e67f",
+    "previous_version": "b512fc57-64ea-4c22-90ef-04ba303c1fba"
+  },
+  "changed_urls": [
+    {
+      "url": "https://running.services/sitemap-seo.xml",
+      "before": {
+        "result": "No usable response from hosted runner; independently timed out after 40 seconds"
+      },
+      "after": {
+        "http_status": 200,
+        "unique_urls": 97
+      }
+    },
+    {
+      "url": "https://running.services/races/holiday-5k-10k-at-panama-city-fl-49",
+      "coverage": "Representative race detail page; shared template updated",
+      "before": {
+        "linked_url": "https://running.services/collections",
+        "linked_url_status": 410
+      },
+      "after": {
+        "http_status": 200,
+        "linked_url": "https://running.services/blog",
+        "linked_url_status": 200
+      }
+    }
+  ],
+  "notes": [
+    "Sample sitemap targets returned HTTP 200 with self-canonicals and no noindex directive.",
+    "Duplicate description finding requires a race-record review before rewriting or canonicalizing either URL.",
+    "Search performance baselines unavailable without SEO_GSC_SERVICE_ACCOUNT_JSON. No blog, title or H1 change shipped."
+  ]
+}
