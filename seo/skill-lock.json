@@ -1,0 +1,5 @@
+{
+  "upstream": "https://github.com/Illyism/seo-skills",
+  "commit": "11c4f9407d1142301ae1dee2a5370e506c80745a",
+  "paths": ["seo/seo-autopilot", "seo/blog-refresher", "seo/seo-title-optimization"]
+}

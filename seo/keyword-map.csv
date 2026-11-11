@@ -1,0 +1,4 @@
+query,intent,monthly volume,difficulty,target URL,status,current position,last checked
+US running race calendar,find upcoming US races,,,https://running.services/races,live,,
+claim my race listing,race organizer listing management,,,https://running.services/for-organizers,live,,
+running race data API,developer data access,,,https://running.services/developers,live,,
