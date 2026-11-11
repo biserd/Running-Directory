@@ -1,0 +1,67 @@
+{
+  "date": "2026-11-11",
+  "runner": "Codex local task, manually triggered before the first scheduled run",
+  "audit": {
+    "sitemaps": 7,
+    "sitemap_urls": 1562,
+    "pages_checked": 157,
+    "internal_targets_checked": 90
+  },
+  "stages": {
+    "seo-autopilot": "Deployed and verified city sitemap eligibility fix. Recorded /this-weekend as the preferred target for the duplicate weekend intent.",
+    "blog-refresher": "Skipped editorial changes because finalized Search Console page/query data and top-three SERP evidence were unavailable.",
+    "seo-title-optimization": "Skipped title/H1 edits because finalized device-specific CTR evidence was unavailable."
+  },
+  "deployment": {
+    "status": "deployed and verified",
+    "commit": "6c86ad2",
+    "worker_version": "ed7908aa-2ac4-4e82-8daa-5f6ae4966391",
+    "reverted_attempt": {
+      "commit": "368cf69",
+      "worker_version": "3f82d2d8-54f4-440a-9b0e-3b53b8a189e2",
+      "reason": "Both sitemap endpoints returned HTTP 500 in post-deploy checks",
+      "restored_worker_version": "172732d0-868e-45ad-a15b-d8846008e67f",
+      "source_revert": "869a85a"
+    }
+  },
+  "changed_urls": [
+    {
+      "url": "https://running.services/sitemap-cities.xml",
+      "before": {
+        "listed_cities": 39,
+        "known_noindex_examples": [
+          "Lansing, WV",
+          "Greenville, WI"
+        ]
+      },
+      "after": {
+        "http_status": 200,
+        "verified_indexable_cities": 26
+      }
+    },
+    {
+      "url": "https://running.services/sitemap-seo.xml",
+      "after": {
+        "http_status": 200,
+        "uncached_http_status": 200
+      }
+    }
+  ],
+  "verification": {
+    "typescript": "passed",
+    "production_build": "passed",
+    "live_all_city_entries": "HTTP 200, self-canonical, no noindex",
+    "removed_city_pages": "HTTP 200 with noindex, omitted from sitemap"
+  },
+  "blockers": {
+    "gsc": "Unchecked in this run",
+    "serp": "Unchecked in this run",
+    "analytics": "Unchecked in this run",
+    "ai_visibility": "ChatGPT Search, Perplexity and Google AI Overviews unchecked in this run"
+  },
+  "keyword_overlap": {
+    "query": "running races this weekend",
+    "preferred_url": "https://running.services/this-weekend",
+    "overlapping_url": "https://running.services/best/this-weekend"
+  }
+}
