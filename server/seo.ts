@@ -187,246 +187,97 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
 
   app.get("/sitemap-seo.xml", async (_req, res) => {
     try {
-      const today = new Date().toISOString().split("T")[0];
-      const entries: string[] = [];
+      const now = new Date();
+      const { BEST_CONFIGS, resolveBestSearch } = await import("@shared/best-configs");
+      const { BLOG_DISTANCE_SLUGS, blogPostHref, monthNumToSlug, rollingMonths } = await import("@shared/blog-months");
+      const { DISTANCE_SLUG_TO_LABEL } = await import("@shared/metro");
+      const [upcoming, states, metros, series] = await Promise.all([
+        storage.getRaces({ limit: SITEMAP_MAX }),
+        storage.getStates(),
+        storage.getMetrosWithRaceCount(5, 200),
+        storage.getRaceSeries({ limit: 200 }),
+      ]);
 
-      // Curated "best of" pages
-      const { BEST_SLUGS } = await import("@shared/best-configs");
-      for (const slug of BEST_SLUGS) {
-        entries.push(urlEntry(`/best/${slug}`, { changefreq: "weekly", priority: "0.7", lastmod: today }));
+      // Reuse one upcoming inventory instead of making a D1 request for every
+      // combination of distance, city, state and month.
+      const entries = new Set<string>(["/blog"]);
+      const curated = await Promise.all(Object.entries(BEST_CONFIGS).map(async ([slug, config]) => {
+        const candidates = await storage.getRacesAdvanced({ ...resolveBestSearch(slug, config), limit: 1 });
+        return candidates.length ? `/best/${slug}` : null;
+      }));
+      for (const path of curated) if (path) entries.add(path);
+
+      function byMonth(races: typeof upcoming) {
+        const counts = new Map<number, number>();
+        for (const race of races) {
+          const month = Number(race.date?.slice(5, 7));
+          if (month >= 1 && month <= 12) counts.set(month, (counts.get(month) ?? 0) + 1);
+        }
+        return counts;
       }
 
-      // Blog: rolling 12 months × distance, gated ≥5 races (year-aware)
-      try {
-        const { BLOG_DISTANCE_SLUGS, blogPostHref, rollingMonths } = await import("@shared/blog-months");
-        const { DISTANCE_SLUG_TO_LABEL } = await import("@shared/metro");
-        entries.push(urlEntry("/blog", { changefreq: "daily", priority: "0.7", lastmod: today }));
-        const months = rollingMonths(new Date(), 12);
-        for (const distanceSlug of BLOG_DISTANCE_SLUGS) {
-          const cfg = DISTANCE_SLUG_TO_LABEL[distanceSlug];
-          for (const { monthNum, year } of months) {
-            try {
-              const r = await storage.getRacesAdvanced({
-                distance: cfg.distance || undefined,
-                surface: cfg.surface,
-                month: monthNum,
-                year,
-                limit: 5,
-              });
-              if (r.length >= 5) {
-                entries.push(urlEntry(blogPostHref(distanceSlug, monthNum, year), { changefreq: "weekly", priority: "0.7", lastmod: today }));
-              }
-            } catch {}
+      const novemberTrot = (race: (typeof upcoming)[number]) => race.isTurkeyTrot && race.date?.slice(5, 7) === "11";
+      if (upcoming.filter(novemberTrot).length >= 5) entries.add("/turkey-trots");
+
+      for (const distanceSlug of BLOG_DISTANCE_SLUGS) {
+        const config = DISTANCE_SLUG_TO_LABEL[distanceSlug];
+        const matching = upcoming.filter(race =>
+          (!config.distance || race.distance === config.distance) &&
+          (!config.surface || race.surface === config.surface));
+        const countsByDate = new Map<string, number>();
+        for (const race of matching) {
+          if (!race.date) continue;
+          const month = race.date.slice(0, 7);
+          countsByDate.set(month, (countsByDate.get(month) ?? 0) + 1);
+        }
+        for (const { monthNum, year } of rollingMonths(now, 12)) {
+          const key = `${year}-${String(monthNum).padStart(2, "0")}`;
+          if ((countsByDate.get(key) ?? 0) >= 5) entries.add(blogPostHref(distanceSlug, monthNum, year));
+        }
+        for (const [month, count] of byMonth(matching)) {
+          if (count >= 5) entries.add(`/best-races/${distanceSlug}/${monthNumToSlug(month)}`);
+        }
+        for (const state of states) {
+          if (matching.filter(race => race.state === state.abbreviation).length >= 5) {
+            entries.add(`/state/${state.slug}/${distanceSlug}`);
           }
         }
-      } catch (err) {
-        console.warn("[sitemap-seo] blog enumeration failed:", (err as Error).message);
-      }
-
-      // Best [distance] in [month] — nationwide rollups, gated ≥5 races
-      try {
-        const distanceSlugs: Array<{ slug: string; distance?: string; surface?: string }> = [
-          { slug: "5k-races", distance: "5K" },
-          { slug: "10k-races", distance: "10K" },
-          { slug: "half-marathons", distance: "Half Marathon" },
-          { slug: "marathons", distance: "Marathon" },
-          { slug: "trail-races", surface: "Trail" },
-        ];
-        const monthSlugs = [
-          "january", "february", "march", "april", "may", "june",
-          "july", "august", "september", "october", "november", "december",
-        ];
-        for (const d of distanceSlugs) {
-          for (let m = 1; m <= 12; m++) {
-            try {
-              const r = await storage.getRacesAdvanced({
-                distance: d.distance,
-                surface: d.surface,
-                month: m,
-                limit: 5,
-              });
-              if (r.length >= 5) {
-                entries.push(urlEntry(`/best-races/${d.slug}/${monthSlugs[m - 1]}`, { changefreq: "weekly", priority: "0.65", lastmod: today }));
-              }
-            } catch {}
-          }
-        }
-      } catch (err) {
-        console.warn("[sitemap-seo] best-distance-month enumeration failed:", (err as Error).message);
-      }
-
-      // Race-vs-race head-to-head: pair each top race with its closest peer
-      // (same distance, same state) to keep the comparison meaningful.
-      try {
-        const top = await storage.getRacesAdvanced({ sort: "quality", limit: 100 } as any).catch(() => []);
-        const seen = new Set<string>();
-        for (const a of top) {
-          if (!a.distance) continue;
-          const peers = await storage.getRacesAdvanced({
-            state: a.state,
-            distance: a.distance,
-            limit: 5,
-          }).catch(() => []);
-          const peer = peers.find((p) => p.id !== a.id);
-          if (!peer) continue;
-          const sorted = [a.slug, peer.slug].slice().sort();
-          const key = `${sorted[0]}-vs-${sorted[1]}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          entries.push(urlEntry(`/vs/${key}`, { changefreq: "monthly", priority: "0.5", lastmod: today }));
-        }
-      } catch (err) {
-        console.warn("[sitemap-seo] race-vs-race enumeration failed:", (err as Error).message);
-      }
-
-      // Series public pages
-      try {
-        const series = await storage.getRaceSeries({ limit: 200 });
-        for (const s of series) {
-          const seriesRaces = await storage.getRacesBySeries(s.id);
-          if (seriesRaces.length >= 5) {
-            entries.push(urlEntry(`/series/${s.slug}`, { changefreq: "weekly", priority: "0.6", lastmod: today }));
-          }
-        }
-      } catch (err) {
-        console.warn("[sitemap-seo] series enumeration failed:", (err as Error).message);
-      }
-
-      // National turkey-trots if there are enough (Thanksgiving 5K = November-only)
-      try {
-        const turkeyNational = await storage.getRacesAdvanced({ isTurkeyTrot: true, month: 11, limit: 60 });
-        if (turkeyNational.length >= 5) {
-          entries.push(urlEntry("/turkey-trots", { changefreq: "weekly", priority: "0.8", lastmod: today }));
-        }
-      } catch {}
-
-      // Per-metro programmatic pages (only metros with ≥5 future active races)
-      try {
-        const metros = await storage.getMetrosWithRaceCount(5, 200);
-        const distanceSlugMap: Array<{ slug: string; distance?: string; surface?: string }> = [
-          { slug: "5k-races", distance: "5K" },
-          { slug: "10k-races", distance: "10K" },
-          { slug: "half-marathons", distance: "Half Marathon" },
-          { slug: "marathons", distance: "Marathon" },
-          { slug: "trail-races", surface: "Trail" },
-        ];
-        const monthSlugList = [
-          "january", "february", "march", "april", "may", "june",
-          "july", "august", "september", "october", "november", "december",
-        ];
-        // Cap month-page enumeration to top metros to keep sitemap-build cost bounded.
-        const topMetrosForMonths = metros.slice(0, 25);
-        for (const m of metros) {
-          const metroSlug = `${m.city.slug}-${m.state.abbreviation.toLowerCase()}`;
-          const isTopMetro = topMetrosForMonths.includes(m);
-
-          // city + distance — gated per-distance with ≥5 races
-          for (const d of distanceSlugMap) {
-            try {
-              const r = await storage.getRacesAdvanced({
-                state: m.state.abbreviation,
-                city: m.city.name,
-                distance: d.distance,
-                surface: d.surface,
-                limit: 60,
-              });
-              if (r.length >= 5) {
-                entries.push(urlEntry(`/${metroSlug}/${d.slug}`, { changefreq: "weekly", priority: "0.6", lastmod: today }));
-
-                // city + distance + month — only for top metros, only months with ≥5 races.
-                if (isTopMetro) {
-                  const byMonth = new Map<number, number>();
-                  for (const race of r) {
-                    if (!race.date) continue;
-                    const monthIdx = new Date(race.date).getUTCMonth() + 1;
-                    byMonth.set(monthIdx, (byMonth.get(monthIdx) || 0) + 1);
-                  }
-                  byMonth.forEach((count, monthIdx) => {
-                    if (count >= 5) {
-                      const monthSlug = monthSlugList[monthIdx - 1];
-                      entries.push(urlEntry(`/${metroSlug}/${d.slug}/${monthSlug}`, { changefreq: "monthly", priority: "0.45", lastmod: today }));
-                    }
-                  });
-                }
-              }
-            } catch {}
-          }
-
-          // turkey-trots per metro (gated on actual count, November-only)
-          try {
-            const tt = await storage.getRacesAdvanced({
-              isTurkeyTrot: true,
-              month: 11,
-              state: m.state.abbreviation,
-              city: m.city.name,
-              limit: 5,
-            });
-            if (tt.length >= 5) {
-              entries.push(urlEntry(`/turkey-trots/${metroSlug}`, { changefreq: "weekly", priority: "0.6", lastmod: today }));
+        for (const [index, metro] of metros.entries()) {
+          const local = matching.filter(race => race.city === metro.city.name && race.state === metro.state.abbreviation);
+          if (local.length < 5) continue;
+          const path = `/${metro.city.slug}-${metro.state.abbreviation.toLowerCase()}/${distanceSlug}`;
+          entries.add(path);
+          if (index < 25) {
+            for (const [month, count] of byMonth(local)) {
+              if (count >= 5) entries.add(`${path}/${monthNumToSlug(month)}`);
             }
-          } catch {}
-
-          // walker / stroller (gated)
-          try {
-            const walker = await storage.getRacesAdvanced({
-              walkerFriendly: true,
-              distance: "5K",
-              state: m.state.abbreviation,
-              city: m.city.name,
-              limit: 5,
-            });
-            if (walker.length >= 5) {
-              entries.push(urlEntry(`/walker-friendly-5k/${metroSlug}`, { changefreq: "weekly", priority: "0.55", lastmod: today }));
-            }
-          } catch {}
-          try {
-            const stroller = await storage.getRacesAdvanced({
-              strollerFriendly: true,
-              distance: "5K",
-              state: m.state.abbreviation,
-              city: m.city.name,
-              limit: 5,
-            });
-            if (stroller.length >= 5) {
-              entries.push(urlEntry(`/stroller-friendly-5k/${metroSlug}`, { changefreq: "weekly", priority: "0.55", lastmod: today }));
-            }
-          } catch {}
-        }
-      } catch (err) {
-        console.warn("[sitemap-seo] metro enumeration failed:", (err as Error).message);
-      }
-
-      // State + distance (only states with ≥5 races for that distance)
-      try {
-        const statesList = await storage.getStates();
-        const distanceSlugMap: Array<{ slug: string; distance?: string; surface?: string }> = [
-          { slug: "5k-races", distance: "5K" },
-          { slug: "10k-races", distance: "10K" },
-          { slug: "half-marathons", distance: "Half Marathon" },
-          { slug: "marathons", distance: "Marathon" },
-          { slug: "trail-races", surface: "Trail" },
-        ];
-        for (const s of statesList) {
-          for (const d of distanceSlugMap) {
-            try {
-              const r = await storage.getRacesAdvanced({
-                state: s.abbreviation,
-                distance: d.distance,
-                surface: d.surface,
-                limit: 5,
-              });
-              if (r.length >= 5) {
-                entries.push(urlEntry(`/state/${s.slug}/${d.slug}`, { changefreq: "weekly", priority: "0.65", lastmod: today }));
-              }
-            } catch {}
           }
         }
-      } catch (err) {
-        console.warn("[sitemap-seo] state-distance enumeration failed:", (err as Error).message);
       }
 
-      res.set("Content-Type", "application/xml").send(wrapUrlset(entries));
-    } catch {
+      for (const metro of metros) {
+        const local = upcoming.filter(race => race.city === metro.city.name && race.state === metro.state.abbreviation);
+        const slug = `${metro.city.slug}-${metro.state.abbreviation.toLowerCase()}`;
+        if (local.filter(novemberTrot).length >= 5) entries.add(`/turkey-trots/${slug}`);
+        if (local.filter(race => race.distance === "5K" && race.walkerFriendly).length >= 5) {
+          entries.add(`/walker-friendly-5k/${slug}`);
+        }
+        if (local.filter(race => race.distance === "5K" && race.strollerFriendly).length >= 5) {
+          entries.add(`/stroller-friendly-5k/${slug}`);
+        }
+      }
+      for (const raceSeries of series) {
+        if (upcoming.filter(race => race.seriesId === raceSeries.id).length >= 5) {
+          entries.add(`/series/${raceSeries.slug}`);
+        }
+      }
+
+      res.set("Cache-Control", "public, max-age=900");
+      res.set("Content-Type", "application/xml").send(wrapUrlset(
+        [...entries].sort().map(path => urlEntry(path, { changefreq: "weekly", priority: "0.6" }))
+      ));
+    } catch (error) {
+      console.error("[sitemap-seo] generation failed", error);
       res.status(500).send("Error generating sitemap");
     }
   });
