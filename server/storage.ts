@@ -1033,8 +1033,10 @@ export class DatabaseStorage implements IStorage {
         raceCount: sql<number>`COUNT(${races.id})`.as("race_count"),
       })
       .from(races)
-      .innerJoin(cities, eq(races.cityId, cities.id))
-      .innerJoin(states, eq(cities.stateId, states.id))
+      // Match the city hub's filters. Imported city IDs can point to a city
+      // that differs from the race's displayed city or state.
+      .innerJoin(states, eq(races.state, states.abbreviation))
+      .innerJoin(cities, and(eq(cities.stateId, states.id), eq(races.city, cities.name)))
       .where(and(eq(races.isActive, true), sql`${races.date} >= date('now')`))
       .groupBy(cities.id, states.id)
       .having(sql`COUNT(${races.id}) >= ${minRaces}`)
