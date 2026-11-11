@@ -1035,7 +1035,13 @@ export class DatabaseStorage implements IStorage {
       .from(races)
       .innerJoin(cities, eq(races.cityId, cities.id))
       .innerJoin(states, eq(cities.stateId, states.id))
-      .where(and(eq(races.isActive, true), sql`${races.date} >= date('now')`))
+      .where(and(
+        eq(races.isActive, true),
+        sql`${races.date} >= date('now')`,
+        // Ignore imported city IDs that disagree with the hub's city and state filters.
+        eq(races.city, cities.name),
+        eq(races.state, states.abbreviation),
+      ))
       .groupBy(cities.id, states.id)
       .having(sql`COUNT(${races.id}) >= ${minRaces}`)
       .orderBy(sql`COUNT(${races.id}) DESC`, cities.name)
