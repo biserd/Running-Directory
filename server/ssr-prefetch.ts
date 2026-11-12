@@ -277,7 +277,7 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
   if (race?.cityId) {
     try {
       const cityRow = await storage.getCityById(race.cityId);
-      citySlug = cityRow?.slug ?? null;
+      citySlug = cityRow?.state.abbreviation === race.state ? cityRow.slug : null;
     } catch { /* non-critical */ }
   }
   const enrichedRace = race ? { ...race, citySlug } : race;
