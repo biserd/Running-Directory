@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-12",
+  "runner": "Running Services Daily SEO Codex heartbeat",
+  "deployment_status": "Deployed and verified",
+  "release": {
+    "pull_request": "https://github.com/biserd/Running-Directory/pull/11",
+    "commit": "9d398672b533970285ab76fa17139e36264bca48",
+    "cloudflare_version": "6c6b01ff-bbfa-4d30-829e-7c888bbaa598",
+    "previous_version": "43d477ea-1eb4-46fb-8a90-bd7b15988f43"
+  },
+  "audit": {
+    "sitemaps": 7,
+    "sitemap_urls": 1548,
+    "pages_checked": 157,
+    "linked_targets_checked": 90
+  },
+  "stages": {
+    "seo-autopilot": "Fixed two 404 links generated from city records belonging to a different state. The race API and server-rendered page both validate the city state before exposing the slug.",
+    "blog-refresher": "No query had enough impressions to qualify. The signed-in Search Console report corroborated the low-volume baseline.",
+    "seo-title-optimization": "No page qualified for a same-device CTR comparison or title or H1 edit. The measurement state had no pending title tests."
+  },
+  "changed_urls": [
+    {
+      "url": "https://running.services/races/pelican-lakes-turkey-trot-windsor-co",
+      "before": "City-distance link to /windsor-co/5k-races returned 404",
+      "after": "Race page returns 200 and omits the incorrect link. Statewide and monthly links remain."
+    },
+    {
+      "url": "https://running.services/races/nashville-jingle-bell-trot-antioch-tn",
+      "before": "City-distance link to /antioch-tn/5k-races returned 404",
+      "after": "Race page returns 200 and omits the incorrect link. Statewide and monthly links remain."
+    }
+  ],
+  "verification": [
+    "TypeScript and production build passed.",
+    "Both affected live pages and the race API verified. A valid city link still renders and returns HTTP 200.",
+    "Homepage, race directory, organizer page, and both sitemap entry points return HTTP 200."
+  ],
+  "blockers": [
+    "No qualifying Search Console volume for editorial edits.",
+    "Paid SERP, GA4, and AI answer surfaces unchecked in this run."
+  ],
+  "backlog": [
+    "Investigate duplicate and test-like race records in the audit sample before changing canonicals or descriptions."
+  ]
+}
