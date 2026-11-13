@@ -1,0 +1,25 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.biserd/running-directory",
+  "title": "running.services Race Search",
+  "description": "Find upcoming US running races by keyword, state, distance, and date.",
+  "version": "1.0.0",
+  "websiteUrl": "https://running.services/developers#race-search-mcp",
+  "repository": {
+    "url": "https://github.com/biserd/Running-Directory",
+    "source": "github"
+  },
+  "icons": [
+    {
+      "src": "https://running.services/favicon.png",
+      "mimeType": "image/png",
+      "sizes": ["1024x1024"]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://running.services/mcp"
+    }
+  ]
+}

@@ -34,6 +34,8 @@ Claim a race listing for free, correct its date, registration link, pricing, pol
 `,
   "/developers": `# Developer API
 
+MCP clients can discover and use the public \`search_races\` tool without an account at ${BASE_URL}/mcp (Streamable HTTP). Cloudflare applies a limit of 30 MCP requests per minute per IP at each edge location.
+
 running.services offers a read-only race API. Request an API key on the [developer page](${BASE_URL}/developers), then send it in the X-API-Key header. Requests are metered monthly.
 
 - GET /api/v1/races — paginated race search

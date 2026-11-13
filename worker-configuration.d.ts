@@ -4,6 +4,7 @@
 interface __BaseEnv_Env {
 	DB: D1Database;
 	EMAIL: SendEmail;
+	RACE_MCP_RATE_LIMITER: RateLimit;
 	ASSETS: Fetcher;
 	APP_BASE_URL: "https://running.services";
 	BASE_URL: "https://running.services";
