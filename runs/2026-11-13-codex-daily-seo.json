@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-13",
+  "runner": "Running Services Daily SEO Codex heartbeat",
+  "checked_commit": "6cafe4cdd7cfc1c5b0402eb499d1b43346d50dd6",
+  "deployment_status": "No qualifying changes. No production deployment.",
+  "audit": {
+    "sitemaps": 7,
+    "sitemap_urls": 1548,
+    "pages_checked": 157,
+    "internal_targets_checked": 90,
+    "issues": []
+  },
+  "stages": {
+    "seo-autopilot": "The production sample found no crawl, canonical, metadata, or internal link issue. The four mapped targets remain distinct. The public MCP race-search tool is live and is documented at /developers. Search results did not establish a separate comparison opportunity supported by distinct intent and verified claims.",
+    "blog-refresher": "No blog candidate could meet the 25-impression page/query threshold. Search Console showed 28 total Web impressions over three months, including 10 from a site operator query.",
+    "seo-title-optimization": "No page could meet the 100-impression page/device floor. Search Console showed 7 sitewide impressions and 0 clicks for the latest 28 days shown. History had no pending title measurements."
+  },
+  "search_console": {
+    "source": "Signed-in Google Search Console, Web Search performance",
+    "period": {
+      "start": "2026-10-14",
+      "end": "2026-11-10"
+    },
+    "sitewide": {
+      "clicks": 0,
+      "impressions": 7,
+      "ctr": 0
+    },
+    "google_generative_ai_features": {
+      "impressions": 0,
+      "scope": "Aggregate site report. Individual AI Overviews and per-query citations unchecked."
+    }
+  },
+  "changed_urls": [],
+  "verification": [
+    "Repository TypeScript check and Cloudflare production build passed."
+  ],
+  "blockers": [
+    "Search Console URL Inspection and detailed API cohorts unchecked. Existing browser report established insufficient volume for title and blog edits.",
+    "GA4 and per-query results on ChatGPT Search, Perplexity, and Google AI Overviews unchecked. General web search results were used only for discovery research."
+  ]
+}
