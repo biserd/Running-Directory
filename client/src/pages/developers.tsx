@@ -148,6 +148,18 @@ export default function DevelopersPage() {
 
       <section className="py-10 md:py-14">
         <div className="container mx-auto px-4 max-w-4xl space-y-8">
+          <div id="race-search-mcp">
+            <h2 className="text-2xl font-heading font-bold mb-3">Race search for MCP clients</h2>
+            <Card>
+              <CardContent className="p-5 text-sm space-y-3">
+                <p>Connect your MCP client to this Streamable HTTP endpoint.</p>
+                <pre className="bg-foreground text-background rounded-md p-3 text-xs overflow-x-auto">https://running.services/mcp</pre>
+                <p>The <code>search_races</code> tool finds upcoming US races by name or city, state, distance, and date. It returns up to 10 results with links to race pages.</p>
+                <p>Discovery and search are open without an account or API key. Cloudflare applies a limit of 30 MCP requests per minute per IP at each edge location.</p>
+              </CardContent>
+            </Card>
+          </div>
+
           <div>
             <h2 className="text-2xl font-heading font-bold mb-3" data-testid="text-auth-heading">Auth & rate limits</h2>
             <Card>

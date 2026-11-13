@@ -34,6 +34,13 @@
       "allowed_sender_addresses": ["hello@running.services"]
     }
   ],
+  "ratelimits": [
+    {
+      "name": "RACE_MCP_RATE_LIMITER",
+      "namespace_id": "541108276",
+      "simple": { "limit": 30, "period": 60 }
+    }
+  ],
   "vars": {
     "APP_BASE_URL": "https://running.services",
     "BASE_URL": "https://running.services",

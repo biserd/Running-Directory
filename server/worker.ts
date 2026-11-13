@@ -11,7 +11,9 @@ import { D1SessionStore } from "./d1-session-store";
 import { registerRoutes } from "./routes";
 import { registerSEORoutes } from "./seo";
 import { registerAgentDiscoveryRoutes } from "./agent-discovery";
+import { createRaceMcp } from "./race-mcp";
 import { setupWorkerSSR } from "./ssr-render";
+import { storage } from "./storage";
 
 const APP_PORT = 8787;
 const app = express();
@@ -122,9 +124,16 @@ app.use((error: unknown, _req: ExpressRequest, res: ExpressResponse, next: NextF
 
 server.listen(APP_PORT);
 const nodeHandler = httpServerHandler({ port: APP_PORT });
+const raceMcp = createRaceMcp((filters) => storage.getRacesAdvanced(filters));
 
 export default {
-  fetch: nodeHandler.fetch!,
+  fetch(request, workerEnv, ctx) {
+    const url = new URL(request.url);
+    if (url.pathname === "/mcp" && url.hostname !== "www.running.services") {
+      return raceMcp(request, workerEnv.RACE_MCP_RATE_LIMITER);
+    }
+    return nodeHandler.fetch!(request, workerEnv, ctx);
+  },
 
   scheduled(
     _controller: ScheduledController,
