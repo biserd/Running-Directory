@@ -1,0 +1,84 @@
+{
+  "date": "2026-11-14",
+  "runner": "Running Services Daily SEO Codex heartbeat",
+  "deployment_status": "Deployed and verified",
+  "release": {
+    "pull_request": "https://github.com/biserd/Running-Directory/pull/14",
+    "commit": "9aede2281cd10dbfbbfd631301db8fb1ef2add30",
+    "cloudflare_version": "cdc74ca9-fdfc-4945-815b-61555b3c6c6e",
+    "previous_version": "e72718bd-23f4-480d-a4ed-34a4bbb3bd01"
+  },
+  "audit": {
+    "sitemaps": 7,
+    "sitemap_urls": 1542,
+    "pages_checked": 157,
+    "internal_targets_checked": 90,
+    "duplicate_description_pairs_found": 4,
+    "duplicate_description_pairs_after": 0
+  },
+  "stages": {
+    "seo-autopilot": "Fixed four verified pairs of duplicate race search descriptions by generating summaries from each event name, location and date. The keyword map has four distinct intents. No distinct, verified comparison opportunity qualified.",
+    "blog-refresher": "Skipped. Current signed-in Search Console performance was unavailable, so no qualifying position 8–20 page/query group could be verified.",
+    "seo-title-optimization": "Skipped. Current finalized page/device evidence was unavailable. No pending title measurement was recorded, and the released metadata fix did not change titles or H1s."
+  },
+  "changed_urls": [
+    {
+      "url": "https://running.services/races/gobbler-5k-10k-13-1m-at-cypress-tx-46",
+      "before": "Shared organizer boilerplate matched the description of the paired event on a different date.",
+      "after": "Gobbler 5K, 10K & 13.1M at Cypress, TX (46) takes place in Cypress, Texas on November 14, 2026. See race distances and course details.",
+      "canonical": "https://running.services/races/gobbler-5k-10k-13-1m-at-cypress-tx-46"
+    },
+    {
+      "url": "https://running.services/races/gobbler-5k-10k-13-1m-at-cypress-tx-48",
+      "before": "Shared organizer boilerplate matched the description of the paired event on a different date.",
+      "after": "Gobbler 5K, 10K & 13.1M at Cypress, TX (48) takes place in Cypress, Texas on November 28, 2026. See race distances and course details.",
+      "canonical": "https://running.services/races/gobbler-5k-10k-13-1m-at-cypress-tx-48"
+    },
+    {
+      "url": "https://running.services/races/gobbler-5k-10k-13-1m-at-olympia-wa-46",
+      "before": "Shared organizer boilerplate matched the description of the paired event on a different date.",
+      "after": "Gobbler 5K, 10K & 13.1M at Olympia, WA (46) takes place in Olympia, Washington on November 14, 2026. See race distances and course details.",
+      "canonical": "https://running.services/races/gobbler-5k-10k-13-1m-at-olympia-wa-46"
+    },
+    {
+      "url": "https://running.services/races/gobbler-5k-10k-13-1m-at-olympia-wa-48",
+      "before": "Shared organizer boilerplate matched the description of the paired event on a different date.",
+      "after": "Gobbler 5K, 10K, & 13.1M at Olympia, WA (48) takes place in Olympia, Washington on November 28, 2026. See race distances and course details.",
+      "canonical": "https://running.services/races/gobbler-5k-10k-13-1m-at-olympia-wa-48"
+    },
+    {
+      "url": "https://running.services/races/gobbler-5k-10k-13-1m-at-winston-salem-nc-47",
+      "before": "Shared organizer boilerplate matched the description of the paired event on a different date.",
+      "after": "Gobbler 5K, 10K, & 13.1M at Winston-Salem, NC (47) takes place in Winston-Salem, North Carolina on November 21, 2026. See race distances and course details.",
+      "canonical": "https://running.services/races/gobbler-5k-10k-13-1m-at-winston-salem-nc-47"
+    },
+    {
+      "url": "https://running.services/races/gobbler-5k-10k-half-marathon-at-jamison-park-winston-salem-nc-46",
+      "before": "Shared organizer boilerplate matched the description of the paired event on a different date.",
+      "after": "Gobbler 5K, 10K, & Half Marathon at Jamison Park, Winston-Salem, NC (46) takes place in Winston-Salem, North Carolina on November 14, 2026. See race distances and course details.",
+      "canonical": "https://running.services/races/gobbler-5k-10k-half-marathon-at-jamison-park-winston-salem-nc-46"
+    },
+    {
+      "url": "https://running.services/races/gobbler-5k-10k-at-gainesville-fl-46",
+      "before": "Shared organizer boilerplate matched the description of the paired event on a different date.",
+      "after": "Gobbler 5K & 10K at Gainesville, FL (46) takes place in Gainesville, Florida on November 14, 2026. See race distances and course details.",
+      "canonical": "https://running.services/races/gobbler-5k-10k-at-gainesville-fl-46"
+    },
+    {
+      "url": "https://running.services/races/gobbler-5k-10k-at-gainesville-fl-48",
+      "before": "Shared organizer boilerplate matched the description of the paired event on a different date.",
+      "after": "Gobbler 5K & 10K at Gainesville, FL (48) takes place in Gainesville, Florida on November 28, 2026. See race distances and course details.",
+      "canonical": "https://running.services/races/gobbler-5k-10k-at-gainesville-fl-48"
+    }
+  ],
+  "scope": "Shared race-detail metadata template. Changed URLs are representative samples.",
+  "verification": [
+    "TypeScript, Cloudflare production build, and Wrangler dry run passed. The merged source tree matched the tested tree.",
+    "All eight sampled pages returned HTTP 200, retained their titles and canonicals, and now show their individual dates in their descriptions.",
+    "Homepage, race directory, blog, pricing, developers, organizer page, sitemap and robots returned HTTP 200. The released Worker version serves 100 percent of production traffic."
+  ],
+  "blockers": [
+    "Search Console API unavailable and the signed-in browser timed out. Current ranking, device metrics, and Google indexing status unchecked.",
+    "GA4 and per-query ChatGPT Search, Perplexity, and Google AI Overviews unchecked."
+  ]
+}
