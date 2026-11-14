@@ -381,9 +381,15 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
       race.date >= new Date().toISOString().slice(0, 10)
     );
 
+    const eventDate = new Date(`${race.date}T00:00:00Z`);
+    const dateLabel = Number.isNaN(eventDate.getTime()) ? "" : ` on ${eventDate.toLocaleDateString("en-US", {
+      year: "numeric", month: "long", day: "numeric", timeZone: "UTC",
+    })}`;
+    const location = `${race.city}, ${getStateName(race.state)}`;
+
     return {
-      title: `${race.name} - ${race.city}, ${getStateName(race.state)} | running.services`,
-      description: race.description || `${race.name} is a ${race.distance} race in ${race.city}, ${getStateName(race.state)}. ${race.surface} course with ${race.elevation.toLowerCase()} elevation.`,
+      title: `${race.name} - ${location} | running.services`,
+      description: `${race.name} takes place in ${location}${dateLabel}. See race distances and course details.`,
       ogTitle: race.name,
       ogDescription: `${race.distance} race on ${race.date} in ${race.city}, ${getStateName(race.state)}`,
       ogType: "article",
