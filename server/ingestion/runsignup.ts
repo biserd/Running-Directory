@@ -1,304 +1,214 @@
 import type { RawRaceRecord } from "./pipeline";
 
 const BASE_URL = "https://api.runsignup.com/rest/races";
-const RESULTS_PER_PAGE = 200;
-const REQUEST_DELAY_MS = 500;
-
-const US_STATES = [
+export const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
   "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
   "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
   "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
-  "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC"
+  "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC",
 ];
 
-const VIRTUAL_CITIES = new Set(["anywhere", "virtual", "everywhere", "your city", "any city"]);
+interface RunSignupEvent {
+  name: string;
+  event_type: string;
+  volunteer?: string;
+  start_time?: string;
+  distance?: number | string | null;
+  distance_units?: string;
+  registration_periods?: {
+    registration_opens?: string;
+    registration_closes?: string;
+    race_fee?: number | string;
+  }[];
+}
 
-interface RunSignUpRace {
+interface RunSignupRace {
   race_id: number;
   name: string;
-  next_date: string | null;
-  last_date: string | null;
-  description: string | null;
+  next_date?: string | null;
+  description?: string | null;
   url: string;
-  external_race_url: string | null;
-  created: string;
-  last_modified: string;
-  is_draft_race: string;
-  is_private_race: string;
-  is_registration_open: string;
-  address: {
-    street?: string;
-    city: string;
-    state: string;
-    zipcode: string;
-    country_code: string;
-  };
-  timezone: string;
-  logo_url: string | null;
-  events?: Array<{
-    event_id: number;
-    name: string;
-    start_time: string;
-    end_time?: string;
-    event_type: string;
-    distance: number | null;
-    distance_units?: string;
-    registration_periods?: Array<{
-      race_fee: number | string;
-    }>;
-  }>;
+  external_race_url?: string | null;
+  is_draft_race?: string;
+  is_private_race?: string;
+  is_registration_open?: string;
+  address?: { city?: string; state?: string; zipcode?: string; country_code?: string };
+  events?: RunSignupEvent[];
 }
 
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, " ")
-    .replace(/<\/p>/gi, " ")
-    .replace(/<\/li>/gi, " ")
-    .replace(/<[^>]*>/g, "")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+function raceDate(value?: string | null): string | undefined {
+  const match = value?.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s|$)/);
+  if (!match) return;
+  const [, month, day, year] = match;
+  const date = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  const timestamp = Date.parse(date);
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().startsWith(date) ? date : undefined;
 }
 
-function parseRunSignUpDate(dateStr: string | null): string | null {
-  if (!dateStr) return null;
-  const parts = dateStr.split(" ")[0].split("/");
-  if (parts.length !== 3) return null;
-  const [month, day, year] = parts;
-  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+function dateTime(value?: string): string | undefined {
+  const date = raceDate(value);
+  const time = value?.match(/\s(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (date && time) return `${date} ${time[1].padStart(2, "0")}:${time[2]}`;
 }
 
-function classifyDistance(distanceValue: number | null, units: string | undefined, eventName: string): { distance: string; distanceLabel: string; distanceMeters: number } {
-  if (distanceValue && units) {
-    let meters = distanceValue;
-    if (units === "K" || units === "Kilometers") meters = distanceValue * 1000;
-    else if (units === "M" || units === "Miles") meters = distanceValue * 1609.34;
-
-    if (meters >= 80000) return { distance: "Ultra", distanceLabel: "Ultra", distanceMeters: Math.round(meters) };
-    if (meters >= 41000 && meters <= 43000) return { distance: "Marathon", distanceLabel: "Marathon", distanceMeters: 42195 };
-    if (meters >= 20500 && meters <= 22000) return { distance: "Half Marathon", distanceLabel: "Half Marathon", distanceMeters: 21097 };
-    if (meters >= 9500 && meters <= 10500) return { distance: "10K", distanceLabel: "10K", distanceMeters: 10000 };
-    if (meters >= 4800 && meters <= 5200) return { distance: "5K", distanceLabel: "5K", distanceMeters: 5000 };
-    if (meters >= 1500 && meters <= 1700) return { distance: "1 Mile", distanceLabel: "1 Mile", distanceMeters: 1609 };
-    return { distance: "Other", distanceLabel: `${distanceValue} ${units}`, distanceMeters: Math.round(meters) };
-  }
-
-  const nameLower = eventName.toLowerCase();
-  if (nameLower.includes("marathon") && !nameLower.includes("half") && !nameLower.includes("ultra"))
-    return { distance: "Marathon", distanceLabel: "Marathon", distanceMeters: 42195 };
-  if (nameLower.includes("half marathon") || nameLower.includes("half-marathon") || nameLower.includes("13.1"))
-    return { distance: "Half Marathon", distanceLabel: "Half Marathon", distanceMeters: 21097 };
-  if (nameLower.includes("ultra") || nameLower.includes("100 mile") || nameLower.includes("50 mile") || nameLower.includes("100k") || nameLower.includes("50k"))
-    return { distance: "Ultra", distanceLabel: "Ultra", distanceMeters: 80000 };
-  if (nameLower.includes("10k") || nameLower.includes("10 k"))
-    return { distance: "10K", distanceLabel: "10K", distanceMeters: 10000 };
-  if (nameLower.includes("5k") || nameLower.includes("5 k"))
-    return { distance: "5K", distanceLabel: "5K", distanceMeters: 5000 };
-  if (nameLower.includes("1 mile") || nameLower.includes("mile run"))
-    return { distance: "1 Mile", distanceLabel: "1 Mile", distanceMeters: 1609 };
-
-  return { distance: "Other", distanceLabel: "Other", distanceMeters: 0 };
+function surfaceFor(event: RunSignupEvent, raceName: string): "Road" | "Trail" | undefined {
+  if (event.volunteer === "T" || /\b(?:virtual|volunteer|test event|testing|practice registration)\b/i.test(event.name) ||
+    (/\bchallenge\b/i.test(event.name) && event.name.includes("+"))) return;
+  if (["trail_race", "trail_run"].includes(event.event_type) || (["running_only", "running_race"].includes(event.event_type) && /\btrail\b/i.test(event.name))) return "Trail";
+  if (["running_only", "running_race"].includes(event.event_type)) return "Road";
+  if (["other", "nonprofit_event", "run_walk"].includes(event.event_type)
+    && /\b(?:run|running|\d+\s*k|marathon|turkey trot)\b/i.test(event.name)
+    && !/\b(?:triathlon|duathlon|swim|swimming|cycling|bike)\b/i.test(`${event.name} ${raceName}`)) return "Road";
 }
 
-function classifyEventType(eventType: string): string | null {
-  if (eventType === "running_race") return "Road";
-  if (eventType === "trail_race") return "Trail";
-  if (eventType === "virtual_race") return null;
-  if (eventType === "obstacle_mud_race") return null;
-  if (eventType === "triathlon") return null;
-  if (eventType === "cycling_race") return null;
-  if (eventType === "swimming") return null;
-  if (eventType === "walking") return "Road";
-  return "Road";
+function distanceFor(event: RunSignupEvent) {
+  const description = event.name.toLowerCase();
+  const advertised = description.match(/\b(\d+(?:\.\d+)?)\s*(k(?:m)?|mi(?:les?)?|meters?)\b/i);
+  const match = advertised ?? String(event.distance ?? "").trim()
+    .match(/^(\d+(?:\.\d+)?)\s*(k(?:m|ilometers?)?|mi(?:les?)?|meters?|m)$/i);
+  const value = match ? Number(match[1]) : typeof event.distance === "number" ? event.distance : null;
+  const unit = (match?.[2] ?? event.distance_units ?? "").toLowerCase();
+  const meters = value && unit ? Math.round(value * (unit.startsWith("k") ? 1000 : unit === "mi" || unit.startsWith("mile") ? 1609.344 : unit === "m" && !match ? 1609.344 : 1)) : undefined;
+  const label = meters && value ? `${value}${unit.startsWith("k") ? "K" : unit.startsWith("mi") ? " mi" : " m"}` : undefined;
+  if (meters && meters > 42500) return { distance: "Ultra", label, meters };
+  if (meters && meters >= 41000) return { distance: "Marathon", label: "Marathon", meters };
+  if ((meters && meters >= 20500 && meters <= 22000) || /half[ -]marathon|\b13\.1\b/.test(description)) return { distance: "Half Marathon", label: "Half Marathon", meters };
+  if ((meters && meters >= 9500 && meters <= 10500) || /\b10\s*k\b/.test(description)) return { distance: "10K", label: "10K", meters };
+  if ((meters && meters >= 4800 && meters <= 5200) || /\b5\s*k\b/.test(description)) return { distance: "5K", label: "5K", meters };
+  if (meters && meters >= 1500 && meters <= 1700) return { distance: "1 Mile", label: "1 Mile", meters };
+  if (/\bultra\b/.test(description)) return { distance: "Ultra", label: "Ultra", meters };
+  if (/\bmarathon\b/.test(description) && !meters) return { distance: "Marathon", label: "Marathon", meters };
+  return { distance: "Other", label, meters };
 }
 
-function isVirtualRace(race: RunSignUpRace): boolean {
-  if (VIRTUAL_CITIES.has(race.address.city.toLowerCase())) return true;
-  if (race.events?.every(e => e.event_type === "virtual_race")) return true;
-  if (race.address.zipcode === "99999" || race.address.zipcode === "00000") return true;
-  return false;
+function cleanDescription(html?: string | null) {
+  return html?.replace(/<[^>]*>/g, " ").replace(/&amp;/g, "&").replace(/&nbsp;/g, " ")
+    .replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, " ").trim().slice(0, 500) || undefined;
 }
 
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/['']/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    .substring(0, 80);
-}
+export function transformRace(race: RunSignupRace, now = new Date()): RawRaceRecord | null {
+  const city = race.address?.city?.trim();
+  const state = race.address?.state?.toUpperCase();
+  const name = race.name?.trim();
+  if (!city || !state || !name || !US_STATES.includes(state) || race.address?.country_code !== "US") return null;
+  if (race.is_draft_race === "T" || race.is_private_race === "T" ||
+    /^(?:anywhere|virtual|everywhere|your city|any city)$/i.test(city) || /^(?:00000|99999)$/.test(race.address.zipcode ?? "")) return null;
+  if (/\b(?:RaceDay Certification|test race|demo race|check.in testing|practice registration|mailing list)\b/i.test(name)) return null;
+  if (!/^https?:\/\/(?:www\.)?runsignup\.com\/Race\//i.test(race.url)) return null;
 
-function transformRace(rsuRace: RunSignUpRace): RawRaceRecord | null {
-  if (rsuRace.is_draft_race === "T") return null;
-  if (rsuRace.is_private_race === "T") return null;
-  if (isVirtualRace(rsuRace)) return null;
-  if (rsuRace.address.country_code !== "US") return null;
-
-  const date = parseRunSignUpDate(rsuRace.next_date) || parseRunSignUpDate(rsuRace.last_date);
+  const date = raceDate(race.next_date);
   if (!date) return null;
+  const events = (race.events ?? []).flatMap(event => {
+    const surface = surfaceFor(event, name);
+    const start = dateTime(event.start_time);
+    if (!surface || !start || start.slice(0, 10) < date) return [];
+    return [{ event, surface, start, ...distanceFor(event) }];
+  }).sort((a, b) => a.start.localeCompare(b.start));
+  if (!events.length || events[0].start.slice(0, 10) > date) return null;
+  const edition = events.filter(item => Date.parse(item.start.slice(0, 10)) - Date.parse(date) <= 3 * 86400000);
+  const primary = edition.find(item => item.distance !== "Other") ?? edition[0];
+  const labels = [...new Set(edition.flatMap(item => item.label ? [item.label] : []))];
+  if (!labels.length) return null;
+  if (primary.meters && primary.meters > 500_000 && /\bchallenge\b/i.test(name)) return null;
 
-  const city = rsuRace.address.city;
-  const state = rsuRace.address.state;
-  if (!city || !state || city.length < 2) return null;
-
-  const primaryEvent = rsuRace.events?.find(e => {
-    const surface = classifyEventType(e.event_type);
-    return surface !== null;
-  }) || rsuRace.events?.[0];
-
-  const surface = primaryEvent ? (classifyEventType(primaryEvent.event_type) || "Road") : "Road";
-
-  const distInfo = classifyDistance(
-    primaryEvent?.distance || null,
-    primaryEvent?.distance_units,
-    primaryEvent?.name || rsuRace.name
-  );
-
-  const description = rsuRace.description ? stripHtml(rsuRace.description) : undefined;
-  const trimmedDesc = description && description.length > 500 ? description.substring(0, 497) + "..." : description;
-
-  const website = rsuRace.external_race_url || rsuRace.url;
-  const registrationUrl = rsuRace.url;
-
-  let startTime: string | undefined;
-  if (primaryEvent?.start_time) {
-    const timePart = primaryEvent.start_time.split(" ")[1];
-    if (timePart && timePart !== "00:00") {
-      const [h, m] = timePart.split(":");
-      const hour = parseInt(h);
-      const ampm = hour >= 12 ? "PM" : "AM";
-      const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-      startTime = `${hour12}:${m} ${ampm}`;
-    }
-  }
-
+  const periods = edition.flatMap(item => item.event.registration_periods ?? []);
+  const easternNow = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/New_York", dateStyle: "short", timeStyle: "short",
+  }).format(now);
+  const activePeriods = periods.filter(period => {
+    const opens = dateTime(period.registration_opens);
+    const closes = dateTime(period.registration_closes);
+    return opens && closes && opens <= easternNow && easternNow < closes;
+  });
+  const fees = activePeriods.flatMap(period => {
+    const cost = String(period.race_fee ?? "").trim();
+    return /^\$?\d+(?:\.\d{1,2})?$/.test(cost) ? [Number(cost.replace(/^\$/, ""))] : [];
+  });
+  const deadline = periods.map(period => raceDate(period.registration_closes)).filter(Boolean).sort().at(-1);
+  const [h, m] = edition[0].start.slice(-5).split(":").map(Number);
   return {
     sourceName: "runsignup",
-    externalId: String(rsuRace.race_id),
-    externalUrl: rsuRace.url,
-    name: rsuRace.name.trim(),
-    date,
-    city,
-    state,
-    distance: distInfo.distance,
-    distanceLabel: distInfo.distanceLabel,
-    distanceMeters: distInfo.distanceMeters,
-    surface,
-    elevation: "Rolling",
-    description: trimmedDesc,
-    website,
-    registrationUrl,
-    startTime,
+    externalId: String(race.race_id),
+    externalUrl: race.url,
+    name, date, city, state,
+    distance: primary.distance,
+    distanceOptions: [...new Set(edition.map(item => item.distance))],
+    distanceLabel: labels.join(", "),
+    distanceMeters: primary.meters,
+    surface: primary.surface,
+    description: cleanDescription(race.description),
+    website: /^https?:\/\//i.test(race.external_race_url ?? "") ? race.external_race_url! : race.url,
+    registrationUrl: race.url,
+    startTime: `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`,
+    registrationOpen: race.is_registration_open === "T" ? true : race.is_registration_open === "F" ? false : undefined,
+    registrationDeadline: deadline,
+    priceMin: race.is_registration_open === "T" && fees.length ? Math.min(...fees) : undefined,
+    priceMax: race.is_registration_open === "T" && fees.length ? Math.max(...fees) : undefined,
   };
 }
 
-async function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-export async function fetchRacesByState(
-  stateAbbr: string,
-  options?: {
-    startDate?: string;
-    endDate?: string;
-    modifiedSince?: string;
-    maxPages?: number;
-  }
-): Promise<RawRaceRecord[]> {
-  const records: RawRaceRecord[] = [];
-  const maxPages = options?.maxPages || 10;
-  let page = 1;
-  let hasMore = true;
-
-  while (hasMore && page <= maxPages) {
-    const params = new URLSearchParams({
-      format: "json",
-      state: stateAbbr,
-      results_per_page: String(RESULTS_PER_PAGE),
-      page: String(page),
-      events: "T",
-      sort: "date ASC",
-    });
-
-    if (options?.startDate) params.set("start_date", options.startDate);
-    else params.set("start_date", new Date().toISOString().split("T")[0]);
-
-    if (options?.endDate) params.set("end_date", options.endDate);
-    if (options?.modifiedSince) params.set("modified_since", options.modifiedSince);
-
-    try {
-      const url = `${BASE_URL}?${params.toString()}`;
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        console.error(`RunSignUp API error for ${stateAbbr} page ${page}: ${response.status}`);
-        break;
-      }
-
-      const data = await response.json() as { races?: Array<{ race: RunSignUpRace }> };
-      const races: Array<{ race: RunSignUpRace }> = data.races || [];
-
-      if (races.length === 0) {
-        hasMore = false;
-        break;
-      }
-
-      for (const { race } of races) {
-        const record = transformRace(race);
-        if (record) {
-          records.push(record);
-        }
-      }
-
-      if (races.length < RESULTS_PER_PAGE) {
-        hasMore = false;
-      }
-
-      page++;
-
-      if (hasMore) await delay(REQUEST_DELAY_MS);
-    } catch (err) {
-      console.error(`RunSignUp fetch error for ${stateAbbr} page ${page}:`, err);
-      break;
-    }
-  }
-
-  return records;
-}
-
-export async function fetchAllStates(options?: {
-  states?: string[];
+interface FetchOptions {
   startDate?: string;
   endDate?: string;
   modifiedSince?: string;
+  maxPages?: number;
+  onExcluded?: (externalId: string) => void;
+}
+
+export async function fetchRacesByState(state: string, options: FetchOptions = {}): Promise<RawRaceRecord[]> {
+  if (!US_STATES.includes(state)) throw new Error(`Unknown U.S. state: ${state}`);
+  const records = new Map<string, RawRaceRecord>();
+  const pageSize = 200;
+  const start = options.startDate ?? new Date().toISOString().slice(0, 10);
+  const end = options.endDate ?? new Date(Date.parse(start) + 548 * 86_400_000).toISOString().slice(0, 10);
+  const maxPages = Math.min(options.maxPages ?? 5, 5);
+  for (let page = 1; page <= maxPages; page++) {
+    const query = new URLSearchParams({
+      format: "json", country: "US", state, page: String(page), results_per_page: String(pageSize),
+      events: "T", start_date: start, end_date: end, search_start_date_only: "T",
+    });
+    if (options.modifiedSince) query.set("modified_since", options.modifiedSince);
+    const response = await fetch(`${BASE_URL}?${query}`, { signal: AbortSignal.timeout(30_000) });
+    if (!response.ok) throw new Error(`RunSignup failed for ${state} page ${page} (HTTP ${response.status})`);
+    const listing = await response.json() as { races?: { race: RunSignupRace }[] };
+    if (!Array.isArray(listing.races)) throw new Error(`RunSignup omitted race data for ${state} page ${page}`);
+    for (const { race } of listing.races) {
+      const record = transformRace(race);
+      if (!record) {
+        if (raceDate(race.next_date) && race.address?.state === state) options.onExcluded?.(String(race.race_id));
+        continue;
+      }
+      if (record.state === state && record.date >= start && record.date <= end) {
+        records.set(record.externalId, record);
+      }
+    }
+    if (listing.races.length < pageSize) return [...records.values()];
+    await new Promise(resolve => setTimeout(resolve, 450));
+  }
+  // The public endpoint limits every query to 1,000 results. Divide dense
+  // states into date windows so their calendars are fetched without a key.
+  if (end <= start) throw new Error(`RunSignup reached the page cap for ${state} on ${start}`);
+  const dayMs = 86_400_000;
+  const midpoint = Date.parse(start) + Math.floor((Date.parse(end) - Date.parse(start)) / (2 * dayMs)) * dayMs;
+  const leftEnd = new Date(midpoint).toISOString().slice(0, 10);
+  const rightStart = new Date(midpoint + dayMs).toISOString().slice(0, 10);
+  const left = await fetchRacesByState(state, { ...options, startDate: start, endDate: leftEnd });
+  const right = await fetchRacesByState(state, { ...options, startDate: rightStart, endDate: end });
+  return [...new Map([...left, ...right].map(record => [record.externalId, record])).values()];
+}
+
+export async function fetchAllStates(options: Omit<FetchOptions, "maxPages"> & {
+  states?: string[];
   maxPagesPerState?: number;
   onStateComplete?: (state: string, count: number) => void;
-}): Promise<RawRaceRecord[]> {
-  const statesToFetch = options?.states || US_STATES;
-  const allRecords: RawRaceRecord[] = [];
-
-  for (const state of statesToFetch) {
-    const records = await fetchRacesByState(state, {
-      startDate: options?.startDate,
-      endDate: options?.endDate,
-      modifiedSince: options?.modifiedSince,
-      maxPages: options?.maxPagesPerState || 5,
-    });
-
-    allRecords.push(...records);
-
-    if (options?.onStateComplete) {
-      options.onStateComplete(state, records.length);
-    }
-
-    await delay(300);
+} = {}): Promise<RawRaceRecord[]> {
+  const records: RawRaceRecord[] = [];
+  for (const state of options.states ?? US_STATES) {
+    const races = await fetchRacesByState(state, { ...options, maxPages: options.maxPagesPerState });
+    records.push(...races);
+    options.onStateComplete?.(state, races.length);
+    await new Promise(resolve => setTimeout(resolve, 300));
   }
-
-  return allRecords;
+  return records;
 }

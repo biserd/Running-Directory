@@ -319,7 +319,7 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
       ...(race.website ? { sameAs: race.website } : {}),
       ...(race.priceMin != null || race.priceMax != null ? (() => {
         const isRange = race.priceMin != null && race.priceMax != null && race.priceMin !== race.priceMax;
-        const baseAvailability = race.registrationOpen === false ? "https://schema.org/SoldOut" : "https://schema.org/InStock";
+        const availability = race.registrationOpen === true ? { availability: "https://schema.org/InStock" } : {};
         return {
           offers: isRange
             ? {
@@ -327,7 +327,7 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
                 lowPrice: race.priceMin,
                 highPrice: race.priceMax,
                 priceCurrency: race.priceCurrency || "USD",
-                availability: baseAvailability,
+                ...availability,
                 ...(race.registrationUrl ? { url: race.registrationUrl } : {}),
                 ...(race.registrationDeadline ? { validThrough: race.registrationDeadline } : {}),
               }
@@ -335,7 +335,7 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
                 "@type": "Offer",
                 price: race.priceMin ?? race.priceMax,
                 priceCurrency: race.priceCurrency || "USD",
-                availability: baseAvailability,
+                ...availability,
                 ...(race.registrationUrl ? { url: race.registrationUrl } : {}),
                 ...(race.registrationDeadline ? { validThrough: race.registrationDeadline } : {}),
               },
@@ -373,7 +373,7 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
     // to make a decision — date, city/state, distance, and either a
     // registration URL or an official website.
     const hasMinimumFields = Boolean(
-      race.date &&
+      race.isActive && race.date &&
       race.city &&
       race.state &&
       race.distance &&

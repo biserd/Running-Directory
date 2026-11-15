@@ -27,6 +27,7 @@ export interface IStorage {
   getRaces(filters?: { state?: string; distance?: string; surface?: string; city?: string; cityId?: number; year?: number; month?: number; limit?: number }): Promise<Race[]>;
   getRaceBySlug(slug: string): Promise<Race | undefined>;
   getRacesByState(stateAbbr: string): Promise<Race[]>;
+  getUpcomingRaceIndex(limit: number): Promise<Pick<Race, "slug" | "date" | "city" | "state" | "distance" | "distanceOptions" | "surface" | "registrationUrl" | "website" | "lastSeenAt" | "isTurkeyTrot" | "seriesId" | "walkerFriendly" | "strollerFriendly">[]>;
 
   getRaceOccurrences(filters?: { raceId?: number; year?: number; month?: number; limit?: number }): Promise<RaceOccurrence[]>;
 
@@ -47,11 +48,12 @@ export interface IStorage {
   seedSources(data: InsertSource[]): Promise<void>;
   seedCollections(data: InsertCollection[]): Promise<void>;
 
-  upsertRace(data: InsertRace): Promise<{ id: number; created: boolean }>;
+  getRaceForFeedUpdate(id: number): Promise<Race | undefined>;
+  insertRaceFromFeed(data: InsertRace): Promise<{ id: number; created: boolean } | undefined>;
+  updateRaceFromFeed(existing: Race, data: InsertRace): Promise<{ id: number; created: boolean } | undefined>;
   upsertSourceRecord(data: InsertSourceRecord): Promise<{ id: number }>;
   getSourceByName(name: string): Promise<Source | undefined>;
   findSourceRecord(sourceId: number, externalId: string): Promise<SourceRecord | undefined>;
-  updateRaceLastSeen(raceId: number): Promise<void>;
   markRacesInactive(olderThan: Date): Promise<number>;
   getRaceCount(): Promise<number>;
   getRouteCount(): Promise<number>;
@@ -243,7 +245,8 @@ export class DatabaseStorage implements IStorage {
       conditions.push(sql`${races.date} >= date('now')`);
     }
     if (filters?.state) conditions.push(eq(races.state, filters.state));
-    if (filters?.distance) conditions.push(eq(races.distance, filters.distance));
+    if (filters?.distance) conditions.push(or(eq(races.distance, filters.distance),
+      sql`exists (select 1 from json_each(${races.distanceOptions}) where value = ${filters.distance})`)!);
     if (filters?.surface) conditions.push(eq(races.surface, filters.surface));
     if (filters?.city) conditions.push(eq(races.city, filters.city));
     if (filters?.cityId) conditions.push(eq(races.cityId, filters.cityId));
@@ -263,6 +266,17 @@ export class DatabaseStorage implements IStorage {
   async getRaceBySlug(slug: string): Promise<Race | undefined> {
     const [race] = await db.select().from(races).where(eq(races.slug, slug));
     return race;
+  }
+
+  async getUpcomingRaceIndex(limit: number) {
+    return db.select({
+      slug: races.slug, date: races.date, city: races.city, state: races.state,
+      distance: races.distance, distanceOptions: races.distanceOptions, surface: races.surface,
+      registrationUrl: races.registrationUrl, website: races.website, lastSeenAt: races.lastSeenAt,
+      isTurkeyTrot: races.isTurkeyTrot, seriesId: races.seriesId,
+      walkerFriendly: races.walkerFriendly, strollerFriendly: races.strollerFriendly,
+    }).from(races).where(and(eq(races.isActive, true), sql`${races.date} >= date('now')`))
+      .orderBy(races.date).limit(limit);
   }
 
   async getRacesByState(stateAbbr: string): Promise<Race[]> {
@@ -379,24 +393,42 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async upsertRace(data: InsertRace): Promise<{ id: number; created: boolean }> {
-    const existing = await db.select().from(races).where(eq(races.slug, data.slug));
-    if (existing.length > 0) {
-      await db.update(races)
-        .set({
-          ...data,
-          lastSeenAt: new Date(),
-        })
-        .where(eq(races.slug, data.slug));
-      return { id: existing[0].id, created: false };
-    }
+  async getRaceForFeedUpdate(id: number): Promise<Race | undefined> {
+    const [race] = await db.select().from(races).where(eq(races.id, id));
+    return race;
+  }
 
+  async insertRaceFromFeed(data: InsertRace): Promise<{ id: number; created: boolean } | undefined> {
     const [inserted] = await db.insert(races).values({
       ...data,
       firstSeenAt: new Date(),
       lastSeenAt: new Date(),
-    }).returning({ id: races.id });
-    return { id: inserted.id, created: true };
+    }).onConflictDoNothing({ target: races.slug }).returning({ id: races.id });
+    return inserted && { id: inserted.id, created: true };
+  }
+
+  async updateRaceFromFeed(existing: Race, data: InsertRace): Promise<{ id: number; created: boolean } | undefined> {
+    const today = new Date().toISOString().slice(0, 10);
+    if (existing.isClaimed || data.state !== existing.state || data.date < existing.date || (!existing.isActive && existing.date >= today)) return;
+    const update = db.update(races).set({
+      ...data,
+      elevation: data.elevation === "Unknown" ? existing.elevation : data.elevation,
+      description: data.description ?? existing.description,
+      qualityScore: Math.max(existing.qualityScore, data.qualityScore ?? 0),
+      lastSeenAt: new Date(),
+    }).where(and(eq(races.id, existing.id), eq(races.date, existing.date), eq(races.isClaimed, false)))
+      .returning({ id: races.id });
+    if (data.date !== existing.date) {
+      const [updated] = await db.batch([update, db.insert(raceOccurrences).values({
+        raceId: existing.id, startDate: existing.date, startTime: existing.startTime,
+        year: Number(existing.date.slice(0, 4)), month: Number(existing.date.slice(5, 7)),
+        priceMin: existing.priceMin, priceMax: existing.priceMax,
+        status: existing.date < today ? "completed" : "rescheduled",
+      }).onConflictDoNothing()]);
+      return updated[0] && { id: existing.id, created: false };
+    }
+    const [updated] = await update;
+    return updated && { id: updated.id, created: false };
   }
 
   async upsertSourceRecord(data: InsertSourceRecord): Promise<{ id: number }> {
@@ -439,12 +471,6 @@ export class DatabaseStorage implements IStorage {
         sql`${sourceRecords.externalId} = ${externalId}`
       ));
     return record;
-  }
-
-  async updateRaceLastSeen(raceId: number): Promise<void> {
-    await db.update(races)
-      .set({ lastSeenAt: new Date() })
-      .where(eq(races.id, raceId));
   }
 
   async markRacesInactive(olderThan: Date): Promise<number> {
@@ -796,8 +822,10 @@ export class DatabaseStorage implements IStorage {
     if (filters.state) conditions.push(eq(races.state, filters.state));
     if (filters.city) conditions.push(eq(races.city, filters.city));
     if (filters.cityId) conditions.push(eq(races.cityId, filters.cityId));
-    if (filters.distance) conditions.push(eq(races.distance, filters.distance));
-    if (filters.distances && filters.distances.length > 0) conditions.push(inArray(races.distance, filters.distances));
+    if (filters.distance) conditions.push(or(eq(races.distance, filters.distance),
+      sql`exists (select 1 from json_each(${races.distanceOptions}) where value = ${filters.distance})`)!);
+    if (filters.distances && filters.distances.length > 0) conditions.push(or(inArray(races.distance, filters.distances),
+      sql`exists (select 1 from json_each(${races.distanceOptions}) where value in ${filters.distances})`)!);
     if (filters.surface) conditions.push(eq(races.surface, filters.surface));
     if (filters.terrain) conditions.push(eq(races.terrain, filters.terrain));
 

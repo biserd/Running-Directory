@@ -1,0 +1,1 @@
+ALTER TABLE `races` ADD `distance_options` text DEFAULT '[]' NOT NULL;

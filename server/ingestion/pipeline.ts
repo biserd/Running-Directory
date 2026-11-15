@@ -1,5 +1,5 @@
 import { storage } from "../storage";
-import { normalizeName, normalizeLocationKey, normalizeUrl, generateHashKey, computeQualityScore } from "./normalize";
+import { normalizeName, normalizeLocationKey, generateHashKey, computeQualityScore } from "./normalize";
 import type { InsertRace, InsertSourceRecord } from "@shared/schema";
 
 export interface RawRaceRecord {
@@ -13,6 +13,7 @@ export interface RawRaceRecord {
   distance?: string;
   distanceLabel?: string;
   distanceMeters?: number;
+  distanceOptions?: string[];
   surface?: string;
   elevation?: string;
   description?: string;
@@ -20,6 +21,10 @@ export interface RawRaceRecord {
   registrationUrl?: string;
   startTime?: string;
   timeLimit?: string;
+  registrationOpen?: boolean;
+  registrationDeadline?: string;
+  priceMin?: number;
+  priceMax?: number;
   lat?: number;
   lng?: number;
 }
@@ -49,7 +54,8 @@ export async function processRaceImport(records: RawRaceRecord[]): Promise<{
   const stats = { created: 0, updated: 0, skipped: 0, errors: [] as string[] };
 
   const source = await storage.getSourceByName("runsignup");
-  const sourceId = source?.id || 1;
+  if (!source) throw new Error("RunSignup source has not been configured");
+  const sourceId = source.id;
 
   const seenSlugs = new Set<string>();
 
@@ -61,31 +67,14 @@ export async function processRaceImport(records: RawRaceRecord[]): Promise<{
       const qualityScore = computeQualityScore(record);
 
       const existingSource = await storage.findSourceRecord(sourceId, record.externalId);
-
-      if (existingSource?.canonicalRaceId) {
-        await storage.updateRaceLastSeen(existingSource.canonicalRaceId);
-
-        const sourceRecord: InsertSourceRecord = {
-          sourceId,
-          externalId: record.externalId,
-          externalUrl: record.externalUrl,
-          normalizedName,
-          normalizedLocationKey: locationKey,
-          normalizedDate: record.date,
-          hashKey,
-          canonicalRaceId: existingSource.canonicalRaceId,
-        };
-        await storage.upsertSourceRecord(sourceRecord);
-
-        stats.updated++;
-        continue;
-      }
-
-      let slug = makeUniqueSlug(record.name, record.city, record.state);
-      if (seenSlugs.has(slug)) {
-        slug = `${slug}-${record.externalId}`;
+      const existing = existingSource?.canonicalRaceId
+        ? await storage.getRaceForFeedUpdate(existingSource.canonicalRaceId) : undefined;
+      let slug = existing?.slug ?? makeUniqueSlug(record.name, record.city, record.state);
+      if (!existing && (seenSlugs.has(slug) || await storage.getRaceBySlug(slug))) {
+        slug = `${slug.slice(0, 65)}-rsu-${record.externalId}`;
       }
       seenSlugs.add(slug);
+      const verifiedAt = new Date();
 
       const raceData: InsertRace = {
         slug,
@@ -95,7 +84,7 @@ export async function processRaceImport(records: RawRaceRecord[]): Promise<{
         state: record.state,
         distance: record.distance || "Other",
         surface: record.surface || "Road",
-        elevation: record.elevation || "Rolling",
+        elevation: record.elevation || "Unknown",
         description: record.description,
         website: record.website,
         registrationUrl: record.registrationUrl,
@@ -103,13 +92,26 @@ export async function processRaceImport(records: RawRaceRecord[]): Promise<{
         timeLimit: record.timeLimit,
         distanceLabel: record.distanceLabel,
         distanceMeters: record.distanceMeters,
+        distanceOptions: record.distanceOptions,
+        registrationOpen: record.registrationOpen ?? null,
+        registrationDeadline: record.registrationDeadline ?? null,
+        priceMin: record.priceMin ?? null,
+        priceMax: record.priceMax ?? null,
+        sourceUrl: record.externalUrl,
+        lastVerifiedAt: verifiedAt,
         lat: record.lat,
         lng: record.lng,
         isActive: true,
         qualityScore,
       };
 
-      const result = await storage.upsertRace(raceData);
+      const result = existing
+        ? await storage.updateRaceFromFeed(existing, raceData)
+        : await storage.insertRaceFromFeed(raceData);
+      if (!result) {
+        stats.skipped++;
+        continue;
+      }
 
       // Record per-field provenance for the merge resolver. Sourced fields only;
       // computed values like qualityScore are excluded.
