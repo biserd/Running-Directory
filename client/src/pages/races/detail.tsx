@@ -553,7 +553,7 @@ export default function RaceDetail() {
               <div className="flex flex-wrap gap-6 text-white/80">
                 <div className="flex items-center gap-2"><Calendar className="h-5 w-5" /><span className="font-medium text-white" data-testid="text-race-date">{format(parseRaceDate(race.date), "MMMM d, yyyy")}</span></div>
                 <div className="flex items-center gap-2"><MapPin className="h-5 w-5" /><span className="font-medium text-white" data-testid="text-race-location">{race.city}, {getStateName(race.state)}</span></div>
-                <div className="flex items-center gap-2"><Trophy className="h-5 w-5" /><span className="font-medium text-white" data-testid="text-race-elevation">{race.elevation} Course</span></div>
+                {race.elevation !== "Unknown" && <div className="flex items-center gap-2"><Trophy className="h-5 w-5" /><span className="font-medium text-white" data-testid="text-race-elevation">{race.elevation} Course</span></div>}
               </div>
             </div>
 
@@ -608,7 +608,7 @@ export default function RaceDetail() {
           <section>
             <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-blue-500 pl-3">About the Race</h2>
             <div className="prose max-w-none text-muted-foreground">
-              <p data-testid="text-race-description">{race.description || `Experience one of the premier ${race.distance} events in ${getStateName(race.state)}. The ${race.name} offers a ${race.elevation.toLowerCase()} course through the scenic streets of ${race.city}.`}</p>
+              <p data-testid="text-race-description">{race.description || `${race.name} takes place in ${race.city}, ${getStateName(race.state)}. Check the organizer’s event page for course and race-day details.`}</p>
             </div>
           </section>
 
@@ -813,7 +813,8 @@ export default function RaceDetail() {
             <h3 className="font-heading font-semibold mb-4">Race Logistics</h3>
             <ul className="space-y-3 text-sm">
               <li className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Start Time</span><span className="font-medium" data-testid="text-start-time">{race.startTime || "TBA"}</span></li>
-              <li className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Time Limit</span><span className="font-medium" data-testid="text-time-limit">{race.timeLimit || "None"}</span></li>
+              <li className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Time Limit</span><span className="font-medium" data-testid="text-time-limit">{race.timeLimit || "Not published"}</span></li>
+              {race.distanceLabel && race.distanceLabel !== race.distance && <li className="flex justify-between gap-4 border-b pb-2"><span className="text-muted-foreground">Distances</span><span className="font-medium text-right" data-testid="text-distance-label">{race.distanceLabel}</span></li>}
               <li className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Surface</span><span className="font-medium">{race.surface}</span></li>
               <li className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Packet pickup</span><span className="font-medium text-right max-w-[60%]" data-testid="text-packet-pickup">{race.packetPickup || <span className="text-muted-foreground italic">Not provided</span>}</span></li>
               <li className="flex justify-between border-b pb-2"><span className="text-muted-foreground">Parking</span><span className="font-medium text-right max-w-[60%]" data-testid="text-parking">{race.parkingNotes || <span className="text-muted-foreground italic">Not provided</span>}</span></li>
@@ -885,7 +886,7 @@ export default function RaceDetail() {
             <ul className="space-y-3 text-sm">
               {race.lastSeenAt && (<li className="flex justify-between"><span className="text-muted-foreground">Last Updated</span><span className="font-medium" data-testid="text-last-updated">{format(new Date(race.lastSeenAt), "MMM d, yyyy")}</span></li>)}
               {race.qualityScore != null && (<li className="flex justify-between"><span className="text-muted-foreground">Data Quality</span><span className="font-medium" data-testid="text-quality-score">{race.qualityScore >= 80 ? "High" : race.qualityScore >= 50 ? "Good" : "Basic"}</span></li>)}
-              {race.distanceLabel && race.distanceLabel !== race.distance && (<li className="flex justify-between"><span className="text-muted-foreground">Distance</span><span className="font-medium" data-testid="text-distance-label">{race.distanceLabel}</span></li>)}
+              {race.sourceUrl && <li><a href={race.sourceUrl} className="text-primary underline" target="_blank" rel="noopener noreferrer">Check the source listing</a></li>}
             </ul>
             <p className="text-xs text-muted-foreground mt-4">Race data sourced from RunSignUp and verified public records.</p>
           </div>

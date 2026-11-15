@@ -46,12 +46,12 @@ export function createRaceMcp(searchRaces: IStorage["getRacesAdvanced"]) {
 
       const races = await searchRaces({ q: query, state: state?.toUpperCase(), distance, dateFrom, dateTo: through, limit, sort: "date" });
       const result = {
-        races: races.map(({ name, date, city, state, distance, slug }) => ({
+        races: races.map(({ name, date, city, state, distance: primaryDistance, slug }) => ({
           name,
           date,
           city,
           state,
-          distance,
+          distance: distance ?? primaryDistance,
           url: `${endpoint.origin}/races/${encodeURIComponent(slug)}`,
         })),
       };

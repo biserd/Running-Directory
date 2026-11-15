@@ -105,7 +105,7 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
 
   app.get("/sitemap-races.xml", async (_req, res) => {
     try {
-      const allRaces = await storage.getRaces({ limit: SITEMAP_MAX });
+      const allRaces = await storage.getUpcomingRaceIndex(SITEMAP_MAX);
 
       const entries = allRaces.filter(r =>
         r.date && r.city && r.state && r.distance && (r.registrationUrl || r.website)
@@ -192,7 +192,7 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
       const { BLOG_DISTANCE_SLUGS, blogPostHref, monthNumToSlug, rollingMonths } = await import("@shared/blog-months");
       const { DISTANCE_SLUG_TO_LABEL } = await import("@shared/metro");
       const [upcoming, states, metros, series] = await Promise.all([
-        storage.getRaces({ limit: SITEMAP_MAX }),
+        storage.getUpcomingRaceIndex(SITEMAP_MAX),
         storage.getStates(),
         storage.getMetrosWithRaceCount(5, 200),
         storage.getRaceSeries({ limit: 200 }),
@@ -222,7 +222,7 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
       for (const distanceSlug of BLOG_DISTANCE_SLUGS) {
         const config = DISTANCE_SLUG_TO_LABEL[distanceSlug];
         const matching = upcoming.filter(race =>
-          (!config.distance || race.distance === config.distance) &&
+          (!config.distance || race.distance === config.distance || race.distanceOptions.includes(config.distance)) &&
           (!config.surface || race.surface === config.surface));
         const countsByDate = new Map<string, number>();
         for (const race of matching) {

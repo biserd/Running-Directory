@@ -103,6 +103,7 @@ export const races = pgTable("races", {
   stateId: integer("state_id").references(() => states.id),
   distanceMeters: integer("distance_meters"),
   distanceLabel: text("distance_label"),
+  distanceOptions: textArray("distance_options").notNull().default([]),
   lat: real("lat"),
   lng: real("lng"),
   isActive: boolean("is_active").notNull().default(true),
