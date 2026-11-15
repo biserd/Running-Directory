@@ -6,6 +6,8 @@ import { DISTANCE_SLUG_TO_LABEL, isValidDistanceSlug, isValidMonthSlug, MONTH_NA
 import { BEST_CONFIGS, buildBestSearchQs, resolveBestSearch, type BestSearchParams } from "@shared/best-configs";
 import { parseBlogPostSlug, blogPostHref } from "@shared/blog-months";
 import { computeRaceScore } from "@shared/race-score";
+import { canIndexRaceGuide, getRaceGuide, RACE_GUIDES, RACE_GUIDES_HREF, RACE_GUIDE_YEAR, raceGuideHref } from "@shared/race-guides";
+import { loadGuideRaces } from "./race-guides";
 import { hasRaceListingValue, publishedRaceDistance, raceEventStartDate, raceListingDescription, stateRaceCalendarHref, RACE_CALENDAR_PAGE_SIZE } from "@shared/race-program";
 
 type PrefetchFn = (queryClient: QueryClient, params: Record<string, string>) => Promise<PageMeta>;
@@ -16,6 +18,48 @@ const defaultMeta: PageMeta = {
   title: "running.services | Find the right race, not just the next race",
   description: "A race decision engine for runners in the USA. Compare races by beginner, PR, value, vibe, and family scores so you can pick the right one for your goal.",
   ogType: "website",
+};
+
+const prefetchRaceGuidesIndex: PrefetchFn = async () => {
+  const title = `${RACE_GUIDE_YEAR} Running Race Guides by State | running.services`;
+  const description = "Compare dates and organizer-listed entry fees for running races in New York, Florida, Texas and Mississippi, with maps and signup links.";
+  return {
+    title, description, ogType: "website", canonicalUrl: `https://running.services${RACE_GUIDES_HREF}`,
+    jsonLd: {
+      "@context": "https://schema.org", "@type": "CollectionPage", name: title, description,
+      url: `https://running.services${RACE_GUIDES_HREF}`,
+      mainEntity: { "@type": "ItemList", itemListElement: RACE_GUIDES.map((guide, index) => ({
+        "@type": "ListItem", position: index + 1, name: `${guide.name} race guide`, url: `https://running.services${raceGuideHref(guide.slug)}`,
+      })) },
+    },
+  };
+};
+
+const prefetchRaceGuide: PrefetchFn = async (qc, params) => {
+  const guide = getRaceGuide(params.state);
+  if (!guide) return { title: "Race Guide Not Found | running.services", description: "Browse available race guides.", is404: true, noindex: true };
+  const races = await loadGuideRaces(guide);
+  qc.setQueryData(["/api/race-guides", guide.slug], races);
+  const canonicalUrl = `https://running.services${raceGuideHref(guide.slug)}`;
+  const headline = `Best ${guide.name} running races in ${RACE_GUIDE_YEAR}`;
+  const indexable = canIndexRaceGuide(races);
+  return {
+    title: `Best ${guide.name} Races in ${RACE_GUIDE_YEAR} | Entry Fees & Map`, description: guide.description,
+    canonicalUrl, ogTitle: headline, ogType: "article", noindex: !indexable,
+    jsonLd: indexable ? {
+      "@context": "https://schema.org", "@type": "Article", headline, description: guide.description,
+      mainEntityOfPage: canonicalUrl, author: { "@type": "Organization", name: "running.services", url: "https://running.services/" },
+      publisher: { "@type": "Organization", name: "running.services" },
+      about: { "@type": "Place", name: guide.name },
+    } : undefined,
+    breadcrumbJsonLd: {
+      "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: "https://running.services/" },
+        { "@type": "ListItem", position: 2, name: `${RACE_GUIDE_YEAR} race guides`, item: `https://running.services${RACE_GUIDES_HREF}` },
+        { "@type": "ListItem", position: 3, name: guide.name, item: canonicalUrl },
+      ],
+    },
+  };
 };
 
 const prefetchHome: PrefetchFn = async (qc) => {
@@ -1640,6 +1684,8 @@ const routeMatches: RouteMatch[] = [
   { pattern: /^\/contact$/, prefetch: prefetchContact, paramNames: [] },
   { pattern: /^\/blog$/, prefetch: prefetchBlog, paramNames: [] },
   { pattern: /^\/blog\/([^/]+)$/, prefetch: prefetchBlogPost, paramNames: ["slug"] },
+  { pattern: new RegExp(`^${RACE_GUIDES_HREF}$`), prefetch: prefetchRaceGuidesIndex, paramNames: [] },
+  { pattern: new RegExp(`^${RACE_GUIDES_HREF}/([^/]+)$`), prefetch: prefetchRaceGuide, paramNames: ["state"] },
   { pattern: /^\/auth\/verify$/, prefetch: prefetchAuthVerify, paramNames: [] },
   { pattern: /^\/favorites$/, prefetch: prefetchFavorites, paramNames: [] },
   { pattern: /^\/alerts$/, prefetch: prefetchAlerts, paramNames: [] },

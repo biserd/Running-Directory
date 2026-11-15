@@ -1,5 +1,7 @@
 import type { Express } from "express";
 import { storage } from "./storage";
+import { RACE_GUIDES, RACE_GUIDES_HREF, canIndexRaceGuide, raceGuideHref } from "@shared/race-guides";
+import { loadGuideRaces } from "./race-guides";
 
 const SITEMAP_MAX = 45000;
 const BASE_URL = "https://running.services";
@@ -66,6 +68,7 @@ Sitemap: ${BASE_URL}/sitemap.xml
         "/sitemap-cities.xml",
         "/sitemap-decision.xml",
         "/sitemap-seo.xml",
+        "/sitemap-race-guides.xml",
       ];
 
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -77,6 +80,18 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
     } catch {
       res.status(500).send("Error generating sitemap index");
     }
+  });
+
+  app.get("/sitemap-race-guides.xml", async (_req, res) => {
+    const guideEntries = await Promise.all(RACE_GUIDES.map(async guide => {
+      const races = await loadGuideRaces(guide);
+      if (!canIndexRaceGuide(races)) return [];
+      const lastmod = races.flatMap(race => race.checkedDate ?? []).sort().at(-1);
+      return [urlEntry(raceGuideHref(guide.slug), { changefreq: "weekly", priority: "0.8", lastmod })];
+    }));
+    res.set("Content-Type", "application/xml").send(wrapUrlset([
+      urlEntry(RACE_GUIDES_HREF, { changefreq: "weekly", priority: "0.8" }), ...guideEntries.flat(),
+    ]));
   });
 
   app.get("/sitemap-pages.xml", (_req, res) => {

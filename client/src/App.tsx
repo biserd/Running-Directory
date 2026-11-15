@@ -37,6 +37,8 @@ import AboutPage from "@/pages/about";
 import ContactPage from "@/pages/contact";
 import BlogPage from "@/pages/blog";
 import BlogPostPage from "@/pages/blog-post";
+import { RaceGuidePage, RaceGuidesIndex } from "@/pages/race-guides";
+import { RACE_GUIDES_HREF } from "@shared/race-guides";
 import AuthVerifyPage from "@/pages/auth/verify";
 import FavoritesPage from "@/pages/favorites";
 import AlertsPage from "@/pages/alerts";
@@ -102,6 +104,8 @@ function AppRouter() {
       <Route path="/contact" component={ContactPage} />
       <Route path="/blog" component={BlogPage} />
       <Route path="/blog/:slug" component={BlogPostPage} />
+      <Route path={RACE_GUIDES_HREF} component={RaceGuidesIndex} />
+      <Route path={`${RACE_GUIDES_HREF}/:state`} component={RaceGuidePage} />
       <Route path="/race-shopper/:goal" component={RaceShopperPage} />
       <Route path="/race-shopper" component={RaceShopperPage} />
       <Route path="/shopper/:goal" component={RaceShopperPage} />
