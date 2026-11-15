@@ -12,6 +12,7 @@ import {
 } from "./templates";
 import type { Race, RaceSearchFilters } from "@shared/schema";
 import { ELEVATION_BUCKETS, RACE_SIZE_BUCKETS, matchesBucket } from "@shared/race-buckets";
+import { getRaceGuide, raceGuideHref } from "@shared/race-guides";
 
 const FROM_EMAIL: EmailAddress = { name: "running.services", email: "hello@running.services" };
 
@@ -291,6 +292,8 @@ function savedSearchToFilters(query: unknown): RaceSearchFilters {
 function buildSavedSearchUrl(query: unknown): string {
   if (!query || typeof query !== "object") return "/races";
   const q = query as Record<string, unknown>;
+  const guide = typeof q.raceGuide === "string" ? getRaceGuide(q.raceGuide) : undefined;
+  if (guide) return raceGuideHref(guide.slug);
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(q)) {
     if (v == null || v === "" || v === false) continue;
@@ -309,6 +312,8 @@ async function dispatchThisWeekendDigest(): Promise<number> {
   if (!isFriday) return 0;
 
   for (const search of searches) {
+    const query = (search.queryJson || {}) as Record<string, unknown>;
+    if (typeof query.raceGuide === "string" && getRaceGuide(query.raceGuide)) continue;
     const filters = savedSearchToFilters(search.queryJson);
     let races = await storage.getRacesAdvanced({ ...filters, limit: 50 });
     // Apply client-only buckets (elevation/size) the search engine doesn't honor —
@@ -352,9 +357,14 @@ async function dispatchSavedSearchMatches(): Promise<number> {
 
   for (const search of searches) {
     const filters = savedSearchToFilters(search.queryJson);
+    const q = (search.queryJson || {}) as Record<string, unknown>;
+    if (typeof q.raceGuide === "string" && getRaceGuide(q.raceGuide)) {
+      const today = new Date().toISOString().slice(0, 10);
+      if (filters.dateTo && filters.dateTo < today) continue;
+      if (!filters.dateFrom || filters.dateFrom < today) filters.dateFrom = today;
+    }
     let races = await storage.getRacesAdvanced({ ...filters, limit: 50 });
     // Apply client-only buckets (elevation/size) the search engine doesn't honor.
-    const q = (search.queryJson || {}) as Record<string, unknown>;
     const elevLabel = typeof q.elevationBucket === "string" ? q.elevationBucket : null;
     const sizeLabel = typeof q.sizeBucket === "string" ? q.sizeBucket : null;
     if (elevLabel) races = races.filter((r) => matchesBucket(r.elevationGainM ?? null, elevLabel, ELEVATION_BUCKETS));

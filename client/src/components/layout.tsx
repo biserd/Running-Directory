@@ -206,6 +206,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <h4 className="font-heading font-semibold mb-4">Guides & tools</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="/blog" className="hover:text-primary" data-testid="link-blog-footer">Race guides blog</Link></li>
+                <li><Link href={RACE_GUIDES_HREF} className="hover:text-primary">{RACE_GUIDE_YEAR} state race guides</Link></li>
+                {RACE_GUIDES.map(guide => <li key={guide.slug}><Link href={raceGuideHref(guide.slug)} className="hover:text-primary">{guide.name} race guide</Link></li>)}
                 <li><Link href="/best/top-us-races" className="hover:text-primary" data-testid="link-best-top-footer">Top US races</Link></li>
                 <li><Link href="/best-races/marathons/may" className="hover:text-primary" data-testid="link-best-marathons-may-footer">Best marathons in May</Link></li>
                 <li><Link href="/race-shopper" className="hover:text-primary" data-testid="link-shopper-footer">Race Shopper</Link></li>
@@ -242,3 +244,4 @@ export function Layout({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+import { RACE_GUIDES, RACE_GUIDES_HREF, RACE_GUIDE_YEAR, raceGuideHref } from "@shared/race-guides";

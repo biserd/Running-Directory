@@ -1,5 +1,6 @@
 /// <reference types="google.maps" />
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,10 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Flame, MapPin } from "lucide-react";
 import { apiGetRacePins, apiGetStates, type RacePin } from "@/lib/api";
+import { RaceAreaMap } from "@/components/race-area-map";
+import { RACE_GUIDES, RACE_GUIDES_HREF, RACE_GUIDE_YEAR, raceGuideHref } from "@shared/race-guides";
 
 const DISTANCE_OPTIONS = ["5K", "10K", "Half Marathon", "Marathon", "Ultra", "Trail"];
 
-type DatePreset = "all" | "weekend" | "30d" | "90d" | "year";
+type DatePreset = "all" | "weekend" | "30d" | "90d" | "year" | "guide";
 
 const DATE_PRESETS: { value: DatePreset; label: string }[] = [
   { value: "all", label: "Anytime" },
@@ -19,10 +22,12 @@ const DATE_PRESETS: { value: DatePreset; label: string }[] = [
   { value: "30d", label: "Next 30 days" },
   { value: "90d", label: "Next 90 days" },
   { value: "year", label: "Next 12 months" },
+  { value: "guide", label: `${RACE_GUIDE_YEAR} calendar` },
 ];
 
 function dateRangeFor(preset: DatePreset): { from?: string; to?: string } {
   if (preset === "all") return {};
+  if (preset === "guide") return { from: `${RACE_GUIDE_YEAR}-01-01`, to: `${RACE_GUIDE_YEAR}-12-31` };
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
   if (preset === "weekend") {
@@ -64,21 +69,32 @@ async function fetchPublicConfig(): Promise<{ googleMapsApiKey: string | null }>
 }
 
 export default function MapPage() {
-  const [stateFilter, setStateFilter] = useState<string | undefined>(readUrlParam("state"));
-  const [distanceFilter, setDistanceFilter] = useState<string | undefined>(readUrlParam("distance"));
-  const [datePreset, setDatePreset] = useState<DatePreset>(
-    (readUrlParam("when") as DatePreset) || "all",
-  );
-  const [heatmap, setHeatmap] = useState<boolean>(readUrlParam("view") === "heatmap");
+  const [stateFilter, setStateFilter] = useState<string>();
+  const [distanceFilter, setDistanceFilter] = useState<string>();
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [heatmap, setHeatmap] = useState(false);
+  const [filtersReady, setFiltersReady] = useState(false);
 
   useEffect(() => {
+    setStateFilter(readUrlParam("state"));
+    setDistanceFilter(readUrlParam("distance"));
+    const when = readUrlParam("when");
+    const preset = DATE_PRESETS.find(option => option.value === when && option.value !== "guide");
+    setDatePreset(readUrlParam("year") === String(RACE_GUIDE_YEAR) ? "guide" : preset?.value ?? "all");
+    setHeatmap(readUrlParam("view") === "heatmap");
+    setFiltersReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!filtersReady) return;
     writeUrlParams({
       state: stateFilter,
       distance: distanceFilter,
-      when: datePreset === "all" ? undefined : datePreset,
+      when: datePreset === "all" || datePreset === "guide" ? undefined : datePreset,
+      year: datePreset === "guide" ? String(RACE_GUIDE_YEAR) : undefined,
       view: heatmap ? "heatmap" : undefined,
     });
-  }, [stateFilter, distanceFilter, datePreset, heatmap]);
+  }, [stateFilter, distanceFilter, datePreset, heatmap, filtersReady]);
 
   const { data: states } = useQuery({
     queryKey: ["/api/states"],
@@ -99,10 +115,17 @@ export default function MapPage() {
   const { data: pinsResp, isLoading } = useQuery({
     queryKey: ["/api/races/map", { state: stateFilter, distance: distanceFilter, from, to }],
     queryFn: () => apiGetRacePins({ state: stateFilter, distance: distanceFilter, from, to, limit: 20000 }),
+    enabled: filtersReady,
     staleTime: 1000 * 60 * 2,
   });
 
   const pins = pinsResp?.pins ?? [];
+  const guide = RACE_GUIDES.find(guide => guide.state === stateFilter);
+  const showGuideAreas = Boolean(guide && datePreset === "guide" && !distanceFilter && pinsResp && !pinsResp.pins.length);
+  const areaPoints = useMemo(() => guide && showGuideAreas ? guide.picks.map(pick => ({
+    name: `${pick.city} · ${pick.title}`, lat: pick.center[0], lng: pick.center[1], href: `/races/${pick.slug}`,
+  })) : (pinsResp?.pins ?? []).map(pin => ({ name: pin.name, lat: pin.lat, lng: pin.lng, href: `/races/${encodeURIComponent(pin.slug)}` })), [guide, pinsResp, showGuideAreas]);
+  const useGoogleMap = Boolean(config?.googleMapsApiKey && !showGuideAreas);
 
   return (
     <Layout>
@@ -113,8 +136,11 @@ export default function MapPage() {
               Race map
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Browse every race in the country, geographically. Click a pin for the race detail.
+              Browse mapped running races across the United States. Select a pin for race details.
             </p>
+            <Link className="inline-block mt-2 text-sm font-medium text-primary underline" href={guide ? raceGuideHref(guide.slug) : RACE_GUIDES_HREF}>
+              {guide ? `${RACE_GUIDE_YEAR} ${guide.name} race picks and prices` : `${RACE_GUIDE_YEAR} race guides by state`}
+            </Link>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Select value={stateFilter ?? "_all"} onValueChange={(v) => setStateFilter(v === "_all" ? undefined : v)}>
@@ -153,7 +179,7 @@ export default function MapPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Button
+            {useGoogleMap && <Button
               type="button"
               variant={heatmap ? "default" : "outline"}
               size="sm"
@@ -162,31 +188,29 @@ export default function MapPage() {
             >
               {heatmap ? <Flame className="mr-1.5 h-4 w-4" /> : <MapPin className="mr-1.5 h-4 w-4" />}
               {heatmap ? "Heatmap" : "Pins"}
-            </Button>
+            </Button>}
             <Badge variant="secondary" data-testid="badge-pin-count">
-              {isLoading ? "Loading…" : `${pins.length.toLocaleString()} races`}
+              {!filtersReady || isLoading ? "Loading…" : showGuideAreas ? `${areaPoints.length} featured areas` : `${pins.length.toLocaleString()} mapped races`}
             </Badge>
           </div>
         </div>
       </div>
 
       <div className="relative" style={{ height: "calc(100vh - 240px)", minHeight: "500px" }}>
-        {isLoading && (
+        {(!filtersReady || isLoading) && (
           <div className="absolute inset-0 z-10 bg-background/60 flex items-center justify-center pointer-events-none">
             <Skeleton className="h-12 w-48" />
           </div>
         )}
-        {config?.googleMapsApiKey ? (
+        {useGoogleMap && config?.googleMapsApiKey ? (
           <RaceMap apiKey={config.googleMapsApiKey} pins={pins} heatmap={heatmap} />
-        ) : config && !config.googleMapsApiKey ? (
-          <div className="h-full flex items-center justify-center text-center px-6" data-testid="map-no-key">
-            <div>
-              <h2 className="font-heading font-bold text-xl mb-2">Google Maps key not configured</h2>
-              <p className="text-muted-foreground text-sm">
-                Set the <code>GOOGLE_MAPS_API_KEY</code> secret to enable the map.
-              </p>
-            </div>
+        ) : areaPoints.length ? (
+          <div className="container mx-auto space-y-3 p-4">
+            {showGuideAreas && <p className="text-sm text-muted-foreground">These pins mark featured race areas. The guide links to the official venues.</p>}
+            <RaceAreaMap points={areaPoints} label="Running race locations" />
           </div>
+        ) : filtersReady && !isLoading ? (
+          <p className="p-6 text-sm text-muted-foreground">There are no mapped races for these filters. <Link href={guide ? raceGuideHref(guide.slug) : RACE_GUIDES_HREF} className="underline">Browse race guides</Link>.</p>
         ) : (
           <Skeleton className="h-full w-full" />
         )}

@@ -1,6 +1,11 @@
+import { apiSubscribeToRaceGuide } from "./api";
+import { trackLead } from "./analytics";
+import { getRaceGuide, raceGuideHref } from "@shared/race-guides";
+
 const STORAGE_KEY = "rs:pendingAction";
 
 export type PendingAction =
+  | { type: "race-guide-alert"; slug: string }
   | { type: "save-search"; payload: { name: string; queryJson: Record<string, unknown>; alertEnabled: boolean } }
   | { type: "race-alert"; payload: { raceId: number; alertType: string } }
   | { type: "favorite-race"; payload: { raceId: number } };
@@ -39,6 +44,13 @@ export async function flushPendingAction(): Promise<{ ok: boolean; redirectTo?: 
   if (!action) return null;
   clearPendingAction();
   try {
+    if (action.type === "race-guide-alert") {
+      const guide = getRaceGuide(action.slug);
+      if (!guide) return { ok: false, message: "This race guide is unavailable." };
+      const { subscribed } = await apiSubscribeToRaceGuide(guide.slug);
+      if (subscribed) trackLead("race_guide_alert");
+      return { ok: true, redirectTo: raceGuideHref(guide.slug), message: `You’re subscribed to ${guide.name} race updates.` };
+    }
     if (action.type === "save-search") {
       const res = await fetch("/api/saved-searches", {
         method: "POST",

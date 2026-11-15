@@ -27,6 +27,12 @@ export async function apiVerifyToken(token: string) {
   return fetchJSON<{ user: AuthUser; isNewUser: boolean }>(`/api/auth/verify?token=${token}`);
 }
 
+export async function apiSubscribeToRaceGuide(slug: string): Promise<{ subscribed: boolean }> {
+  const response = await fetch(`/api/race-guides/${encodeURIComponent(slug)}/alerts`, { method: "POST" });
+  if (!response.ok) throw new Error("Couldn’t save your race updates");
+  return response.json();
+}
+
 export async function apiGetCurrentUser() {
   return fetchJSON<{ user: AuthUser | null }>("/api/auth/me");
 }

@@ -133,6 +133,7 @@ export interface IStorage {
 
   getSavedSearches(userId: number): Promise<SavedSearch[]>;
   createSavedSearch(data: InsertSavedSearch): Promise<SavedSearch>;
+  subscribeToGuide(userId: number, slug: string, name: string, query: Record<string, unknown>): Promise<boolean>;
   deleteSavedSearch(id: number, userId: number): Promise<void>;
   toggleSavedSearchAlert(id: number, userId: number, enabled: boolean): Promise<void>;
 
@@ -1151,6 +1152,19 @@ export class DatabaseStorage implements IStorage {
   async createSavedSearch(data: InsertSavedSearch): Promise<SavedSearch> {
     const [s] = await db.insert(savedSearches).values(data).returning();
     return s;
+  }
+
+  async subscribeToGuide(userId: number, slug: string, name: string, query: Record<string, unknown>): Promise<boolean> {
+    const [reenabled, created] = await db.$client.batch([
+      db.$client.prepare(`UPDATE saved_searches SET alert_enabled = 1
+        WHERE user_id = ? AND json_extract(query_json, '$.raceGuide') = ? AND alert_enabled = 0`)
+        .bind(userId, slug),
+      db.$client.prepare(`INSERT INTO saved_searches (user_id, name, query_json, alert_enabled)
+        SELECT ?, ?, ?, 1 WHERE NOT EXISTS (
+          SELECT 1 FROM saved_searches WHERE user_id = ? AND json_extract(query_json, '$.raceGuide') = ?
+        )`).bind(userId, name, JSON.stringify(query), userId, slug),
+    ]);
+    return reenabled.meta.changes > 0 || created.meta.changes > 0;
   }
 
   async deleteSavedSearch(id: number, userId: number): Promise<void> {

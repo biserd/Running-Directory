@@ -12,6 +12,8 @@ import { insertOrganizerSchema, insertRaceClaimSchema, insertSavedSearchSchema, 
 import type { InsertRaceClaim, InsertOutboundClick, InsertFeaturedRequest, Race } from "@shared/schema";
 import type { RaceSearchFilters } from "@shared/schema";
 import { getStateCentroid } from "@shared/states";
+import { getRaceGuide, RACE_GUIDE_YEAR } from "@shared/race-guides";
+import { loadGuideRaces } from "./race-guides";
 import crypto from "crypto";
 import { getDomain as tldtsGetDomain } from "tldts";
 
@@ -1566,6 +1568,25 @@ export async function registerRoutes(
       console.error("[view] failed:", err);
       res.status(500).json({ ok: false });
     }
+  });
+
+  app.get("/api/race-guides/:state", async (req, res) => {
+    const guide = getRaceGuide(req.params.state);
+    if (!guide) return res.status(404).json({ message: "Race guide not found" });
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(await loadGuideRaces(guide));
+  });
+
+  app.post("/api/race-guides/:state/alerts", requireAuth, async (req, res) => {
+    const guide = typeof req.params.state === "string" ? getRaceGuide(req.params.state) : undefined;
+    if (!guide) return res.status(404).json({ message: "Race guide not found" });
+    const dateTo = `${RACE_GUIDE_YEAR}-12-31`;
+    if (new Date().toISOString().slice(0, 10) > dateTo) return res.status(410).json({ message: "This race guide’s alerts have ended" });
+    const subscribed = await storage.subscribeToGuide(req.session.userId!, guide.slug,
+      `${RACE_GUIDE_YEAR} ${guide.name} race updates`, {
+        raceGuide: guide.slug, state: guide.state, dateFrom: `${RACE_GUIDE_YEAR}-01-01`, dateTo,
+      });
+    res.json({ subscribed });
   });
 
   app.get("/api/saved-searches", requireAuth, async (req, res) => {
