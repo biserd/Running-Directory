@@ -53,7 +53,7 @@ function dateTime(value?: string): string | undefined {
 }
 
 function surfaceFor(event: RunSignupEvent, raceName: string): "Road" | "Trail" | undefined {
-  if (event.volunteer === "T" || /\b(?:virtual|volunteer|test event|testing|practice registration)\b/i.test(event.name) ||
+  if (event.volunteer === "T" || /^test\b/i.test(event.name) || /\b(?:virtual|volunteer|test event|testing|practice registration)\b/i.test(event.name) ||
     (/\bchallenge\b/i.test(event.name) && event.name.includes("+"))) return;
   if (["trail_race", "trail_run"].includes(event.event_type) || (["running_only", "running_race"].includes(event.event_type) && /\btrail\b/i.test(event.name))) return "Trail";
   if (["running_only", "running_race"].includes(event.event_type)) return "Road";
@@ -91,10 +91,12 @@ export function transformRace(race: RunSignupRace, now = new Date()): RawRaceRec
   const city = race.address?.city?.trim();
   const state = race.address?.state?.toUpperCase();
   const name = race.name?.trim();
+  const description = cleanDescription(race.description);
   if (!city || !state || !name || !US_STATES.includes(state) || race.address?.country_code !== "US") return null;
   if (race.is_draft_race === "T" || race.is_private_race === "T" ||
-    /^(?:anywhere|virtual|everywhere|your city|any city)$/i.test(city) || /^(?:00000|99999)$/.test(race.address.zipcode ?? "")) return null;
-  if (/\b(?:RaceDay Certification|test race|demo race|check.in testing|practice registration|mailing list)\b/i.test(name)) return null;
+    /^(?:anywhere|virtual|everywhere|world wide\W*|your city|any city|test|sample)$/i.test(city) || /^(?:00000|99999)$/.test(race.address.zipcode ?? "")) return null;
+  if (/^test(?:\b|\d)/i.test(name) || /\bTEST$/.test(name) || (description?.toLowerCase() === "test" && /\btest\b/i.test(name)) ||
+    /\b(?:RaceDay Certification|test (?:race|page|site)|demo race|charity demo|run template|teams test|check.in testing|practice registration|mailing list)\b/i.test(name)) return null;
   if (!/^https?:\/\/(?:www\.)?runsignup\.com\/Race\//i.test(race.url)) return null;
 
   const date = raceDate(race.next_date);
@@ -137,7 +139,7 @@ export function transformRace(race: RunSignupRace, now = new Date()): RawRaceRec
     distanceLabel: labels.join(", "),
     distanceMeters: primary.meters,
     surface: primary.surface,
-    description: cleanDescription(race.description),
+    description,
     website: /^https?:\/\//i.test(race.external_race_url ?? "") ? race.external_race_url! : race.url,
     registrationUrl: race.url,
     startTime: `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`,
