@@ -1155,16 +1155,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async subscribeToGuide(userId: number, slug: string, name: string, query: Record<string, unknown>): Promise<boolean> {
-    const match = and(eq(savedSearches.userId, userId), sql`json_extract(${savedSearches.queryJson}, '$.raceGuide') = ${slug}`);
-    const [reenabled, created] = await db.batch([
-      db.update(savedSearches).set({ alertEnabled: true }).where(and(match, eq(savedSearches.alertEnabled, false)))
-        .returning({ id: savedSearches.id }),
-      db.run(sql`INSERT INTO ${savedSearches} (user_id, name, query_json, alert_enabled)
-        SELECT ${userId}, ${name}, ${JSON.stringify(query)}, 1 WHERE NOT EXISTS (
-          SELECT 1 FROM ${savedSearches} WHERE ${match}
-        )`),
+    const [reenabled, created] = await db.$client.batch([
+      db.$client.prepare(`UPDATE saved_searches SET alert_enabled = 1
+        WHERE user_id = ? AND json_extract(query_json, '$.raceGuide') = ? AND alert_enabled = 0`)
+        .bind(userId, slug),
+      db.$client.prepare(`INSERT INTO saved_searches (user_id, name, query_json, alert_enabled)
+        SELECT ?, ?, ?, 1 WHERE NOT EXISTS (
+          SELECT 1 FROM saved_searches WHERE user_id = ? AND json_extract(query_json, '$.raceGuide') = ?
+        )`).bind(userId, name, JSON.stringify(query), userId, slug),
     ]);
-    return reenabled.length > 0 || created.meta.changes > 0;
+    return reenabled.meta.changes > 0 || created.meta.changes > 0;
   }
 
   async deleteSavedSearch(id: number, userId: number): Promise<void> {
