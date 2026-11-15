@@ -53,7 +53,7 @@ function dateTime(value?: string): string | undefined {
 }
 
 function surfaceFor(event: RunSignupEvent, raceName: string): "Road" | "Trail" | undefined {
-  if (event.volunteer === "T" || /\b(?:virtual|volunteer|test event|testing|practice registration)\b/i.test(event.name) ||
+  if (event.volunteer === "T" || /^test\b/i.test(event.name) || /\b(?:virtual|volunteer|test event|testing|practice registration)\b/i.test(event.name) ||
     (/\bchallenge\b/i.test(event.name) && event.name.includes("+"))) return;
   if (["trail_race", "trail_run"].includes(event.event_type) || (["running_only", "running_race"].includes(event.event_type) && /\btrail\b/i.test(event.name))) return "Trail";
   if (["running_only", "running_race"].includes(event.event_type)) return "Road";
@@ -93,8 +93,9 @@ export function transformRace(race: RunSignupRace, now = new Date()): RawRaceRec
   const name = race.name?.trim();
   if (!city || !state || !name || !US_STATES.includes(state) || race.address?.country_code !== "US") return null;
   if (race.is_draft_race === "T" || race.is_private_race === "T" ||
-    /^(?:anywhere|virtual|everywhere|your city|any city)$/i.test(city) || /^(?:00000|99999)$/.test(race.address.zipcode ?? "")) return null;
-  if (/\b(?:RaceDay Certification|test race|demo race|check.in testing|practice registration|mailing list)\b/i.test(name)) return null;
+    /^(?:anywhere|virtual|everywhere|world wide\W*|your city|any city|test|sample)$/i.test(city) || /^(?:00000|99999)$/.test(race.address.zipcode ?? "")) return null;
+  if (/^test(?:\b|\d)/i.test(name) || /\bTEST$/.test(name) ||
+    /\b(?:RaceDay Certification|test (?:race|page|site)|demo race|charity demo|run template|teams test|check.in testing|practice registration|mailing list)\b/i.test(name)) return null;
   if (!/^https?:\/\/(?:www\.)?runsignup\.com\/Race\//i.test(race.url)) return null;
 
   const date = raceDate(race.next_date);
