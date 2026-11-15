@@ -1,6 +1,7 @@
 import { storage } from "../storage";
 import { normalizeName, normalizeLocationKey, generateHashKey, computeQualityScore } from "./normalize";
 import type { InsertRace, InsertSourceRecord } from "@shared/schema";
+import type { RaceProgram } from "@shared/race-program";
 
 export interface RawRaceRecord {
   sourceName: string;
@@ -14,6 +15,7 @@ export interface RawRaceRecord {
   distanceLabel?: string;
   distanceMeters?: number;
   distanceOptions?: string[];
+  raceProgram?: RaceProgram;
   surface?: string;
   elevation?: string;
   description?: string;
@@ -93,6 +95,7 @@ export async function processRaceImport(records: RawRaceRecord[]): Promise<{
         distanceLabel: record.distanceLabel,
         distanceMeters: record.distanceMeters,
         distanceOptions: record.distanceOptions,
+        raceProgram: record.raceProgram,
         registrationOpen: record.registrationOpen ?? null,
         registrationDeadline: record.registrationDeadline ?? null,
         priceMin: record.priceMin ?? null,

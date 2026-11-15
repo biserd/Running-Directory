@@ -72,6 +72,7 @@ function AppRouter() {
       <Route path="/races" component={RacesHub} />
       <Route path="/races/usa" component={RacesUSAPage} />
       <Route path="/races/state/:state/city/:city" component={RacesCityPage} />
+      <Route path="/races/state/:state/page/:page" component={RacesHub} />
       <Route path="/races/state/:state" component={RacesHub} />
       <Route path="/races/year/:year/month/:month" component={RacesYearPage} />
       <Route path="/races/year/:year" component={RacesYearPage} />

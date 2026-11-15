@@ -9,6 +9,7 @@ import {
 } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import type { RaceProgram } from "./race-program";
 
 // Keep the existing schema declarations readable while mapping PostgreSQL
 // column helpers to D1/SQLite-native storage types.
@@ -104,6 +105,7 @@ export const races = pgTable("races", {
   distanceMeters: integer("distance_meters"),
   distanceLabel: text("distance_label"),
   distanceOptions: textArray("distance_options").notNull().default([]),
+  raceProgram: jsonb("race_program").$type<RaceProgram>(),
   lat: real("lat"),
   lng: real("lng"),
   isActive: boolean("is_active").notNull().default(true),

@@ -15,6 +15,9 @@ import type {
 } from "@shared/schema";
 import { eq, and, sql, desc, asc, ilike, inArray, gte, lte, or, isNotNull } from "drizzle-orm";
 import { createHash, randomBytes } from "crypto";
+import { hasRaceListingValue } from "@shared/race-program";
+
+type RelatedRaceOrigin = Pick<Race, "id" | "city" | "state" | "date" | "distance" | "distanceOptions">;
 
 export interface IStorage {
   getStates(): Promise<State[]>;
@@ -28,6 +31,7 @@ export interface IStorage {
   getRaceBySlug(slug: string): Promise<Race | undefined>;
   getRacesByState(stateAbbr: string): Promise<Race[]>;
   getUpcomingRaceIndex(limit: number): Promise<Pick<Race, "slug" | "date" | "city" | "state" | "distance" | "distanceOptions" | "surface" | "registrationUrl" | "website" | "lastSeenAt" | "isTurkeyTrot" | "seriesId" | "walkerFriendly" | "strollerFriendly">[]>;
+  getRaceSitemapEntries(limit: number): Promise<Pick<Race, "slug" | "lastSeenAt">[]>;
 
   getRaceOccurrences(filters?: { raceId?: number; year?: number; month?: number; limit?: number }): Promise<RaceOccurrence[]>;
 
@@ -101,6 +105,7 @@ export interface IStorage {
   getRacesAdvanced(filters: RaceSearchFilters): Promise<Race[]>;
   getRaceWithScores(slug: string): Promise<Race | undefined>;
   getSimilarRaces(slug: string, limit?: number): Promise<Race[]>;
+  getRelatedRaces(race: RelatedRaceOrigin, limit?: number): Promise<Race[]>;
   getRacesThisWeekend(state?: string): Promise<Race[]>;
   getPriceIncreasingSoon(days?: number, limit?: number): Promise<Race[]>;
   updateRaceScores(raceId: number, scores: { beginnerScore: number; prScore: number; valueScore: number; vibeScore: number; familyScore: number; urgencyScore: number; scoreBreakdown: unknown }): Promise<void>;
@@ -277,6 +282,19 @@ export class DatabaseStorage implements IStorage {
       walkerFriendly: races.walkerFriendly, strollerFriendly: races.strollerFriendly,
     }).from(races).where(and(eq(races.isActive, true), sql`${races.date} >= date('now')`))
       .orderBy(races.date).limit(limit);
+  }
+
+  async getRaceSitemapEntries(limit: number) {
+    const upcoming = await db.select({
+      slug: races.slug, name: races.name, date: races.date, city: races.city, state: races.state,
+      distance: races.distance, distanceLabel: races.distanceLabel, startTime: races.startTime,
+      website: races.website, registrationUrl: races.registrationUrl, lastSeenAt: races.lastSeenAt,
+      registrationDeadline: races.registrationDeadline, priceMin: races.priceMin,
+      courseMapUrl: races.courseMapUrl, packetPickup: sql<string | null>`substr(${races.packetPickup}, 1, 60)`,
+      description: sql<string | null>`substr(trim(${races.description}), 1, 120)`,
+    }).from(races).where(and(eq(races.isActive, true), sql`${races.date} >= date('now')`))
+      .orderBy(races.date, races.id).limit(limit);
+    return upcoming.filter(hasRaceListingValue).map(({ slug, lastSeenAt }) => ({ slug, lastSeenAt }));
   }
 
   async getRacesByState(stateAbbr: string): Promise<Race[]> {
@@ -890,7 +908,7 @@ export class DatabaseStorage implements IStorage {
       case "family": orderBy = [desc(sql`COALESCE(${races.familyScore}, 0)`), asc(races.date)]; break;
       case "urgency": orderBy = [desc(sql`COALESCE(${races.urgencyScore}, 0)`), asc(races.date)]; break;
       case "quality": orderBy = [desc(races.qualityScore), asc(races.date)]; break;
-      default: orderBy = [asc(races.date)];
+      default: orderBy = [asc(races.date), asc(races.id)];
     }
 
     return db.select().from(races)
@@ -907,21 +925,28 @@ export class DatabaseStorage implements IStorage {
 
   async getSimilarRaces(slug: string, limit: number = 6): Promise<Race[]> {
     const [race] = await db.select().from(races).where(eq(races.slug, slug));
-    if (!race) return [];
+    return race ? this.getRelatedRaces(race, limit) : [];
+  }
 
-    const today = new Date().toISOString().split("T")[0];
-    return db.select().from(races)
+  async getRelatedRaces(race: RelatedRaceOrigin, limit = 6): Promise<Race[]> {
+    const distances = [...new Set([race.distance, ...race.distanceOptions])].filter(distance => distance !== "Other");
+    const sameDistance = distances.length ? sql<boolean>`(${inArray(races.distance, distances)} OR EXISTS (
+      SELECT 1 FROM json_each(${races.distanceOptions}) WHERE value IN ${distances}
+    ))` : sql<boolean>`0`;
+    const sameState = eq(races.state, race.state);
+    const sameCity = sql<boolean>`lower(${races.city}) = lower(${race.city})`;
+    const results = await db.select().from(races)
       .where(and(
         eq(races.isActive, true),
         sql`${races.id} != ${race.id}`,
-        sql`${races.date} >= ${today}`,
-        or(
-          eq(races.distance, race.distance),
-          eq(races.state, race.state),
-        )!,
+        sql`${races.date} >= date('now')`,
+        sameState,
       ))
-      .orderBy(desc(races.qualityScore), asc(races.date))
-      .limit(limit);
+      .orderBy(sql`CASE WHEN ${sameCity} AND ${sameDistance} THEN 0
+        WHEN ${sameCity} THEN 1 WHEN ${sameDistance} THEN 2 ELSE 3 END`,
+      sql`abs(julianday(${races.date}) - julianday(${race.date}))`, desc(races.qualityScore), asc(races.id))
+      .limit(limit * 2);
+    return results.filter(hasRaceListingValue).slice(0, limit);
   }
 
   async getRacesThisWeekend(state?: string): Promise<Race[]> {

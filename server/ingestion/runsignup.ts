@@ -33,7 +33,8 @@ interface RunSignupRace {
   is_draft_race?: string;
   is_private_race?: string;
   is_registration_open?: string;
-  address?: { city?: string; state?: string; zipcode?: string; country_code?: string };
+  timezone?: string;
+  address?: { street?: string; city?: string; state?: string; zipcode?: string; country_code?: string };
   events?: RunSignupEvent[];
 }
 
@@ -50,6 +51,11 @@ function dateTime(value?: string): string | undefined {
   const date = raceDate(value);
   const time = value?.match(/\s(\d{1,2}):(\d{2})(?::\d{2})?$/);
   if (date && time) return `${date} ${time[1].padStart(2, "0")}:${time[2]}`;
+}
+
+function localTime(value: string) {
+  const [h, m] = value.slice(-5).split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
 }
 
 function surfaceFor(event: RunSignupEvent, raceName: string): "Road" | "Trail" | undefined {
@@ -118,17 +124,25 @@ export function transformRace(race: RunSignupRace, now = new Date()): RawRaceRec
   const easternNow = new Intl.DateTimeFormat("sv-SE", {
     timeZone: "America/New_York", dateStyle: "short", timeStyle: "short",
   }).format(now);
-  const activePeriods = periods.filter(period => {
+  const feeFor = (period: (typeof periods)[number]) => {
     const opens = dateTime(period.registration_opens);
     const closes = dateTime(period.registration_closes);
-    return opens && closes && opens <= easternNow && easternNow < closes;
-  });
-  const fees = activePeriods.flatMap(period => {
     const cost = String(period.race_fee ?? "").trim();
-    return /^\$?\d+(?:\.\d{1,2})?$/.test(cost) ? [Number(cost.replace(/^\$/, ""))] : [];
-  });
+    return race.is_registration_open === "T" && opens && closes && opens <= easternNow && easternNow < closes
+      && /^\$?\d+(?:\.\d{1,2})?$/.test(cost) ? [Number(cost.replace(/^\$/, ""))] : [];
+  };
+  const fees = periods.flatMap(feeFor);
   const deadline = periods.map(period => raceDate(period.registration_closes)).filter(Boolean).sort().at(-1);
-  const [h, m] = edition[0].start.slice(-5).split(":").map(Number);
+  const options = [...new Map(edition.map(({ event, start, label }) => {
+    const eventFees = (event.registration_periods ?? []).flatMap(feeFor);
+    return [`${event.name}|${start}`, {
+      name: event.name.trim(), date: start.slice(0, 10), startTime: localTime(start), distance: label,
+      fee: eventFees.length ? Math.min(...eventFees) : undefined,
+    }];
+  })).values()].filter(option => option.name);
+  const street = race.address.street?.trim();
+  const venue = street && /\d/.test(street) && !/^(?:p\.?\s*o\.?\s*box|\d+\s+(?:test|sample|virtual)\b)/i.test(street)
+    ? { street, postalCode: race.address.zipcode } : undefined;
   return {
     sourceName: "runsignup",
     externalId: String(race.race_id),
@@ -136,13 +150,14 @@ export function transformRace(race: RunSignupRace, now = new Date()): RawRaceRec
     name, date, city, state,
     distance: primary.distance,
     distanceOptions: [...new Set(edition.map(item => item.distance))],
+    raceProgram: { venue, timeZone: race.timezone, options },
     distanceLabel: labels.join(", "),
     distanceMeters: primary.meters,
     surface: primary.surface,
     description,
     website: /^https?:\/\//i.test(race.external_race_url ?? "") ? race.external_race_url! : race.url,
     registrationUrl: race.url,
-    startTime: `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`,
+    startTime: localTime(edition[0].start),
     registrationOpen: race.is_registration_open === "T" ? true : race.is_registration_open === "F" ? false : undefined,
     registrationDeadline: deadline,
     priceMin: race.is_registration_open === "T" && fees.length ? Math.min(...fees) : undefined,

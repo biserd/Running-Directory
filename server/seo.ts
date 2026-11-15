@@ -105,15 +105,12 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
 
   app.get("/sitemap-races.xml", async (_req, res) => {
     try {
-      const allRaces = await storage.getUpcomingRaceIndex(SITEMAP_MAX);
-
-      const entries = allRaces.filter(r =>
-        r.date && r.city && r.state && r.distance && (r.registrationUrl || r.website)
-      ).map(r =>
-        urlEntry(`/races/${r.slug}`, {
+      const races = await storage.getRaceSitemapEntries(SITEMAP_MAX);
+      const entries = races.map(r =>
+        urlEntry(`/races/${encodeURIComponent(r.slug)}`, {
           changefreq: "weekly",
           priority: "0.7",
-          lastmod: toISODate(r.lastSeenAt || r.date),
+          lastmod: r.lastSeenAt ? toISODate(r.lastSeenAt) : undefined,
         })
       );
 

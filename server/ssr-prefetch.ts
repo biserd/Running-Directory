@@ -6,6 +6,7 @@ import { DISTANCE_SLUG_TO_LABEL, isValidDistanceSlug, isValidMonthSlug, MONTH_NA
 import { BEST_CONFIGS, buildBestSearchQs, resolveBestSearch, type BestSearchParams } from "@shared/best-configs";
 import { parseBlogPostSlug, blogPostHref } from "@shared/blog-months";
 import { computeRaceScore } from "@shared/race-score";
+import { hasRaceListingValue, publishedRaceDistance, raceEventStartDate, raceListingDescription, stateRaceCalendarHref, RACE_CALENDAR_PAGE_SIZE } from "@shared/race-program";
 
 type PrefetchFn = (queryClient: QueryClient, params: Record<string, string>) => Promise<PageMeta>;
 
@@ -99,6 +100,9 @@ const prefetchRacesUSA: PrefetchFn = async (qc) => {
 
 const prefetchRacesState: PrefetchFn = async (qc, params) => {
   const stateSlug = params.state;
+  const page = Number(params.page ?? 1);
+  const notFound: PageMeta = { title: "Race Calendar Not Found | running.services", description: "This race calendar page is unavailable.", ogType: "website", is404: true, noindex: true };
+  if (!Number.isSafeInteger(page) || page < 1) return notFound;
   const [stateData, allStates] = await Promise.all([
     storage.getStateBySlug(stateSlug),
     storage.getStates(),
@@ -111,26 +115,31 @@ const prefetchRacesState: PrefetchFn = async (qc, params) => {
     // The /races/state/:state page reuses RacesSearchPage which queries ["/api/races/search", apiQs]
     // with apiQs derived from EMPTY_FILTERS + the state abbreviation. Seed that exact key so
     // SSR HTML matches the first client render and there's no hydration cache miss.
-    const stateApiQs = `state=${encodeURIComponent(stateData.abbreviation)}&sort=date&limit=25&offset=0`;
-    const races = await storage.getRacesAdvanced({ state: stateData.abbreviation, sort: "date", limit: 25, offset: 0 });
+    const limit = RACE_CALENDAR_PAGE_SIZE + 1;
+    const offset = (page - 1) * RACE_CALENDAR_PAGE_SIZE;
+    const stateApiQs = `state=${encodeURIComponent(stateData.abbreviation)}&sort=date&limit=${limit}&offset=${offset}`;
+    const races = await storage.getRacesAdvanced({ state: stateData.abbreviation, sort: "date", limit, offset });
     qc.setQueryData(["/api/races/search", stateApiQs], races);
+    if (!races.length && page > 1) return notFound;
+    const pageUrl = `https://running.services${stateRaceCalendarHref(stateData.abbreviation, page)}`;
+    const label = `${stateData.name} Race Calendar${page > 1 ? ` – Page ${page}` : ""}`;
 
     return {
-      title: `${stateData.name} Race Calendar | running.services`,
-      description: `Find the best 5Ks, Half Marathons, and Marathons in ${stateData.name}. Browse ${stateData.raceCount} running events.`,
+      title: `${label} | running.services`,
+      description: `Browse upcoming running events in ${stateData.name} by date, location, and distance.`,
       ogType: "website",
-      canonicalUrl: `https://running.services/races/state/${stateSlug}`,
+      canonicalUrl: pageUrl,
       jsonLd: {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
-        name: `${stateData.name} Race Calendar`,
+        name: label,
         description: `Running races and events in ${stateData.name}.`,
-        url: `https://running.services/races/state/${stateSlug}`,
+        url: pageUrl,
       },
     };
   }
 
-  return { title: "State Not Found | running.services", description: "The requested state could not be found.", ogType: "website", is404: true, noindex: true };
+  return notFound;
 };
 
 const prefetchRacesCity: PrefetchFn = async (qc, params) => {
@@ -199,77 +208,9 @@ const prefetchRacesYear: PrefetchFn = async (qc, params) => {
   };
 };
 
-function buildRaceFaq(race: {
-  name: string;
-  distance: string;
-  city: string;
-  state: string;
-  elevationGainM?: number | null;
-  surface?: string | null;
-  terrain?: string | null;
-  registrationDeadline?: string | null;
-  registrationOpen?: boolean | null;
-  priceMin?: number | null;
-  priceMax?: number | null;
-  fieldSize?: number | null;
-  startTime?: string | null;
-}) {
-  const stateName = getStateName(race.state);
-  const dist = race.distance || "race";
-  const elev = race.elevationGainM ?? null;
-
-  const difficultyAnswer = (() => {
-    const surface = race.surface ? race.surface.toLowerCase() : "road";
-    if (elev != null && elev >= 300) {
-      return `${race.name} is a hilly ${dist} with about ${elev} m (${Math.round(elev * 3.28)} ft) of elevation gain on a ${surface} course. Expect a tougher-than-average effort — pace conservatively on the climbs and save something for the back half.`;
-    }
-    if (elev != null && elev >= 100) {
-      return `${race.name} has rolling terrain with around ${elev} m (${Math.round(elev * 3.28)} ft) of elevation gain on a ${surface} course. It's a moderate ${dist} — manageable for most runners but not flat.`;
-    }
-    if (elev != null) {
-      return `${race.name} is a flat-to-gently-rolling ${dist} with about ${elev} m (${Math.round(elev * 3.28)} ft) of elevation gain on a ${surface} course. A friendly profile for chasing a personal best.`;
-    }
-    return `${race.name} is a ${dist} on a ${surface} course in ${race.city}, ${stateName}. We don't have a verified elevation profile yet — check the organizer's course map for the climb breakdown.`;
-  })();
-
-  const wearAnswer = (() => {
-    const start = race.startTime ? ` The published start time is ${race.startTime}.` : "";
-    return `Race-day weather in ${race.city} can swing year over year, so dress for the forecast on the day. As a rule of thumb, dress for ~10°F warmer than the standing temperature once you start running. Layer with a throwaway long-sleeve at the start, gloves and a hat for sub-50°F mornings, and a singlet plus a visor when it climbs above 60°F.${start} Check the race-day weather forecast on this page closer to the date for a specific recommendation.`;
-  })();
-
-  const sellOutAnswer = (() => {
-    if (race.registrationOpen === false) {
-      return `Registration for ${race.name} is currently closed. If you missed it, set an alert on this page and we'll let you know the moment the next year's registration opens.`;
-    }
-    if (race.registrationDeadline) {
-      return `Registration closes on ${race.registrationDeadline}. ${race.fieldSize && race.fieldSize >= 5000 ? "This is a large-field event so it usually stays open until the deadline, but the entry fee typically goes up in tiers as the date approaches." : "Smaller events like this one can sell out before the posted deadline — sign up early to lock in the lower price."}`;
-    }
-    return `${race.name} hasn't published a hard registration deadline. Most races of this size raise the entry fee in tiers (early-bird, regular, late) and can sell out without warning — sign up early if you're committed.`;
-  })();
-
-  const faqs = [
-    { q: `How hard is the ${race.name} ${dist}?`, a: difficultyAnswer },
-    { q: `What should I wear for the ${race.name}?`, a: wearAnswer },
-    { q: `When does the ${race.name} sell out?`, a: sellOutAnswer },
-  ];
-
-  return {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: faqs.map((f) => ({
-      "@type": "Question",
-      name: f.q,
-      acceptedAnswer: { "@type": "Answer", text: f.a },
-    })),
-  };
-}
-
 const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
   const slug = params.slug;
-  const [race, nearbyRoutes] = await Promise.all([
-    storage.getRaceBySlug(slug),
-    storage.getRoutes({ limit: 3 }),
-  ]);
+  const race = await storage.getRaceBySlug(slug);
 
   // Enrich race with citySlug to match the /api/races/:slug response shape,
   // so client components (e.g. "More like this" metro link) work on SSR loads.
@@ -283,9 +224,16 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
   const enrichedRace = race ? { ...race, citySlug } : race;
 
   qc.setQueryData(["/api/races", slug], enrichedRace);
-  qc.setQueryData(["/api/routes", { limit: 3 }], nearbyRoutes);
 
   if (race) {
+    const related = await storage.getRelatedRaces(race).catch(() => []);
+    qc.setQueryData(["/api/races", slug, "similar"], related);
+    const canonicalUrl = `https://running.services/races/${encodeURIComponent(slug)}`;
+    const indexable = race.isActive && race.date >= new Date().toISOString().slice(0, 10) && hasRaceListingValue(race);
+    const venue = race.raceProgram?.venue;
+    const description = raceListingDescription(race);
+    const stateName = getStateName(race.state);
+    const registrationActive = race.registrationOpen === true && (!race.registrationDeadline || race.registrationDeadline >= new Date().toISOString().slice(0, 10));
     let organizerInfo: { name: string; url?: string } | undefined;
     if (race.organizerId) {
       try {
@@ -299,48 +247,29 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
       "@context": "https://schema.org",
       "@type": "SportsEvent",
       name: race.name,
-      startDate: race.date,
+      startDate: raceEventStartDate(race.date, race.raceProgram),
       eventStatus: "https://schema.org/EventScheduled",
       eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
       location: {
         "@type": "Place",
-        name: `${race.city}, ${getStateName(race.state)}`,
+        name: venue?.street ?? `${race.city}, ${stateName}`,
         address: {
           "@type": "PostalAddress",
           addressLocality: race.city,
           addressRegion: race.state,
           addressCountry: "US",
+          ...(venue ? { streetAddress: venue.street, ...(venue.postalCode ? { postalCode: venue.postalCode } : {}) } : {}),
         },
         ...(race.lat != null && race.lng != null ? { geo: { "@type": "GeoCoordinates", latitude: race.lat, longitude: race.lng } } : {}),
       },
-      description: race.description || `A ${race.distance} race in ${race.city}, ${getStateName(race.state)}.`,
+      description: race.description ? `${description} ${race.description}` : description,
       sport: "Running",
-      url: `https://running.services/races/${slug}`,
+      url: canonicalUrl,
       ...(race.website ? { sameAs: race.website } : {}),
-      ...(race.priceMin != null || race.priceMax != null ? (() => {
-        const isRange = race.priceMin != null && race.priceMax != null && race.priceMin !== race.priceMax;
-        const availability = race.registrationOpen === true ? { availability: "https://schema.org/InStock" } : {};
-        return {
-          offers: isRange
-            ? {
-                "@type": "AggregateOffer",
-                lowPrice: race.priceMin,
-                highPrice: race.priceMax,
-                priceCurrency: race.priceCurrency || "USD",
-                ...availability,
-                ...(race.registrationUrl ? { url: race.registrationUrl } : {}),
-                ...(race.registrationDeadline ? { validThrough: race.registrationDeadline } : {}),
-              }
-            : {
-                "@type": "Offer",
-                price: race.priceMin ?? race.priceMax,
-                priceCurrency: race.priceCurrency || "USD",
-                ...availability,
-                ...(race.registrationUrl ? { url: race.registrationUrl } : {}),
-                ...(race.registrationDeadline ? { validThrough: race.registrationDeadline } : {}),
-              },
-        };
-      })() : {}),
+      ...(registrationActive && race.registrationUrl && race.priceMin != null ? { offers: {
+        "@type": "Offer", price: race.priceMin, priceCurrency: race.priceCurrency || "USD",
+        url: race.registrationUrl, availability: "https://schema.org/InStock",
+      } } : {}),
       ...(organizerInfo ? {
         organizer: { "@type": "Organization", name: organizerInfo.name, ...(organizerInfo.url ? { url: organizerInfo.url } : {}) },
       } : {}),
@@ -349,7 +278,8 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
     if (race.terrain) additionalProperty.push({ "@type": "PropertyValue", name: "Terrain", value: race.terrain });
     if (race.elevationGainM != null) additionalProperty.push({ "@type": "PropertyValue", name: "Elevation gain (m)", value: race.elevationGainM });
     if (race.surface) additionalProperty.push({ "@type": "PropertyValue", name: "Surface", value: race.surface });
-    if (race.distance) additionalProperty.push({ "@type": "PropertyValue", name: "Distance", value: race.distance });
+    const distance = publishedRaceDistance(race);
+    if (distance) additionalProperty.push({ "@type": "PropertyValue", name: "Distances", value: distance });
     if (additionalProperty.length > 0) jsonLd.additionalProperty = additionalProperty;
 
     // Add aggregateRating from review summary when there is at least 1 review.
@@ -366,44 +296,23 @@ const prefetchRaceDetail: PrefetchFn = async (qc, params) => {
       }
     } catch { /* non-critical */ }
 
-    const faqJsonLd = buildRaceFaq(race);
-
-    // Thin-race noindex policy from the rebuild report: a race detail page
-    // is only indexable when it has the four minimum fields a runner needs
-    // to make a decision — date, city/state, distance, and either a
-    // registration URL or an official website.
-    const hasMinimumFields = Boolean(
-      race.isActive && race.date &&
-      race.city &&
-      race.state &&
-      race.distance &&
-      (race.registrationUrl || race.website) &&
-      race.date >= new Date().toISOString().slice(0, 10)
-    );
-
-    const eventDate = new Date(`${race.date}T00:00:00Z`);
-    const dateLabel = Number.isNaN(eventDate.getTime()) ? "" : ` on ${eventDate.toLocaleDateString("en-US", {
-      year: "numeric", month: "long", day: "numeric", timeZone: "UTC",
-    })}`;
-    const location = `${race.city}, ${getStateName(race.state)}`;
-
     return {
-      title: `${race.name} - ${location} | running.services`,
-      description: `${race.name} takes place in ${location}${dateLabel}. See race distances and course details.`,
+      title: `${race.name} | ${race.city}, ${race.state} · running.services`,
+      description: `${race.name}. ${description}`,
       ogTitle: race.name,
-      ogDescription: `${race.distance} race on ${race.date} in ${race.city}, ${getStateName(race.state)}`,
+      ogDescription: description,
       ogType: "article",
-      canonicalUrl: `https://running.services/races/${slug}`,
-      noindex: !hasMinimumFields,
-      jsonLd,
-      extraJsonLd: [faqJsonLd],
+      canonicalUrl,
+      noindex: !indexable,
+      jsonLd: indexable ? jsonLd : undefined,
       breadcrumbJsonLd: {
         "@context": "https://schema.org",
         "@type": "BreadcrumbList",
         itemListElement: [
           { "@type": "ListItem", position: 1, name: "Home", item: "https://running.services/" },
           { "@type": "ListItem", position: 2, name: "Races", item: "https://running.services/races" },
-          { "@type": "ListItem", position: 3, name: race.name, item: `https://running.services/races/${slug}` },
+          { "@type": "ListItem", position: 3, name: stateName, item: `https://running.services${stateRaceCalendarHref(race.state)}` },
+          { "@type": "ListItem", position: 4, name: race.name, item: canonicalUrl },
         ],
       },
     };
@@ -1698,6 +1607,7 @@ const routeMatches: RouteMatch[] = [
   { pattern: /^\/races\/usa$/, prefetch: prefetchRacesUSA, paramNames: [] },
   { pattern: /^\/races\/nearby$/, prefetch: prefetchNearby, paramNames: [] },
   { pattern: /^\/races\/state\/([^/]+)\/city\/([^/]+)$/, prefetch: prefetchRacesCity, paramNames: ["state", "city"] },
+  { pattern: /^\/races\/state\/([^/]+)\/page\/(\d+)$/, prefetch: prefetchRacesState, paramNames: ["state", "page"] },
   { pattern: /^\/races\/state\/([^/]+)$/, prefetch: prefetchRacesState, paramNames: ["state"] },
   { pattern: /^\/races\/year\/(\d{4})\/month\/(\d{2})$/, prefetch: prefetchRacesYear, paramNames: ["year", "month"] },
   { pattern: /^\/races\/year\/(\d{4})$/, prefetch: prefetchRacesYear, paramNames: ["year"] },
