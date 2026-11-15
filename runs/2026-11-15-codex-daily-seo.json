@@ -1,0 +1,57 @@
+{
+  "date": "2026-11-15",
+  "runner": "Running Services Daily SEO Codex heartbeat",
+  "checked_commit": "9aede2281cd10dbfbbfd631301db8fb1ef2add30",
+  "deployment_status": "No qualifying changes. No production deployment.",
+  "audit": {
+    "sitemaps": 7,
+    "sitemap_urls": 1412,
+    "pages_checked": 157,
+    "internal_targets_checked": 90,
+    "issues": [],
+    "sitemap_count_context": "The sitemap count fell by 130 since yesterday. A read-only D1 count found 120 November 14 event records that matched the race sitemap filters and had passed the upcoming-event cutoff. Daily sitemap sections also use available upcoming races. The residual count was not attributed to specific URLs."
+  },
+  "stages": {
+    "seo-autopilot": "No qualifying technical change. The production crawl found no issues in its sample. The keyword map has four distinct targets and no verified comparison opportunity was identified.",
+    "blog-refresher": "Search Console showed only 8 property-wide impressions in the 28-day window and 25 in three months, including 10 from a site operator query. No eligible blog query reached the required impression volume.",
+    "seo-title-optimization": "Eight property-wide impressions fall below the 100-impression page/device floor. No pending title measurements."
+  },
+  "search_console": {
+    "source": "Signed-in Chrome, Search Console Web performance",
+    "period": {
+      "start": "2026-10-17",
+      "end": "2026-11-13"
+    },
+    "sitewide": {
+      "impressions": 8,
+      "clicks": 0,
+      "ctr": 0,
+      "average_position": 10.6
+    },
+    "generative_ai_features": {
+      "impressions": 0,
+      "scope": "Aggregate Google report. Per-query AI Overviews and citations unchecked."
+    }
+  },
+  "analytics": {
+    "source": "Signed-in Chrome, GA4 Traffic acquisition and Events",
+    "period": {
+      "start": "2026-10-18",
+      "end": "2026-11-14"
+    },
+    "sessions": 705,
+    "organic_search_sessions": 17,
+    "organic_search_engaged_sessions": 15,
+    "direct_sessions": 686,
+    "key_events": 0,
+    "generate_lead": "No matching rows. This does not verify lead volume or event instrumentation."
+  },
+  "changed_urls": [],
+  "verification": [
+    "The browser retry recovered Search Console and the GA4 Events report.",
+    "TypeScript and the Cloudflare production build passed."
+  ],
+  "blockers": [
+    "Search Console URL Inspection, dedicated SERP data and per-query ChatGPT Search, Perplexity, and Google AI Overviews remained unchecked."
+  ]
+}
