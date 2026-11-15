@@ -41,6 +41,7 @@ import { trackLead } from "@/lib/analytics";
 import { useToast } from "@/hooks/use-toast";
 import { useCompareCart } from "@/hooks/use-compare-cart";
 import { cn } from "@/lib/utils";
+import { publishedRaceDistance, raceDateLabel, raceListingDescription, stateRaceCalendarHref } from "@shared/race-program";
 
 function getWeatherIcon(code?: number) {
   if (code === undefined) return <Sun className="h-8 w-8 text-amber-500" />;
@@ -411,14 +412,14 @@ function SimilarRacesGrid({ slug, currentId }: { slug: string; currentId: number
   });
   const races = (data || []).filter(r => r.id !== currentId).slice(0, 6);
   if (isLoading) return <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-36" />)}</div>;
-  if (races.length === 0) return <p className="text-sm text-muted-foreground" data-testid="text-no-similar">No similar races found yet — try the calendar for more options.</p>;
+  if (races.length === 0) return null;
   return (
     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3" data-testid="grid-similar-races">
       {races.map(r => (
         <Link key={r.id} href={`/races/${r.slug}`} data-testid={`similar-race-${r.id}`}>
           <Card className="h-full hover-elevate cursor-pointer">
             <CardContent className="p-4">
-              <Badge variant="secondary" className="text-[10px] uppercase mb-2">{r.distance}</Badge>
+              {publishedRaceDistance(r) && <Badge variant="secondary" className="text-[10px] mb-2 whitespace-normal">{publishedRaceDistance(r)}</Badge>}
               <div className="font-semibold leading-tight line-clamp-2">{r.name}</div>
               <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
                 <div className="flex items-center gap-1"><Calendar className="h-3 w-3" />{format(parseRaceDate(r.date), "MMM d, yyyy")}</div>
@@ -429,6 +430,59 @@ function SimilarRacesGrid({ slug, currentId }: { slug: string; currentId: number
         </Link>
       ))}
     </div>
+  );
+}
+
+function RaceProgramDetails({ race }: { race: Race }) {
+  const program = race.raceProgram;
+  const options = program?.options ?? [];
+  const showDate = options.some(option => option.date !== race.date);
+  const showFee = options.some(option => option.fee != null);
+  const venue = program?.venue;
+  const verifiedAt = program ? race.lastSeenAt : race.lastVerifiedAt;
+  const sourceUrl = [race.sourceUrl, race.registrationUrl, race.website].find(url => /^https?:\/\//i.test(url ?? ""));
+  return (
+    <section aria-labelledby="race-program-heading" className="space-y-4" data-testid="race-day-details">
+      <h2 id="race-program-heading" className="font-heading font-bold text-2xl border-l-4 border-blue-500 pl-3">Race day details</h2>
+      <p className="text-muted-foreground" data-testid="race-fact-summary">{raceListingDescription(race)}</p>
+      {venue && (
+        <p className="text-sm" data-testid="race-venue">
+          <span className="font-semibold block">Published event address</span>
+          {venue.street}, {race.city}, {race.state}{venue.postalCode ? ` ${venue.postalCode}` : ""}
+        </p>
+      )}
+      {options.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border">
+          <table className="w-full text-sm text-left">
+            <caption className="p-3 text-left font-semibold">Event schedule</caption>
+            <thead className="border-y bg-muted/50"><tr>
+              <th scope="col" className="p-3">Event</th>
+              <th scope="col" className="p-3">Distance</th>
+              {showDate && <th scope="col" className="p-3">Date</th>}
+              <th scope="col" className="p-3">Local start</th>
+              {showFee && <th scope="col" className="p-3">Listed fee</th>}
+            </tr></thead>
+            <tbody>{options.map(option => (
+              <tr key={`${option.name}-${option.date}-${option.startTime}`} className="border-b last:border-b-0">
+                <th scope="row" className="p-3 font-medium">{option.name}</th>
+                <td className="p-3">{option.distance || "—"}</td>
+                {showDate && <td className="p-3">{raceDateLabel(option.date)}</td>}
+                <td className="p-3 whitespace-nowrap">{option.startTime}</td>
+                {showFee && <td className="p-3">{option.fee == null ? "—" : fmtPrice(option.fee, null)}</td>}
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+      {race.registrationDeadline && <p className="text-sm"><span className="font-semibold">Published registration deadline</span> {raceDateLabel(race.registrationDeadline)}</p>}
+      {sourceUrl && (
+        <p className="text-sm text-muted-foreground">
+          {showFee && "Listed fees exclude processing charges. "}
+          {verifiedAt && <>Details checked {raceDateLabel(new Date(verifiedAt).toISOString().slice(0, 10))}. </>}
+          <a href={sourceUrl} className="text-primary underline" target="_blank" rel="noopener noreferrer">Confirm details with the organizer</a>.
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -502,6 +556,8 @@ export default function RaceDetail() {
   }
 
   const price = fmtPrice(race.priceMin, race.priceMax);
+  const calendarHref = stateRaceCalendarHref(race.state);
+  const hasScores = [race.beginnerScore, race.prScore, race.valueScore, race.vibeScore, race.familyScore, race.urgencyScore].some(score => score != null);
   // Register / website CTAs go through the server-side 302 redirect endpoint
   // so the click is logged with raceId + destination + referer, even when the
   // user disables JavaScript or middle-clicks the link to open it in a new tab.
@@ -527,7 +583,7 @@ export default function RaceDetail() {
           <div className="text-white/80 [&_a]:text-white/80 [&_a:hover]:text-white [&_span]:text-white [&_svg]:text-white/50">
             <Breadcrumbs items={[
               { label: "Races", href: "/races" },
-              { label: getStateName(race.state), href: `/state/${getStateSlug(race.state)}` },
+              { label: getStateName(race.state), href: calendarHref },
               { label: race.name }
             ]} />
           </div>
@@ -535,7 +591,7 @@ export default function RaceDetail() {
           <div className="mt-8 flex flex-col md:flex-row justify-between items-start gap-8">
             <div>
               <div className="flex flex-wrap gap-2 mb-4">
-                <Badge variant="secondary" className="bg-white/20 text-white border-white/30 backdrop-blur font-semibold" data-testid="badge-race-distance">{race.distance}</Badge>
+                {publishedRaceDistance(race) && <Badge variant="secondary" className="bg-white/20 text-white border-white/30 backdrop-blur font-semibold whitespace-normal" data-testid="badge-race-distance">{publishedRaceDistance(race)}</Badge>}
                 <Badge variant="outline" className="bg-white/20 text-white border-white/30 backdrop-blur" data-testid="badge-race-surface">{race.surface}</Badge>
                 {race.bostonQualifier && <Badge variant="outline" className="bg-white/20 text-white border-white/30 backdrop-blur">BQ</Badge>}
                 {race.isTurkeyTrot && <Badge variant="outline" className="bg-white/20 text-white border-white/30 backdrop-blur">🦃 Turkey Trot</Badge>}
@@ -564,7 +620,7 @@ export default function RaceDetail() {
               {registerHref && (
                 <Button size="lg" className="w-full font-semibold" asChild data-testid="button-register">
                   <a href={registerHref} target="_blank" rel="noopener noreferrer nofollow">
-                    Register Now <ExternalLink className="ml-2 h-4 w-4" />
+                    {race.registrationUrl ? "Check registration" : "Visit event website"} <ExternalLink className="ml-2 h-4 w-4" />
                   </a>
                 </Button>
               )}
@@ -583,7 +639,7 @@ export default function RaceDetail() {
       </div>
 
       {/* Section 2: Quick decision strip */}
-      <div className="border-b bg-muted/40">
+      {hasScores && <div className="border-b bg-muted/40">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-end justify-between mb-3">
             <div>
@@ -594,23 +650,23 @@ export default function RaceDetail() {
           </div>
           <ScoreBlock race={race} />
         </div>
-      </div>
+      </div>}
 
       <div className="container mx-auto px-4 py-12 grid grid-cols-1 lg:grid-cols-3 gap-12">
         <div className="lg:col-span-2 space-y-12">
-          {/* Section 3: Best for badges */}
-          <section data-testid="section-best-for">
+          <RaceProgramDetails race={race} />
+          {hasScores && <section data-testid="section-best-for">
             <h2 className="font-heading font-bold text-2xl mb-3 border-l-4 border-emerald-500 pl-3">Best for</h2>
             <BestForBadges race={race} />
-          </section>
+          </section>}
 
           {/* Section 4: About */}
-          <section>
-            <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-blue-500 pl-3">About the Race</h2>
+          {race.description?.trim() && <section>
+            <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-blue-500 pl-3">About the race</h2>
             <div className="prose max-w-none text-muted-foreground">
-              <p data-testid="text-race-description">{race.description || `${race.name} takes place in ${race.city}, ${getStateName(race.state)}. Check the organizer’s event page for course and race-day details.`}</p>
+              <p data-testid="text-race-description">{race.description}</p>
             </div>
-          </section>
+          </section>}
 
           {/* Course preview photos (uploaded by organizer) */}
           {race.photoUrls && race.photoUrls.length > 0 && (
@@ -618,189 +674,94 @@ export default function RaceDetail() {
           )}
 
           {/* Section 5: Course profile / elevation */}
-          {elevation && elevation.type === "available" ? (
+          {elevation?.type === "available" && (
             <ElevationProfileChart elevation={elevation} />
-          ) : (
-            <section>
-              <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-emerald-500 pl-3 flex items-center gap-2"><Mountain className="h-5 w-5" />Course Profile</h2>
-              <div className="bg-muted h-32 rounded-xl flex items-center justify-center border border-dashed">
-                <p className="text-muted-foreground text-sm" data-testid="text-elevation-unavailable">Course profile data unavailable for this race.</p>
-              </div>
-            </section>
           )}
 
           {/* Section 6: Course features */}
           <section data-testid="section-course-features">
             <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-stone-500 pl-3 flex items-center gap-2"><MapIcon className="h-5 w-5" />Course features</h2>
             <div className="grid sm:grid-cols-2 gap-3">
-              <FeatureRow label="Terrain" value={race.terrain || "Not stated"} />
-              <FeatureRow label="Surface" value={race.surface || "Not stated"} />
-              <FeatureRow label="Elevation gain" value={race.elevationGainM != null ? `${race.elevationGainM}m` : "Not measured"} />
-              <FeatureRow label="Course type" value={race.courseType || "Not stated"} />
-              <FeatureRow label="Field size" value={race.fieldSize != null ? `${race.fieldSize.toLocaleString()} runners` : "Unknown"} />
-              <FeatureRow label="Boston qualifier" value={race.bostonQualifier == null ? "Unknown" : (race.bostonQualifier ? "Yes" : "No")} />
-              {race.courseMapUrl ? (
+              {race.terrain && <FeatureRow label="Terrain" value={race.terrain} />}
+              {race.surface && <FeatureRow label="Surface" value={race.surface} />}
+              {race.elevationGainM != null && <FeatureRow label="Elevation gain" value={`${race.elevationGainM} m`} />}
+              {race.courseType && <FeatureRow label="Course type" value={race.courseType} />}
+              {race.fieldSize != null && <FeatureRow label="Field size" value={`${race.fieldSize.toLocaleString()} runners`} />}
+              {race.bostonQualifier && <FeatureRow label="Boston qualifier" value="Yes" />}
+              {race.courseMapUrl && (
                 <a href={race.courseMapUrl} target="_blank" rel="noopener noreferrer nofollow" className="rounded-lg border p-3 hover:border-primary/50 transition-colors" onClick={() => apiTrackOutbound({ raceId: race.id, destination: "course-map", targetUrl: race.courseMapUrl! })} data-testid="link-course-map">
                   <div className="text-xs uppercase tracking-wider text-muted-foreground">Course map</div>
                   <div className="font-semibold text-sm flex items-center gap-1.5 mt-0.5">View map <ExternalLink className="h-3 w-3" /></div>
                 </a>
-              ) : (
-                <div className="rounded-lg border border-dashed p-3 bg-muted/30" data-testid="placeholder-course-map">
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground">Course map</div>
-                  <div className="font-medium text-sm text-muted-foreground italic mt-0.5">Not yet published</div>
-                </div>
               )}
-              {race.elevationProfileUrl ? (
+              {race.elevationProfileUrl && (
                 <a href={race.elevationProfileUrl} target="_blank" rel="noopener noreferrer nofollow" className="rounded-lg border p-3 hover:border-primary/50 transition-colors" onClick={() => apiTrackOutbound({ raceId: race.id, destination: "elevation", targetUrl: race.elevationProfileUrl! })} data-testid="link-elevation-profile-url">
                   <div className="text-xs uppercase tracking-wider text-muted-foreground">Elevation profile</div>
                   <div className="font-semibold text-sm flex items-center gap-1.5 mt-0.5">View profile <ExternalLink className="h-3 w-3" /></div>
                 </a>
-              ) : (
-                <div className="rounded-lg border border-dashed p-3 bg-muted/30" data-testid="placeholder-elevation-profile">
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground">Elevation profile</div>
-                  <div className="font-medium text-sm text-muted-foreground italic mt-0.5">{race.elevationGainM != null ? "Profile not published" : "Not measured"}</div>
-                </div>
               )}
             </div>
           </section>
 
           {/* Section 7: Accessibility & inclusion */}
-          <section data-testid="section-accessibility">
+          {[race.walkerFriendly, race.strollerFriendly, race.dogFriendly, race.kidsRace].some(value => value != null) && <section data-testid="section-accessibility">
             <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-pink-500 pl-3 flex items-center gap-2"><Users className="h-5 w-5" />Accessibility & inclusion</h2>
             <div className="grid sm:grid-cols-2 gap-3">
-              <AccessibilityRow label="Walker-friendly" value={race.walkerFriendly} />
-              <AccessibilityRow label="Stroller-friendly" value={race.strollerFriendly} />
-              <AccessibilityRow label="Dog-friendly" value={race.dogFriendly} />
-              <AccessibilityRow label="Kids race" value={race.kidsRace} />
+              {race.walkerFriendly != null && <AccessibilityRow label="Walker-friendly" value={race.walkerFriendly} />}
+              {race.strollerFriendly != null && <AccessibilityRow label="Stroller-friendly" value={race.strollerFriendly} />}
+              {race.dogFriendly != null && <AccessibilityRow label="Dog-friendly" value={race.dogFriendly} />}
+              {race.kidsRace != null && <AccessibilityRow label="Kids race" value={race.kidsRace} />}
             </div>
-          </section>
+          </section>}
 
           {/* Section 8: Vibe & charity */}
-          <section data-testid="section-vibe">
+          {(race.vibeTags?.length > 0 || race.charity) && <section data-testid="section-vibe">
             <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-violet-500 pl-3 flex items-center gap-2"><PartyPopper className="h-5 w-5" />Vibe & community</h2>
-            {race.vibeTags && race.vibeTags.length > 0 ? (
+            {race.vibeTags?.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-3">
                 {race.vibeTags.map(t => (<Badge key={t} variant="secondary" className="capitalize" data-testid={`vibe-tag-${t}`}>{t.replace(/-/g, " ")}</Badge>))}
               </div>
-            ) : (
-              <p className="text-sm text-muted-foreground mb-3" data-testid="text-vibe-unknown">We don't have vibe tags for this race yet — organizers can claim the listing to add them.</p>
             )}
-            {race.charity ? (
+            {race.charity && (
               <div className="text-sm text-muted-foreground" data-testid="text-charity">
                 <Heart className="h-4 w-4 inline-block mr-1.5 text-rose-500" />Charity race{race.charityPartner ? ` benefiting ${race.charityPartner}` : ""}.
               </div>
-            ) : (
-              <div className="text-xs text-muted-foreground/70" data-testid="text-no-charity">No charity partner listed.</div>
             )}
-          </section>
+          </section>}
 
           {/* Section 9: History & past results */}
-          <section data-testid="section-history">
-            <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-amber-500 pl-3 flex items-center gap-2"><Trophy className="h-5 w-5" />History & past results</h2>
+          {(race.yearsRunning || race.recurrencePattern) && <section data-testid="section-history">
+            <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-amber-500 pl-3 flex items-center gap-2"><Trophy className="h-5 w-5" />Race history</h2>
             <div className="grid sm:grid-cols-2 gap-3">
-              <div className="rounded-lg border p-3" data-testid="history-years-running">
+              {race.yearsRunning && <div className="rounded-lg border p-3" data-testid="history-years-running">
                 <div className="text-xs uppercase tracking-wider text-muted-foreground">Years running</div>
-                <div className="font-semibold text-sm mt-0.5">{race.yearsRunning ? `${race.yearsRunning} year${race.yearsRunning === 1 ? "" : "s"}` : "Unknown — claim to add"}</div>
-              </div>
-              <div className="rounded-lg border p-3" data-testid="history-recurrence">
+                <div className="font-semibold text-sm mt-0.5">{race.yearsRunning} {race.yearsRunning === 1 ? "year" : "years"}</div>
+              </div>}
+              {race.recurrencePattern && <div className="rounded-lg border p-3" data-testid="history-recurrence">
                 <div className="text-xs uppercase tracking-wider text-muted-foreground">Recurrence</div>
-                <div className="font-semibold text-sm mt-0.5 capitalize">{race.recurrencePattern || "Annual (assumed)"}</div>
-              </div>
+                <div className="font-semibold text-sm mt-0.5 capitalize">{race.recurrencePattern}</div>
+              </div>}
             </div>
-            <p className="text-xs text-muted-foreground mt-3">
-              Past finisher times and year-over-year participation will appear here once the organizer publishes them.
-            </p>
-          </section>
+          </section>}
 
           {/* Section 10: Reviews */}
           <div id="reviews" className="scroll-mt-24">
             <ReviewSection itemType="race" itemId={race.id} />
           </div>
 
-          {/* Section 10b: Auto FAQ for AI overviews + featured snippets */}
-          <section data-testid="section-faq" className="bg-muted/30 rounded-xl p-6">
-            <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-emerald-500 pl-3">Common questions</h2>
-            <div className="space-y-5">
-              <div data-testid="faq-difficulty">
-                <h3 className="font-semibold mb-1">How hard is the {race.name} {race.distance}?</h3>
-                <p className="text-sm text-muted-foreground">
-                  {race.elevationGainM != null && race.elevationGainM >= 300
-                    ? `Hilly — about ${race.elevationGainM} m (${Math.round(race.elevationGainM * 3.28)} ft) of elevation gain on a ${(race.surface || "road").toLowerCase()} course. Pace conservatively on the climbs.`
-                    : race.elevationGainM != null && race.elevationGainM >= 100
-                      ? `Moderate rolling terrain — ~${race.elevationGainM} m (${Math.round(race.elevationGainM * 3.28)} ft) of elevation gain on a ${(race.surface || "road").toLowerCase()} course.`
-                      : race.elevationGainM != null
-                        ? `Flat to gently rolling — ~${race.elevationGainM} m (${Math.round(race.elevationGainM * 3.28)} ft) of elevation gain. A friendly profile for a personal best.`
-                        : `We don't have a verified elevation profile yet — check the organizer's course map for the climb breakdown.`}
-                </p>
-              </div>
-              <div data-testid="faq-wear">
-                <h3 className="font-semibold mb-1">What should I wear?</h3>
-                <p className="text-sm text-muted-foreground">
-                  Dress for ~10°F warmer than the standing temperature once you start running. Throwaway long-sleeve at the start, gloves and a hat for sub-50°F mornings, singlet plus visor when it climbs above 60°F. The race-day forecast above is the source of truth closer to the date.
-                </p>
-              </div>
-              <div data-testid="faq-sellout">
-                <h3 className="font-semibold mb-1">When does it sell out?</h3>
-                <p className="text-sm text-muted-foreground">
-                  {race.registrationOpen === false
-                    ? `Registration is currently closed. Set an alert and we'll let you know the moment next year's signups open.`
-                    : race.registrationDeadline
-                      ? `Registration closes ${race.registrationDeadline}. ${race.fieldSize && race.fieldSize >= 5000 ? "Large-field events usually stay open until the deadline, but the entry fee climbs in tiers." : "Smaller events can sell out before the posted deadline — sign up early."}`
-                      : `No published deadline. Most races raise the entry fee in tiers and can sell out without warning — sign up early if you're committed.`}
-                </p>
-              </div>
-            </div>
-          </section>
-
           {/* Section 11: Similar races */}
           <section data-testid="section-similar-races">
             <h2 className="font-heading font-bold text-2xl mb-4 border-l-4 border-orange-500 pl-3 flex items-center gap-2"><Lightbulb className="h-5 w-5" />Similar races worth a look</h2>
             <SimilarRacesGrid slug={race.slug} currentId={race.id} />
-            {(() => {
-              const distMap: Record<string, string> = {
-                "5K": "5k-races",
-                "10K": "10k-races",
-                "Half Marathon": "half-marathons",
-                "Marathon": "marathons",
-              };
-              const distSlug = race.surface === "Trail"
-                ? "trail-races"
-                : (race.distance && distMap[race.distance]);
-              const citySlug = race.citySlug;
-              const metroSlug = distSlug && citySlug && race.state ? `${citySlug}-${race.state.toLowerCase()}` : null;
-              const monthIdx = race.date ? new Date(race.date).getUTCMonth() + 1 : null;
-              const monthSlugs = ["january","february","march","april","may","june","july","august","september","october","november","december"];
-              const monthSlug = monthIdx ? monthSlugs[monthIdx - 1] : null;
-              const stateSlug = race.state ? getStateSlug(race.state) : null;
-              return (
-                <ul className="text-sm text-muted-foreground mt-4 space-y-1.5">
-                  {metroSlug && (
-                    <li>
-                      <span className="font-medium text-foreground">More like this in this city:</span>{" "}
-                      <Link href={`/${metroSlug}/${distSlug}`} className="text-primary hover:underline" data-testid="link-more-in-metro">
-                        All {race.distance || race.surface} races in {race.city}, {race.state}
-                      </Link>
-                    </li>
-                  )}
-                  {distSlug && monthSlug && (
-                    <li>
-                      <span className="font-medium text-foreground">Same distance, same month:</span>{" "}
-                      <Link href={`/best-races/${distSlug}/${monthSlug}`} className="text-primary hover:underline" data-testid="link-best-distance-month">
-                        Best {race.distance || race.surface} races in {monthSlugs[monthIdx! - 1].charAt(0).toUpperCase() + monthSlugs[monthIdx! - 1].slice(1)}
-                      </Link>
-                    </li>
-                  )}
-                  {distSlug && stateSlug && (
-                    <li>
-                      <span className="font-medium text-foreground">Same distance, statewide:</span>{" "}
-                      <Link href={`/state/${stateSlug}/${distSlug}`} className="text-primary hover:underline" data-testid="link-state-distance">
-                        All {race.distance || race.surface} races in {getStateName(race.state)}
-                      </Link>
-                    </li>
-                  )}
-                </ul>
-              );
-            })()}
+            <ul className="text-sm mt-4 space-y-2">
+              <li><Link href={calendarHref} className="text-primary hover:underline">All upcoming races in {getStateName(race.state)}</Link></li>
+              {race.citySlug && (
+                <li><Link href={`/state/${getStateSlug(race.state)}/city/${race.citySlug}`} className="text-primary hover:underline">Running races in {race.city}, {race.state}</Link></li>
+              )}
+              {race.distance !== "Other" && (
+                <li><Link href={`${calendarHref}?distance=${encodeURIComponent(race.distance)}`} className="text-primary hover:underline">{race.distance} events in {getStateName(race.state)}</Link></li>
+              )}
+            </ul>
           </section>
 
           {/* Section 12: Tools CTA */}
@@ -827,7 +788,7 @@ export default function RaceDetail() {
           <div className="bg-card border border-t-4 border-amber-500 rounded-xl p-6 shadow-sm" data-testid="card-pricing">
             <h3 className="font-heading font-semibold mb-4 flex items-center gap-2"><DollarSign className="h-4 w-4" />Pricing & registration</h3>
             <ul className="space-y-3 text-sm">
-              <li className="flex justify-between"><span className="text-muted-foreground">Entry fee</span><span className="font-medium" data-testid="text-entry-fee">{price || "—"}</span></li>
+              {price && <li className="flex justify-between"><span className="text-muted-foreground">Listed entry fee</span><span className="font-medium" data-testid="text-entry-fee">{price}</span></li>}
               {race.registrationDeadline && (
                 <li className="flex justify-between"><span className="text-muted-foreground">Closes</span><span className="font-medium" data-testid="text-deadline">{format(parseRaceDate(race.registrationDeadline), "MMM d, yyyy")}</span></li>
               )}

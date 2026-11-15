@@ -3,7 +3,7 @@ import { Layout } from "@/components/layout";
 import { RaceCard } from "@/components/race-card";
 import { SponsorshipSlot } from "@/components/sponsorship-slot";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { Link, useParams, useLocation } from "wouter";
+import { Link, useParams, useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ import { setPendingAction } from "@/lib/pending-action";
 import { RACE_SIZE_BUCKETS, ELEVATION_BUCKETS } from "@shared/race-buckets";
 import type { Race } from "@shared/schema";
 import { CompareBar } from "@/components/compare-bar";
+import { RACE_CALENDAR_PAGE_SIZE, stateRaceCalendarHref } from "@shared/race-program";
 
 const DISTANCES = ["5K", "10K", "Half Marathon", "Marathon", "Ultra"];
 const SURFACES = ["Road", "Trail", "Track"];
@@ -87,7 +88,7 @@ type FilterState = {
   page: number;
 };
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = RACE_CALENDAR_PAGE_SIZE;
 
 const EMPTY_FILTERS: FilterState = {
   q: "",
@@ -120,7 +121,7 @@ const EMPTY_FILTERS: FilterState = {
   page: 1,
 };
 
-function parseFiltersFromUrl(search: string, stateAbbr?: string): FilterState {
+function parseFiltersFromUrl(search: string, stateAbbr?: string, page = 1): FilterState {
   const params = new URLSearchParams(search.replace(/^\?/, ""));
   const lat = params.get("lat");
   const lng = params.get("lng");
@@ -153,7 +154,7 @@ function parseFiltersFromUrl(search: string, stateAbbr?: string): FilterState {
     lng: lng ? Number(lng) : null,
     sort: params.get("sort") || "date",
     near: params.get("near") === "1",
-    page: Math.max(1, Number(params.get("page")) || 1),
+    page: Math.max(1, Math.floor(Number(params.get("page")) || page)),
   };
 }
 
@@ -528,7 +529,9 @@ function CheckboxRow({ checked, onChange, label, testId }: { checked: boolean; o
 export default function RacesSearchPage() {
   const params = useParams();
   const stateSlug = params.state;
+  const calendarPage = Math.max(1, Number(params.page ?? 1));
   const [location, navigate] = useLocation();
+  const search = useSearch();
   const { user, openLogin } = useAuth();
   const { toast } = useToast();
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -543,15 +546,14 @@ export default function RacesSearchPage() {
   });
 
   // Initialize empty so SSR and first client render match. Parse URL in effect after hydration.
-  const [filters, setFilters] = useState<FilterState>(() => ({ ...EMPTY_FILTERS, state: stateData?.abbreviation || "" }));
+  const [filters, setFilters] = useState<FilterState>(() => ({ ...EMPTY_FILTERS, state: stateData?.abbreviation || "", page: calendarPage }));
   const [view, setView] = useState<"list" | "map">("list");
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
   // Re-sync from URL on navigation (and after hydration)
   useEffect(() => {
-    setFilters(parseFiltersFromUrl(window.location.search, stateData?.abbreviation));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location, stateData?.abbreviation]);
+    setFilters(parseFiltersFromUrl(search, stateData?.abbreviation, calendarPage));
+  }, [location, search, stateData?.abbreviation, calendarPage]);
 
   const updateFilters = (updater: (prev: FilterState) => FilterState) => {
     setFilters(prev => {
@@ -632,6 +634,7 @@ export default function RacesSearchPage() {
     }
   };
   const activeCount = activeChipCount(filters);
+  const statePaging = stateData && !filtersToUrlQs({ ...filters, page: 1 });
 
   const heading = stateData ? `${stateData.name} race calendar` : "All USA races";
   const breadcrumbs: { label: string; href?: string }[] = [{ label: "Races", href: "/races" }];
@@ -713,7 +716,7 @@ export default function RacesSearchPage() {
         <div className="mt-4 mb-6">
           <h1 className="font-heading font-bold text-2xl md:text-3xl mb-1" data-testid="text-search-heading">{heading}</h1>
           <p className="text-sm text-muted-foreground" data-testid="text-search-result-count">
-            {isLoading ? "Loading races…" : `${filtered.length} ${filtered.length === 1 ? "race" : "races"} match`}
+            {isLoading ? "Loading races…" : `Showing ${filtered.length} ${filtered.length === 1 ? "race" : "races"}`}
           </p>
         </div>
 
@@ -845,28 +848,32 @@ export default function RacesSearchPage() {
                     aria-label="Race results pagination"
                     data-testid="pagination-controls"
                   >
-                    <Button
+                    {statePaging && hasPrevPage ? (
+                      <Button variant="outline" asChild data-testid="button-pagination-prev"><Link href={stateRaceCalendarHref(stateData.abbreviation, filters.page - 1)}>← Previous</Link></Button>
+                    ) : <Button
                       variant="outline"
                       onClick={() => goToPage(filters.page - 1)}
                       disabled={!hasPrevPage}
                       data-testid="button-pagination-prev"
                     >
                       ← Previous
-                    </Button>
+                    </Button>}
                     <span
                       className="text-sm text-muted-foreground"
                       data-testid="text-pagination-page"
                     >
                       Page {filters.page}
                     </span>
-                    <Button
+                    {statePaging && hasNextPage ? (
+                      <Button variant="outline" asChild data-testid="button-pagination-next"><Link href={stateRaceCalendarHref(stateData.abbreviation, filters.page + 1)}>Next →</Link></Button>
+                    ) : <Button
                       variant="outline"
                       onClick={() => goToPage(filters.page + 1)}
                       disabled={!hasNextPage}
                       data-testid="button-pagination-next"
                     >
                       Next →
-                    </Button>
+                    </Button>}
                   </nav>
                 )}
               </>
