@@ -1,0 +1,87 @@
+{
+  "date": "2026-11-16",
+  "runner": "Running Services Daily SEO Codex heartbeat",
+  "deployment_status": "Deployed and verified",
+  "release": {
+    "commit": "496bf3c9c6308996cc7a8bf1366f73226cda91f1",
+    "cloudflare_version": "7db46d68-315d-487f-9f34-f90f94a2188d",
+    "previous_version": "051f3f46-3af7-4c92-b250-89512f431f48",
+    "traffic_percent": 100
+  },
+  "audit": {
+    "sitemaps": 8,
+    "sitemap_urls": 12653,
+    "pages_checked": 157,
+    "internal_targets_checked": 90,
+    "automated_findings_after_full_sitemap_read": 0,
+    "manual_findings": 1,
+    "race_sitemap_urls_before": 11149,
+    "race_sitemap_urls_after": 11148,
+    "note": "The default collector truncated the valid 2,300,579-byte race sitemap at 2 MB. A bounded rerun read the complete sitemap without changing the repository collector."
+  },
+  "stages": {
+    "seo-autopilot": "Verified organizer demo erroneously indexable in production and listed in the race sitemap. Exclude the precise provider URL via shared race indexing eligibility. Add five published 2027 guide pages to the keyword map using distinct curated fee intents; no comparison meets the distinct-intent and verified claims requirements.",
+    "blog-refresher": "No edit. Search Console timed out twice in signed-in Chrome, and no service-account integration was available. No verified position 8–20 page/query candidate or top-three tracking data.",
+    "seo-title-optimization": "No edit. No finalized device/page 28-day CTR baseline. History has no pending titles."
+  },
+  "changed_urls": [
+    {
+      "url": "https://running.services/races/fantastic-fake-5k-brighton-mi",
+      "source": "https://runsignup.com/Race/MI/Brighton/FantasticFake5K",
+      "before": {
+        "status": 200,
+        "noindex": false,
+        "sports_event": true,
+        "in_race_sitemap": true
+      },
+      "after": {
+        "status": 200,
+        "noindex": true,
+        "sports_event": false,
+        "in_race_sitemap": false
+      },
+      "notes": "URL, canonical, title and H1 unchanged. No source data deleted."
+    }
+  ],
+  "keyword_map": {
+    "new_targets": 5,
+    "overlap": "The U.S. race calendar remains the broad discovery target. The year-specific editorial hub targets a national selection. The four state guides separately target curated 2027 race and price research by state.",
+    "gsc_cannibalization": "unchecked"
+  },
+  "search_console": {
+    "property": "sc-domain:running.services",
+    "source": "Existing signed-in Chrome",
+    "complete_window": null,
+    "status": "unchecked",
+    "reason": "Chrome navigation timed out twice, including on a fresh tab in the same profile. No finalized dates, query/page metrics, index status, or device comparisons could be read."
+  },
+  "analytics": {
+    "property": 523756658,
+    "property_name": "Running.Services",
+    "source": "Existing signed-in Chrome",
+    "start_date": "2026-10-19",
+    "end_date": "2026-11-15",
+    "organic_search_sessions": 18,
+    "organic_search_engaged_sessions": 16,
+    "generate_lead_status": "No matching rows in the filtered Events report; event count and conversion behavior unconfirmed.",
+    "generate_lead_event_count": null
+  },
+  "ai_visibility": {
+    "query_count": 3,
+    "query_file": "seo/ai-queries.json",
+    "surfaces": {
+      "ChatGPT Search": "Unchecked; no connected consumer search observation source.",
+      "Google AI Overviews": "Unchecked; no direct configured observation for these searches.",
+      "Perplexity": "Unchecked; no connected observation source for these searches."
+    }
+  },
+  "verification": [
+    "Shared eligibility handles the exact organizer path, including known URL variants, and preserves unrelated entries. TypeScript, Cloudflare client/SSR build, and Wrangler dry run passed.",
+    "Production served the exact tested main commit at 100% of traffic. The demo has a live noindex directive, no SportsEvent markup, and no entry in the complete race sitemap.",
+    "Homepage, race directory, blog, pricing, developer and organizer pages, guide hub and all four state guides retained their canonical, rendered title and H1. Robots and the two checked sitemaps returned 200."
+  ],
+  "blockers": [
+    "No finalized Search Console data was visible after the fresh-tab retry; blog and title opportunities remain unchecked.",
+    "No stable AI answer results available to compare."
+  ]
+}
