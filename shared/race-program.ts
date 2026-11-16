@@ -29,6 +29,11 @@ export function publishedRaceDistance(race: Pick<RaceFacts, "distance" | "distan
 }
 
 export function hasRaceListingValue(race: RaceFacts) {
+  // RunSignup publishes this demo at a public registration URL, but its
+  // description explicitly says it isn't a real event.
+  if ([race.registrationUrl, race.website].some(url =>
+    /^https:\/\/(?:www\.)?runsignup\.com\/Race\/MI\/Brighton\/FantasticFake5K\/?(?:[?#]|$)/i.test(url ?? "")
+  )) return false;
   const knownLogistics = race.startTime?.trim() || race.registrationDeadline || race.priceMin != null
     || race.courseMapUrl || race.packetPickup?.trim();
   return Boolean(race.name.trim() && /^\d{4}-\d{2}-\d{2}$/.test(race.date) && race.city.trim() && race.state.trim()
