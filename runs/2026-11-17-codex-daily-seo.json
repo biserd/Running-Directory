@@ -1,0 +1,79 @@
+{
+  "date": "2026-11-17",
+  "runner": "Running Services Daily SEO Codex heartbeat",
+  "deployment_status": "No qualifying changes; no deployment",
+  "checked_main": "496bf3c9c6308996cc7a8bf1366f73226cda91f1",
+  "audit": {
+    "sitemaps": 8,
+    "sitemap_urls": 12647,
+    "pages_checked": 157,
+    "internal_targets_checked": 90,
+    "issues": 0,
+    "race_sitemap_urls": 11143,
+    "note": "Complete sitemap fetched with the same bounded 8 MB local allowance used on November 16."
+  },
+  "stages": {
+    "seo-autopilot": "No qualifying technical edit. The full sitemap audit passed and the previously fixed demo still has noindex, no SportsEvent markup, and no race sitemap entry. The nine mapped targets retain distinct intents; overlap in actual queries could not be assessed. No distinct, verified comparison opportunity qualified.",
+    "blog-refresher": "No edit. The linked Search Console landing report showed only 8 impressions for its highest-impression page, the September 2026 marathon post at page-level position 13.25. A page/query ranking could not be verified and the page total is below the 25-impression page/query floor.",
+    "seo-title-optimization": "No edit. No landing page in the linked 28-day report had more than 8 all-device impressions, below the 100-impression floor for a single page and device. Device benchmarks were unnecessary at this volume. No title locks were due."
+  },
+  "changed_urls": [],
+  "search_console": {
+    "property": "sc-domain:running.services",
+    "direct_report": {
+      "status": "unchecked",
+      "reason": "Chrome navigations to the requested Search Console performance URL timed out twice. The retry tab remained blank; no direct property totals, index coverage, or latest finalized-date marker could be read."
+    },
+    "linked_report": {
+      "source": "Running.Services GA4 property 523756658, linked Search Console landing page and query reports",
+      "period": {
+        "start": "2026-10-18",
+        "end": "2026-11-14"
+      },
+      "window_basis": "28 days excluding the latest two completed calendar days for Google's stated 48-hour Search Console reporting lag. Direct finalization marker unchecked.",
+      "documentation": "https://support.google.com/analytics/answer/10737381?hl=en",
+      "landing_page_report": {
+        "clicks": 0,
+        "impressions": 36,
+        "ctr": 0,
+        "average_position": 5.08,
+        "highest_page_impressions": 8
+      },
+      "query_report": {
+        "clicks": 0,
+        "impressions": 7,
+        "ctr": 0,
+        "average_position": 12,
+        "visible_query_rows": 2
+      },
+      "notes": "These are totals of two separately scoped linked reports. Do not compare the 36 landing page impressions directly to the previous standalone Search Console property total."
+    }
+  },
+  "analytics": {
+    "property": 523756658,
+    "property_name": "Running.Services",
+    "source": "Existing signed-in Chrome, Traffic acquisition and Events",
+    "start_date": "2026-10-20",
+    "end_date": "2026-11-16",
+    "organic_search_sessions": 18,
+    "organic_search_engaged_sessions": 16,
+    "generate_lead_event_count": null,
+    "generate_lead_status": "No matching rows in the filtered Events report; lead count and instrumentation were not established."
+  },
+  "ai_visibility": {
+    "query_count": 3,
+    "surfaces": {
+      "ChatGPT Search": "Unchecked; no connected consumer search observation source.",
+      "Google AI Overviews": "Unchecked; per-query answer and citation data unavailable.",
+      "Perplexity": "Unchecked; no connected observation source."
+    }
+  },
+  "verification": [
+    "All eight sitemaps parsed. The production sample found no canonical, robots, metadata, redirects or broken-link findings. The homepage, key pages, and 2027 guides passed targeted rendered checks.",
+    "Previously excluded demo retained noindex and no SportsEvent markup; the live race sitemap did not list it."
+  ],
+  "blockers": [
+    "Standalone Search Console performance and indexing status unverified after the browser retry; linked performance observations are available but lacks joined page/query evidence.",
+    "Per-query AI answer and citation surfaces unchecked."
+  ]
+}
