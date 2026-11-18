@@ -1,0 +1,107 @@
+{
+  "date": "2026-11-18",
+  "runner": "Running Services Daily SEO Codex heartbeat",
+  "checked_main": "496bf3c9c6308996cc7a8bf1366f73226cda91f1",
+  "deployment_status": "No qualifying source change; no deployment",
+  "stages": {
+    "seo-autopilot": "Production crawl found no regressions across eight parsed sitemaps, 157 sampled pages and 90 internal targets. Rechecked the previously excluded demo, core pages and all five guide URLs. Search Console confirms the homepage is indexed. The New York guide was unknown to Google; its live test passed and Google accepted an indexing request. Nine keyword targets remain distinct in purpose. No comparison qualified.",
+    "blog-refresher": "No qualifying edit. Current Web performance totals were 8 impressions and 0 clicks for October 20 through November 16. The only visible non-site-operator query had one impression. No relevant page/query in positions 8–20 with sufficient evidence of an improvement was established.",
+    "seo-title-optimization": "No qualifying edit. The latest 28-day Web report had 8 property-wide impressions and 0 clicks. No meaningful device CTR shortfall could be established at this volume. History has no pending title measurements."
+  },
+  "changed_urls": [],
+  "audit": {
+    "sitemaps": 8,
+    "sitemap_urls": 12645,
+    "pages_checked": 157,
+    "internal_targets_checked": 90,
+    "issues": 0,
+    "race_sitemap_urls": 11141,
+    "scope": "Bounded daily sample. Sitemap responses read with the 8 MB local allowance."
+  },
+  "search_console": {
+    "source": "Existing signed-in Chrome, confirmed running.services property",
+    "period": {
+      "start": "2026-10-20",
+      "end": "2026-11-16"
+    },
+    "sitewide": {
+      "impressions": 8,
+      "clicks": 0,
+      "ctr": 0,
+      "average_position": 10.6
+    },
+    "query_rows": [
+      {
+        "query": "site:running.services",
+        "impressions": 6,
+        "clicks": 0
+      },
+      {
+        "query": "marathon in september 2026",
+        "impressions": 1,
+        "clicks": 0
+      }
+    ],
+    "page_observations": {
+      "highest_page_impressions": 8,
+      "note": "Individual page rows sum above property-wide totals. Keep report scopes separate."
+    },
+    "indexing_report": {
+      "last_updated": "2026-11-12",
+      "indexed": 10,
+      "not_indexed": 5129,
+      "reasons": {
+        "Not found (404)": 1734,
+        "Soft 404": 1085,
+        "Server error (5xx)": 144,
+        "Excluded by noindex": 41,
+        "Blocked by robots.txt": 3,
+        "Discovered currently not indexed": 1664,
+        "Crawled currently not indexed": 458
+      },
+      "note": "Historical coverage report. These counts do not establish current production failures. Daily live crawl found no failures in its sample."
+    },
+    "inspections": [
+      {
+        "url": "https://running.services/",
+        "google_index": "URL is on Google; page is indexed"
+      },
+      {
+        "url": "https://running.services/race-guides/2027/new-york",
+        "google_index": "URL unknown to Google",
+        "live_test": "URL available to Google; page can be indexed",
+        "index_request": "Accepted. Google confirmed the URL was added to a priority crawl queue.",
+        "indexed_after_request": "unchecked"
+      }
+    ]
+  },
+  "analytics": {
+    "source": "Existing signed-in Chrome, Running.Services property 523756658",
+    "period": {
+      "start": "2026-10-21",
+      "end": "2026-11-17"
+    },
+    "organic_search_sessions": 18,
+    "organic_search_engaged_sessions": 16,
+    "generate_lead_event_count": null,
+    "generate_lead_status": "No matching rows in the filtered Events report. Conversion behavior unconfirmed."
+  },
+  "ai_visibility": {
+    "query_count": 3,
+    "queries": "seo/ai-queries.json",
+    "surfaces": {
+      "ChatGPT Search": "Unchecked; no direct connected consumer search observation.",
+      "Google AI Overviews": "Unchecked; per-query answers and citations unavailable.",
+      "Perplexity": "Unchecked; no connected observation."
+    }
+  },
+  "verification": [
+    "Shared production eligibility still excludes the verified demo from the race sitemap and SportsEvent markup and serves noindex.",
+    "Homepage, race directory, blog, pricing, developer and organizer pages, guide hub and four state guides passed HTTP, canonical, rendered title/H1 and indexability checks.",
+    "Search Console live test fetched the New York guide and marked it eligible for indexing; accepted indexing request observed."
+  ],
+  "blockers": [
+    "No qualifying search evidence for blog or title edits.",
+    "Other guide Google Index statuses and per-query AI answer surfaces remain unchecked."
+  ]
+}
