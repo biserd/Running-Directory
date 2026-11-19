@@ -1,0 +1,91 @@
+{
+  "date": "2026-11-19",
+  "runner": "Running Services Daily SEO Codex heartbeat",
+  "checked_main": "496bf3c9c6308996cc7a8bf1366f73226cda91f1",
+  "deployment_status": "No qualifying source change; no deployment",
+  "stages": {
+    "seo-autopilot": "No qualifying technical edit. All eight sitemaps parsed, and 157 sampled pages plus 90 internal targets passed. Verified core pages, all five 2027 guides and the prior demo exclusion. Google Index now confirms the New York 2027 guide is indexed, following yesterday's accepted request. Nine keyword map targets have distinct editorial purposes; no verified distinct comparison opportunity qualified.",
+    "blog-refresher": "No qualifying refresh. Latest complete 28-day Web performance showed 8 property-wide impressions and 0 clicks. The top blog page had 8 page-level impressions. A meaningful page/query position 8–20 opportunity could not be established.",
+    "seo-title-optimization": "No qualifying edit. The 28-day property-level volume was 8 impressions and 0 clicks, with the highest page impression count also 8. Comparable device CTR evidence at useful volume was unavailable. History has no pending title measurements."
+  },
+  "changed_urls": [],
+  "audit": {
+    "sitemaps": 8,
+    "sitemap_urls": 12645,
+    "pages_checked": 157,
+    "internal_targets_checked": 90,
+    "issues": 0,
+    "race_sitemap_urls": 11141,
+    "note": "Bounded daily sample; complete sitemap bodies read with the local 8 MB allowance."
+  },
+  "search_console": {
+    "property": "sc-domain:running.services",
+    "source": "Existing signed-in Chrome, Web Performance report",
+    "period": {
+      "start": "2026-10-21",
+      "end": "2026-11-17"
+    },
+    "latest_complete_day_observed": "2026-11-17",
+    "sitewide": {
+      "impressions": 8,
+      "clicks": 0,
+      "ctr": 0,
+      "average_position": 10.6
+    },
+    "page_observations": {
+      "highest_page_impressions": 8,
+      "highest_page": "https://running.services/blog/best-marathons-in-september-2026",
+      "note": "Individual page aggregation differs from property totals. Do not sum these as a site total."
+    },
+    "inspections": [
+      {
+        "url": "https://running.services/race-guides/2027/new-york",
+        "before": {
+          "date": "2026-11-18",
+          "google_index": "Unknown to Google",
+          "index_request": "Accepted"
+        },
+        "after": {
+          "date": "2026-11-19",
+          "google_index": "URL is on Google; page is indexed",
+          "last_crawl": "2026-11-18 07:19:45 (displayed local time)",
+          "crawler": "Googlebot smartphone",
+          "crawl_allowed": true,
+          "page_fetch": "Successful",
+          "indexing_allowed": true,
+          "user_canonical": "https://running.services/race-guides/2027/new-york",
+          "google_canonical": "Inspected URL"
+        }
+      }
+    ]
+  },
+  "analytics": {
+    "source": "Existing signed-in Chrome, Running.Services property 523756658",
+    "period": {
+      "start": "2026-10-22",
+      "end": "2026-11-18"
+    },
+    "organic_search_sessions": 16,
+    "organic_search_engaged_sessions": 14,
+    "generate_lead_event_count": null,
+    "generate_lead_status": "No matching rows in the filtered Events report; conversion behavior unconfirmed."
+  },
+  "ai_visibility": {
+    "query_count": 3,
+    "query_file": "seo/ai-queries.json",
+    "surfaces": {
+      "ChatGPT Search": "Unchecked; no connected consumer search observation.",
+      "Google AI Overviews": "Unchecked; query-level mentions and cited URLs unavailable.",
+      "Perplexity": "Unchecked; no connected observation source."
+    }
+  },
+  "verification": [
+    "No new source commits since the prior run. Core routes, all guide routes, sitemap and robots passed targeted production HTTP, canonical and rendered title/H1 checks.",
+    "The prior confirmed race demo remains excluded from the race sitemap and SportsEvent markup and is marked noindex.",
+    "Google URL Inspection verified New York guide indexing and selected its self-canonical."
+  ],
+  "blockers": [
+    "Search volume does not establish a qualifying blog or device CTR opportunity.",
+    "Index status of the remaining guide pages and per-query AI mentions/citations unchecked."
+  ]
+}
