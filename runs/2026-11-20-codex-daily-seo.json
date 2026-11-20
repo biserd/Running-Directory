@@ -1,0 +1,83 @@
+{
+  "date": "2026-11-20",
+  "runner": "Running Services Daily SEO Codex heartbeat",
+  "checked_main": "496bf3c9c6308996cc7a8bf1366f73226cda91f1",
+  "deployment_status": "No qualifying source changes; no deployment",
+  "stages": {
+    "seo-autopilot": "No qualifying source edit. Eight sitemaps parsed and the bounded production sample of 157 pages and 90 internal targets found no issues. Core pages, all five guides and the demo exclusion passed targeted checks. Florida guide was discovered but not indexed, with its guide sitemap recognized. Google live test passed, and an indexing request was accepted. Nine keyword targets remain distinct in intent; no evidence supported a comparison.",
+    "blog-refresher": "No qualifying refresh. Complete 28-day Web performance reported 8 site impressions and 0 clicks. Highest page impressions were 8, and the visible non-site-operator query had one impression. A relevant page/query position 8–20 opportunity with meaningful evidence was not established.",
+    "seo-title-optimization": "No qualifying edit. With 8 property-wide impressions and 0 clicks, there was insufficient evidence to establish a CTR shortfall versus comparable positions and devices. History has no pending title measurements."
+  },
+  "changed_urls": [],
+  "audit": {
+    "sitemaps": 8,
+    "sitemap_urls": 12640,
+    "pages_checked": 157,
+    "internal_targets_checked": 90,
+    "issues": 0,
+    "race_sitemap_urls": 11136,
+    "scope": "Bounded rotating sample with the local 8 MB full-sitemap response allowance."
+  },
+  "search_console": {
+    "property": "sc-domain:running.services",
+    "source": "Existing signed-in Chrome",
+    "period": {
+      "start": "2026-10-22",
+      "end": "2026-11-18"
+    },
+    "latest_complete_day_observed": "2026-11-18",
+    "sitewide": {
+      "impressions": 8,
+      "clicks": 0,
+      "ctr": 0,
+      "average_position": 10.6
+    },
+    "page_observations": {
+      "highest_page_impressions": 8,
+      "page": "https://running.services/blog/best-marathons-in-september-2026",
+      "note": "Page rows and property totals use different aggregation. Do not sum as a property total."
+    },
+    "indexing": [
+      {
+        "url": "https://running.services/race-guides/2027/florida",
+        "before": "Discovered - currently not indexed",
+        "referring_sitemap": "https://running.services/sitemap-race-guides.xml",
+        "last_crawl": null,
+        "live_test": "URL is available to Google; page can be indexed",
+        "indexing_request": "Accepted; URL added to a priority crawl queue.",
+        "after_indexed": "unchecked"
+      }
+    ],
+    "browser_recovery": "Initial inventory timed out. Direct Chrome navigation succeeded. The first Florida index inspection stalled, so it was canceled and retried successfully in a fresh tab in the same profile."
+  },
+  "analytics": {
+    "source": "Existing signed-in Chrome, Running.Services GA4 property 523756658",
+    "period": {
+      "start": "2026-10-23",
+      "end": "2026-11-19"
+    },
+    "organic_search_sessions": 16,
+    "organic_search_engaged_sessions": 14,
+    "generate_lead_event_count": null,
+    "generate_lead_status": "No matching rows in the filtered Events report; conversion behavior unconfirmed."
+  },
+  "ai_visibility": {
+    "query_count": 3,
+    "queries": "seo/ai-queries.json",
+    "surfaces": {
+      "ChatGPT Search": "Unchecked; no connected consumer search observations.",
+      "Google AI Overviews": "Unchecked; per-query mentions and citations unavailable.",
+      "Perplexity": "Unchecked; no connected query observation source."
+    }
+  },
+  "verification": [
+    "Core pages and all five guides returned successful responses with rendered titles/H1s, expected canonicals and indexability.",
+    "Previous demo exclusion retained noindex, no SportsEvent markup and no race sitemap listing.",
+    "Google live-tested Florida guide as indexable, and confirmed acceptance of its crawl request."
+  ],
+  "blockers": [
+    "Search data too sparse to support a title or blog edit.",
+    "Florida guide final indexing and remaining uninspected guides' Google statuses unchecked.",
+    "AI answer mentions/citations unchecked."
+  ]
+}
