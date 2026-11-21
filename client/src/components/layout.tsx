@@ -215,6 +215,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <li><Link href="/this-weekend" className="hover:text-primary" data-testid="link-weekend-footer">Races this weekend</Link></li>
                 <li><Link href="/turkey-trots" className="hover:text-primary" data-testid="link-turkey-trots-hub-footer">Turkey Trots hub</Link></li>
                 <li><Link href="/tools" className="hover:text-primary" data-testid="link-tools-footer">Runner tools</Link></li>
+                <li><a href="https://stridereplay.com/" className="hover:text-primary">StrideReplay</a></li>
               </ul>
             </div>
             <div>
