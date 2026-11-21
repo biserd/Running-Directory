@@ -1,11 +1,19 @@
 import { Layout } from "@/components/layout";
-import { Hero } from "@/components/hero";
-import { ToolsCTA } from "@/components/tools-cta";
 import { TOOLS } from "@/lib/mock-data";
-import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, Video } from "lucide-react";
+
+const TOOL_CARDS = [
+  {
+    name: "StrideReplay",
+    slug: "stridereplay",
+    description: "Analyze your running form from a video.",
+    icon: Video,
+    href: "https://stridereplay.com/",
+  },
+  ...TOOLS,
+];
 
 export default function ToolsHub() {
   return (
@@ -14,14 +22,14 @@ export default function ToolsHub() {
         <div className="container mx-auto px-4">
           <h1 className="font-heading font-extrabold text-4xl md:text-5xl mb-6" data-testid="text-tools-title">Runner's Toolkit</h1>
           <p className="text-xl text-slate-300 max-w-2xl mx-auto mb-10" data-testid="text-tools-subtitle">
-            Advanced calculators and training utilities powered by AITracker.
+            Calculators, training plans, and video analysis for runners.
           </p>
         </div>
       </div>
       
       <div className="container mx-auto px-4 py-8 -mt-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {TOOLS.map(tool => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+          {TOOL_CARDS.map(tool => (
             <Card key={tool.slug} className="hover:border-primary/50 transition-all hover:-translate-y-1 shadow-lg" data-testid={`card-tool-${tool.slug}`}>
               <CardContent className="p-6 flex flex-col h-full text-center">
                 <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
@@ -32,7 +40,7 @@ export default function ToolsHub() {
                   {tool.description}
                 </p>
                 <Button className="w-full" asChild data-testid={`link-open-tool-${tool.slug}`}>
-                  <a href={tool.href}>Open Tool <ArrowRight className="ml-2 h-4 w-4" /></a>
+                  <a href={tool.href} aria-label={`Open Tool: ${tool.name}`}>Open Tool <ArrowRight className="ml-2 h-4 w-4" /></a>
                 </Button>
               </CardContent>
             </Card>
