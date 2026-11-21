@@ -1,0 +1,91 @@
+{
+  "date": "2026-11-21",
+  "runner": "Running Services Daily SEO Codex heartbeat",
+  "checked_main": "496bf3c9c6308996cc7a8bf1366f73226cda91f1",
+  "deployment_status": "No qualifying source changes; no deployment",
+  "stages": {
+    "seo-autopilot": "No qualifying technical change. All eight sitemaps parsed. The bounded production sample of 157 pages and 90 internal targets passed. Targeted core pages, all five guides and the prior demo exclusion passed. Google Index now confirms the Florida guide is indexed, with its own URL selected as canonical. Nine keyword map targets have distinct purposes; no verified comparison opportunity qualified.",
+    "blog-refresher": "No qualifying refresh. The complete October 23 to November 19 Web report had 8 property-wide impressions, 0 clicks and a maximum of 8 impressions on an individual page. No meaningful relevant page/query position 8–20 opportunity was established.",
+    "seo-title-optimization": "No qualifying edit. The current 28-day search volume was too sparse to establish a meaningful device-specific CTR shortfall against comparable positions. History has no pending title measurements."
+  },
+  "changed_urls": [],
+  "audit": {
+    "sitemaps": 8,
+    "sitemap_urls": 12629,
+    "pages_checked": 157,
+    "internal_targets_checked": 90,
+    "issues": 0,
+    "race_sitemap_urls": 11127,
+    "scope": "Bounded daily rotating sample. Sitemap bodies read with the existing local 8 MB allowance."
+  },
+  "search_console": {
+    "property": "sc-domain:running.services",
+    "source": "Existing signed-in Chrome, Web performance and URL Inspection",
+    "period": {
+      "start": "2026-10-23",
+      "end": "2026-11-19"
+    },
+    "latest_complete_day_observed": "2026-11-19",
+    "sitewide": {
+      "impressions": 8,
+      "clicks": 0,
+      "ctr": 0,
+      "average_position": 10.6
+    },
+    "page_observations": {
+      "highest_page_impressions": 8,
+      "page": "https://running.services/blog/best-marathons-in-september-2026",
+      "note": "Page and property aggregation are separate; do not sum page rows as property totals."
+    },
+    "inspections": [
+      {
+        "url": "https://running.services/race-guides/2027/florida",
+        "before": {
+          "date": "2026-11-20",
+          "google_index": "Discovered - currently not indexed",
+          "index_request": "Accepted"
+        },
+        "after": {
+          "date": "2026-11-21",
+          "google_index": "URL is on Google; page is indexed",
+          "last_crawl": "2026-11-20 07:27:34 (displayed local time)",
+          "crawler": "Googlebot smartphone",
+          "crawl_allowed": true,
+          "page_fetch": "Successful",
+          "indexing_allowed": true,
+          "user_canonical": "https://running.services/race-guides/2027/florida",
+          "google_canonical": "Inspected URL"
+        }
+      }
+    ]
+  },
+  "analytics": {
+    "source": "Existing signed-in Chrome, Running.Services GA4 property 523756658",
+    "period": {
+      "start": "2026-10-24",
+      "end": "2026-11-20"
+    },
+    "organic_search_sessions": 15,
+    "organic_search_engaged_sessions": 13,
+    "generate_lead_event_count": null,
+    "generate_lead_status": "No matching rows in the filtered Events report; conversion behavior unconfirmed."
+  },
+  "ai_visibility": {
+    "query_count": 3,
+    "query_file": "seo/ai-queries.json",
+    "surfaces": {
+      "ChatGPT Search": "Unchecked; no connected consumer search observations.",
+      "Google AI Overviews": "Unchecked; per-query mentions and citations unavailable.",
+      "Perplexity": "Unchecked; no connected query observation source."
+    }
+  },
+  "verification": [
+    "Core pages, all five 2027 guide pages, robots and sitemaps passed live checks. Expected HTTP responses, server-rendered titles/H1s and canonicals verified.",
+    "Prior demo exclusion still serves noindex with no SportsEvent markup or race sitemap entry.",
+    "Google confirmed Florida guide indexing, successful smartphone crawl and correct selected canonical."
+  ],
+  "blockers": [
+    "Sparse query and device evidence does not support an editorial change.",
+    "Remaining uninspected guide index statuses and per-query AI mentions/citations unchecked."
+  ]
+}
