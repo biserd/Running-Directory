@@ -485,14 +485,27 @@ const prefetchRouteDetail: PrefetchFn = async (qc, params) => {
 };
 
 const prefetchTools: PrefetchFn = async () => {
+  const title = "Running Tools & Pace Calculator | running.services";
+  const description = "Calculate running pace and finish times for a 5K, 10K, half marathon, or marathon. Explore training tools and analyze your running form with StrideReplay.";
+  const canonicalUrl = "https://running.services/tools";
   return {
-    title: "Running Tools | running.services",
-    description: "Essential running tools powered by AI. Pace calculators, training plan generators, and race prediction tools.",
+    title,
+    description,
     ogType: "website",
-    canonicalUrl: "https://running.services/tools",
-    // Generic training tools are deprioritized in the rebuild report — keep
-    // them reachable for direct visitors but do not invite indexing.
-    noindex: true,
+    canonicalUrl,
+    socialImage: {
+      url: "https://running.services/running-tools-social.jpg",
+      width: 1200,
+      height: 630,
+      alt: "Side view of a runner in mid-stride on an outdoor track",
+    },
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: "Running tools for race day and training",
+      description,
+      url: canonicalUrl,
+    },
   };
 };
 

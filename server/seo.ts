@@ -105,15 +105,13 @@ ${sitemaps.map(s => `  <sitemap><loc>${BASE_URL}${s}</loc></sitemap>`).join("\n"
       urlEntry("/for-organizers", { changefreq: "monthly", priority: "0.6", lastmod: today }),
       urlEntry("/pricing", { changefreq: "monthly", priority: "0.6", lastmod: today }),
       urlEntry("/developers", { changefreq: "monthly", priority: "0.6", lastmod: today }),
+      urlEntry("/tools", { changefreq: "monthly", priority: "0.6" }),
       urlEntry("/about", { changefreq: "monthly", priority: "0.6" }),
       urlEntry("/contact", { changefreq: "monthly", priority: "0.5" }),
       urlEntry("/terms", { changefreq: "yearly", priority: "0.3" }),
       urlEntry("/privacy", { changefreq: "yearly", priority: "0.3" }),
     ];
-    // Note: /tools and /tools/[slug] are intentionally excluded from the
-    // sitemap. They are deprioritized per the rebuild report (generic
-    // training tools, not race-decision content), and their SSR meta is
-    // marked noindex so direct visitors can still reach them.
+    // Companion tool detail pages remain reachable without sitemap entries.
 
     res.set("Content-Type", "application/xml").send(wrapUrlset(entries));
   });

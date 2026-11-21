@@ -70,7 +70,10 @@ export function RaceGuidesIndex() {
         <p className="mt-4 text-lg text-muted-foreground">Compare organizer-listed entry fees, distance options and travel areas before picking your next 5K, half marathon, marathon or trail race.</p>
       </header>
       <GuideLinks />
-      <Link href={raceGuideMapHref()} className="inline-flex items-center gap-2 font-medium text-primary underline"><MapPin className="h-4 w-4" /> Explore the {RACE_GUIDE_YEAR} U.S. race map</Link>
+      <div className="flex flex-wrap gap-x-6 gap-y-3">
+        <Link href={raceGuideMapHref()} className="inline-flex items-center gap-2 font-medium text-primary underline"><MapPin className="h-4 w-4" aria-hidden="true" /> Explore the {RACE_GUIDE_YEAR} U.S. race map</Link>
+        <a href="/tools#pace-calculator" className="inline-flex items-center gap-2 font-medium text-primary underline">Calculate your race pace <ArrowRight className="h-4 w-4" aria-hidden="true" /></a>
+      </div>
     </article>
   </Layout>;
 }

@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 import { getSSRPrefetch } from "./ssr-prefetch";
 import { getCachedHTML, setCachedHTML } from "./ssr-cache";
+import type { PageMeta } from "../client/src/entry-server";
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -14,7 +15,7 @@ function escapeAttr(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function injectMetaTags(html: string, meta: any): string {
+function injectMetaTags(html: string, meta: PageMeta): string {
   html = html.replace(
     /<title>[^<]*<\/title>/,
     `<title>${escapeHtml(meta.title)}</title>`
@@ -45,6 +46,22 @@ function injectMetaTags(html: string, meta: any): string {
     /<meta name="twitter:description" content="[^"]*" \/>/,
     `<meta name="twitter:description" content="${escapeAttr(meta.ogDescription || meta.description)}" />`
   );
+  if (meta.socialImage) {
+    const { url, width, height, alt } = meta.socialImage;
+    html = html.replace(
+      /<meta property="og:image" content="[^"]*" \/>/,
+      `<meta property="og:image" content="${escapeAttr(url)}" />`
+    ).replace(
+      /<meta property="og:image:width" content="[^"]*" \/>/,
+      `<meta property="og:image:width" content="${width}" />`
+    ).replace(
+      /<meta property="og:image:height" content="[^"]*" \/>/,
+      `<meta property="og:image:height" content="${height}" />\n<meta property="og:image:alt" content="${escapeAttr(alt)}" />`
+    ).replace(
+      /<meta name="twitter:image" content="[^"]*" \/>/,
+      `<meta name="twitter:image" content="${escapeAttr(url)}" />\n<meta name="twitter:image:alt" content="${escapeAttr(alt)}" />`
+    );
+  }
   if (meta.canonicalUrl) {
     html = html.replace("</head>", `<link rel="canonical" href="${escapeAttr(meta.canonicalUrl)}" />\n</head>`);
   }

@@ -9,6 +9,7 @@ export interface PageMeta {
   ogTitle?: string;
   ogDescription?: string;
   ogType?: string;
+  socialImage?: { url: string; width: number; height: number; alt: string };
   canonicalUrl?: string;
   jsonLd?: Record<string, any>;
   breadcrumbJsonLd?: Record<string, any>;

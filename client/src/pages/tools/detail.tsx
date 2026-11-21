@@ -36,6 +36,11 @@ export default function ToolDetail() {
             </div>
             <h1 className="font-heading font-extrabold text-4xl md:text-5xl tracking-tight mb-4" data-testid="text-tool-name">{tool.name}</h1>
             <p className="text-xl text-slate-300 mb-8" data-testid="text-tool-description">{tool.description}</p>
+            {tool.slug === "pace-calculator" && (
+              <Button size="lg" className="mr-3" asChild>
+                <a href="/tools#pace-calculator">Calculate your race pace</a>
+              </Button>
+            )}
             <Button size="lg" className="bg-primary hover:bg-primary/90 text-white font-semibold" asChild data-testid="button-open-aitracker">
               <a href={`https://aitracker.run`} target="_blank" rel="noopener noreferrer nofollow">
                 Open in AITracker <ArrowUpRight className="ml-2 h-5 w-5" />
