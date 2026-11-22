@@ -1,0 +1,518 @@
+{
+  "date": "2026-11-22",
+  "runner": "Codex local scheduled run",
+  "checked_main": "7f8717e9a9cf5644e6c8d635f8aca86bb7316f27",
+  "published_main": "3efc9e2fc37fa779dd0fee5e0389745e03958086",
+  "deployment_status": "deployed and verified",
+  "previous_worker_version": "75d95248-0fc6-4002-aa71-abd0e9bdf763",
+  "new_worker_version": "3c8e9daa-e349-4d19-b0b3-be5496381b2a",
+  "stages": {
+    "seo-autopilot": "Reproduced broken city links on state distance pages and retired-section links on state and city hubs. Registered cities keep their metro URLs; other cities link to race search with city, state and distance or surface filters. Hubs link to Race Shopper and Running Tools. All eight sitemap documents parsed when read in full. The race sitemap exceeded the collector's 2,000,000-byte cap; confirmed a valid HTTP 200 XML document with 10,702 entries. The ten keyword-map rows have distinct editorial intents. No comparison page had qualifying SERP evidence. Google accepted the Tools indexing request. Per-query consumer AI surfaces were unchecked.",
+    "blog-refresher": "No page-and-query pair qualified. The strongest page in the 28-day Pages view had six impressions, below the 25-impression threshold for considering a relevant query in positions 8–20. No live post changed.",
+    "seo-title-optimization": "No page qualified for a same-device CTR comparison. The strongest page had six impressions, below the 100-impression opportunity threshold. No title or H1 changed. No title measurement or blog tracking was pending."
+  },
+  "changed_urls": [
+    "https://running.services/state/illinois/10k-races",
+    "https://running.services/state/iowa/5k-races",
+    "https://running.services/state/indiana/10k-races",
+    "https://running.services/state/idaho/10k-races",
+    "https://running.services/state/idaho/half-marathons",
+    "https://running.services/state/idaho/marathons",
+    "https://running.services/state/kentucky/10k-races",
+    "https://running.services/state/kentucky/5k-races",
+    "https://running.services/state/kentucky/trail-races",
+    "https://running.services/state/florida",
+    "https://running.services/state/florida/city/fort-myers",
+    "https://running.services/state/florida/city/fort-pierce",
+    "https://running.services/state/florida/city/gainesville"
+  ],
+  "changed_urls_scope": "Representative live URLs for three shared templates",
+  "changes": [
+    {
+      "url": "https://running.services/state/illinois/10k-races",
+      "stage": "seo-autopilot",
+      "title_changed": false,
+      "before": [
+        {
+          "url": "https://running.services/orland-park-il/10k-races",
+          "status": 404
+        }
+      ],
+      "after": [
+        {
+          "url": "https://running.services/races?state=IL&distance=10K&city=Orland+Park",
+          "status": 200
+        }
+      ],
+      "canonical": "https://running.services/state/illinois/10k-races"
+    },
+    {
+      "url": "https://running.services/state/iowa/5k-races",
+      "stage": "seo-autopilot",
+      "title_changed": false,
+      "before": [
+        {
+          "url": "https://running.services/ottumwa-ia/5k-races",
+          "status": 404
+        }
+      ],
+      "after": [
+        {
+          "url": "https://running.services/races?state=IA&distance=5K&city=Ottumwa",
+          "status": 200
+        }
+      ],
+      "canonical": "https://running.services/state/iowa/5k-races"
+    },
+    {
+      "url": "https://running.services/state/indiana/10k-races",
+      "stage": "seo-autopilot",
+      "title_changed": false,
+      "before": [
+        {
+          "url": "https://running.services/peru-in/10k-races",
+          "status": 404
+        }
+      ],
+      "after": [
+        {
+          "url": "https://running.services/races?state=IN&distance=10K&city=Peru",
+          "status": 200
+        }
+      ],
+      "canonical": "https://running.services/state/indiana/10k-races"
+    },
+    {
+      "url": "https://running.services/state/idaho/10k-races",
+      "stage": "seo-autopilot",
+      "title_changed": false,
+      "before": [
+        {
+          "url": "https://running.services/priest-lake-id/10k-races",
+          "status": 404
+        }
+      ],
+      "after": [
+        {
+          "url": "https://running.services/races?state=ID&distance=10K&city=Priest+Lake",
+          "status": 200
+        }
+      ],
+      "canonical": "https://running.services/state/idaho/10k-races"
+    },
+    {
+      "url": "https://running.services/state/idaho/half-marathons",
+      "stage": "seo-autopilot",
+      "title_changed": false,
+      "before": [
+        {
+          "url": "https://running.services/priest-lake-id/half-marathons",
+          "status": 404
+        }
+      ],
+      "after": [
+        {
+          "url": "https://running.services/races?state=ID&distance=Half+Marathon&city=Priest+Lake",
+          "status": 200
+        }
+      ],
+      "canonical": "https://running.services/state/idaho/half-marathons"
+    },
+    {
+      "url": "https://running.services/state/idaho/marathons",
+      "stage": "seo-autopilot",
+      "title_changed": false,
+      "before": [
+        {
+          "url": "https://running.services/priest-lake-id/marathons",
+          "status": 404
+        }
+      ],
+      "after": [
+        {
+          "url": "https://running.services/races?state=ID&distance=Marathon&city=Priest+Lake",
+          "status": 200
+        }
+      ],
+      "canonical": "https://running.services/state/idaho/marathons"
+    },
+    {
+      "url": "https://running.services/state/kentucky/10k-races",
+      "stage": "seo-autopilot",
+      "title_changed": false,
+      "before": [
+        {
+          "url": "https://running.services/prospect-ky/10k-races",
+          "status": 404
+        }
+      ],
+      "after": [
+        {
+          "url": "https://running.services/races?state=KY&distance=10K&city=Prospect",
+          "status": 200
+        }
+      ],
+      "canonical": "https://running.services/state/kentucky/10k-races"
+    },
+    {
+      "url": "https://running.services/state/kentucky/5k-races",
+      "stage": "seo-autopilot",
+      "title_changed": false,
+      "before": [
+        {
+          "url": "https://running.services/prospect-ky/5k-races",
+          "status": 404
+        }
+      ],
+      "after": [
+        {
+          "url": "https://running.services/races?state=KY&distance=5K&city=Prospect",
+          "status": 200
+        }
+      ],
+      "canonical": "https://running.services/state/kentucky/5k-races"
+    },
+    {
+      "url": "https://running.services/state/kentucky/trail-races",
+      "stage": "seo-autopilot",
+      "title_changed": false,
+      "before": [
+        {
+          "url": "https://running.services/prospect-ky/trail-races",
+          "status": 404
+        }
+      ],
+      "after": [
+        {
+          "url": "https://running.services/races?state=KY&surface=Trail&city=Prospect",
+          "status": 200
+        }
+      ],
+      "canonical": "https://running.services/state/kentucky/trail-races"
+    },
+    {
+      "url": "https://running.services/state/florida",
+      "stage": "seo-autopilot",
+      "title_changed": false,
+      "before": [
+        {
+          "url": "https://running.services/podcasts",
+          "status": 410
+        },
+        {
+          "url": "https://running.services/influencers",
+          "status": 410
+        },
+        {
+          "url": "https://running.services/books",
+          "status": 410
+        },
+        {
+          "url": "https://running.services/collections",
+          "status": 410
+        }
+      ],
+      "after": [
+        {
+          "url": "https://running.services/tools",
+          "status": 200
+        },
+        {
+          "url": "https://running.services/race-shopper",
+          "status": 200
+        }
+      ],
+      "canonical": "https://running.services/state/florida"
+    },
+    {
+      "url": "https://running.services/state/florida/city/fort-myers",
+      "stage": "seo-autopilot",
+      "title_changed": false,
+      "before": [
+        {
+          "url": "https://running.services/podcasts",
+          "status": 410
+        },
+        {
+          "url": "https://running.services/influencers",
+          "status": 410
+        },
+        {
+          "url": "https://running.services/books",
+          "status": 410
+        },
+        {
+          "url": "https://running.services/collections",
+          "status": 410
+        }
+      ],
+      "after": [
+        {
+          "url": "https://running.services/tools",
+          "status": 200
+        },
+        {
+          "url": "https://running.services/race-shopper",
+          "status": 200
+        }
+      ],
+      "canonical": "https://running.services/state/florida/city/fort-myers"
+    },
+    {
+      "url": "https://running.services/state/florida/city/fort-pierce",
+      "stage": "seo-autopilot",
+      "title_changed": false,
+      "before": [
+        {
+          "url": "https://running.services/podcasts",
+          "status": 410
+        },
+        {
+          "url": "https://running.services/influencers",
+          "status": 410
+        },
+        {
+          "url": "https://running.services/books",
+          "status": 410
+        },
+        {
+          "url": "https://running.services/collections",
+          "status": 410
+        }
+      ],
+      "after": [
+        {
+          "url": "https://running.services/tools",
+          "status": 200
+        },
+        {
+          "url": "https://running.services/race-shopper",
+          "status": 200
+        }
+      ],
+      "canonical": "https://running.services/state/florida/city/fort-pierce"
+    },
+    {
+      "url": "https://running.services/state/florida/city/gainesville",
+      "stage": "seo-autopilot",
+      "title_changed": false,
+      "before": [
+        {
+          "url": "https://running.services/podcasts",
+          "status": 410
+        },
+        {
+          "url": "https://running.services/influencers",
+          "status": 410
+        },
+        {
+          "url": "https://running.services/books",
+          "status": 410
+        },
+        {
+          "url": "https://running.services/collections",
+          "status": 410
+        }
+      ],
+      "after": [
+        {
+          "url": "https://running.services/tools",
+          "status": 200
+        },
+        {
+          "url": "https://running.services/race-shopper",
+          "status": 200
+        }
+      ],
+      "canonical": "https://running.services/state/florida/city/gainesville"
+    }
+  ],
+  "audit": {
+    "sitemaps": 8,
+    "sitemap_urls": 12187,
+    "pages_checked": 157,
+    "internal_targets_checked": 90,
+    "issues": [],
+    "initial_sample_issues": [
+      {
+        "url": "https://running.services/sitemap-races.xml",
+        "kind": "Invalid sitemap",
+        "detail": "no element found: line 58164, column 18"
+      },
+      {
+        "url": "https://running.services/orland-park-il/10k-races",
+        "kind": "Broken internal link or redirect chain",
+        "status": 404,
+        "chain": [],
+        "linked_from": [
+          "https://running.services/state/illinois/10k-races"
+        ]
+      },
+      {
+        "url": "https://running.services/ottumwa-ia/5k-races",
+        "kind": "Broken internal link or redirect chain",
+        "status": 404,
+        "chain": [],
+        "linked_from": [
+          "https://running.services/state/iowa/5k-races"
+        ]
+      },
+      {
+        "url": "https://running.services/peru-in/10k-races",
+        "kind": "Broken internal link or redirect chain",
+        "status": 404,
+        "chain": [],
+        "linked_from": [
+          "https://running.services/state/indiana/10k-races"
+        ]
+      },
+      {
+        "url": "https://running.services/podcasts",
+        "kind": "Broken internal link or redirect chain",
+        "status": 410,
+        "chain": [],
+        "linked_from": [
+          "https://running.services/state/florida/city/fort-myers",
+          "https://running.services/state/florida/city/fort-pierce",
+          "https://running.services/state/florida/city/fort-walton-beach",
+          "https://running.services/state/florida/city/gainesville",
+          "https://running.services/state/florida/city/holiday"
+        ]
+      },
+      {
+        "url": "https://running.services/priest-lake-id/10k-races",
+        "kind": "Broken internal link or redirect chain",
+        "status": 404,
+        "chain": [],
+        "linked_from": [
+          "https://running.services/state/idaho/10k-races"
+        ]
+      },
+      {
+        "url": "https://running.services/priest-lake-id/half-marathons",
+        "kind": "Broken internal link or redirect chain",
+        "status": 404,
+        "chain": [],
+        "linked_from": [
+          "https://running.services/state/idaho/half-marathons"
+        ]
+      },
+      {
+        "url": "https://running.services/priest-lake-id/marathons",
+        "kind": "Broken internal link or redirect chain",
+        "status": 404,
+        "chain": [],
+        "linked_from": [
+          "https://running.services/state/idaho/marathons"
+        ]
+      },
+      {
+        "url": "https://running.services/prospect-ky/10k-races",
+        "kind": "Broken internal link or redirect chain",
+        "status": 404,
+        "chain": [],
+        "linked_from": [
+          "https://running.services/state/kentucky/10k-races"
+        ]
+      },
+      {
+        "url": "https://running.services/prospect-ky/5k-races",
+        "kind": "Broken internal link or redirect chain",
+        "status": 404,
+        "chain": [],
+        "linked_from": [
+          "https://running.services/state/kentucky/5k-races"
+        ]
+      },
+      {
+        "url": "https://running.services/prospect-ky/trail-races",
+        "kind": "Broken internal link or redirect chain",
+        "status": 404,
+        "chain": [],
+        "linked_from": [
+          "https://running.services/state/kentucky/trail-races"
+        ]
+      }
+    ]
+  },
+  "search_console": {
+    "source": "Signed-in Search Console in Chrome; verified running.services domain property and Web search",
+    "period": {
+      "start": "2026-10-24",
+      "end": "2026-11-20"
+    },
+    "clicks": 0,
+    "impressions": 6,
+    "ctr": 0,
+    "average_position": 13.8,
+    "maximum_page_impressions": 6,
+    "index_inspections": [
+      {
+        "url": "https://running.services/tools",
+        "coverage_before": "Page is not indexed: URL is unknown to Google",
+        "indexing_request": "Accepted; Google added the URL to its priority crawl queue",
+        "indexed_after": null
+      }
+    ]
+  },
+  "analytics": {
+    "source": "Signed-in Chrome; Running.Services GA4 property 523756658",
+    "period": {
+      "start": "2026-10-25",
+      "end": "2026-11-21"
+    },
+    "organic_search_sessions": 17,
+    "organic_search_engaged_sessions": 14,
+    "generate_lead_event_count": null,
+    "generate_lead_status": "The filtered Events report showed no data available. Conversion behavior is unconfirmed."
+  },
+  "ai_visibility": [
+    {
+      "query": "What websites let me compare upcoming running races in the United States?",
+      "ChatGPT Search": {
+        "unchecked": "No connected consumer search result surface"
+      },
+      "Perplexity": {
+        "unchecked": "No existing provider integration for comparable consumer results"
+      },
+      "Google AI Overviews": {
+        "unchecked": "No existing provider result for this exact query"
+      }
+    },
+    {
+      "query": "Where can a race director claim and update a US running race listing?",
+      "ChatGPT Search": {
+        "unchecked": "No connected consumer search result surface"
+      },
+      "Perplexity": {
+        "unchecked": "No existing provider integration for comparable consumer results"
+      },
+      "Google AI Overviews": {
+        "unchecked": "No existing provider result for this exact query"
+      }
+    },
+    {
+      "query": "What APIs provide upcoming US road race data for developers?",
+      "ChatGPT Search": {
+        "unchecked": "No connected consumer search result surface"
+      },
+      "Perplexity": {
+        "unchecked": "No existing provider integration for comparable consumer results"
+      },
+      "Google AI Overviews": {
+        "unchecked": "No existing provider result for this exact query"
+      }
+    }
+  ],
+  "verification": [
+    "TypeScript check, Cloudflare build, SSR fixtures for a registered city and a missing metro, and Wrangler dry run passed.",
+    "Nine representative state-distance pages had the incorrect links replaced with direct HTTP 200 race searches. Four sampled state and city hubs now link to working resources.",
+    "No changes to titles, single page headings, canonical URLs or indexability on the changed URLs and nine core pages checked.",
+    "Google Search Console showed the Tools URL added to the priority crawl queue."
+  ],
+  "blockers": [
+    "Search volume does not support a blog refresh or a device-level title hypothesis.",
+    "Per-query consumer AI mention and citation evidence unavailable.",
+    "Collector truncates sitemap responses above 2,000,000 bytes. Repeat the bounded audit with seo_audit.MAX_BODY set to at least 4,000,000 bytes or independently confirm the full XML before treating parse errors as production defects."
+  ]
+}
