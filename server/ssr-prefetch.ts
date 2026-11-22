@@ -1456,6 +1456,8 @@ const prefetchStateDistance: PrefetchFn = async (qc, params) => {
     limit: 60,
   }).catch(() => []);
   qc.setQueryData(["/api/races/search", apiQs], races);
+  const cities = await storage.getCitiesByState(state.id).catch(() => []);
+  qc.setQueryData(["/api/states", stateSlug, "cities"], cities);
 
   const url = `${SITE_ORIGIN}/state/${stateSlug}/${distanceSlug}`;
   const title = `${distanceCfg.plural} in ${state.name} | running.services`;

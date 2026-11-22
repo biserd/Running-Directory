@@ -175,27 +175,14 @@ export default function StateHub() {
           </div>
         )}
 
-        <div className="mt-12 p-8 bg-muted/30 rounded-xl border">
-          <h3 className="font-heading font-bold text-xl mb-4" data-testid="text-explore-more-title">Explore More</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Link href="/influencers" className="p-4 border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors text-center" data-testid="link-explore-influencers">
-              <div className="font-bold text-sm">Running Influencers</div>
-              <p className="text-xs text-muted-foreground mt-1">Follow top runners</p>
-            </Link>
-            <Link href="/podcasts" className="p-4 border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors text-center" data-testid="link-explore-podcasts">
-              <div className="font-bold text-sm">Running Podcasts</div>
-              <p className="text-xs text-muted-foreground mt-1">Listen and learn</p>
-            </Link>
-            <Link href="/books" className="p-4 border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors text-center" data-testid="link-explore-books">
-              <div className="font-bold text-sm">Running Books</div>
-              <p className="text-xs text-muted-foreground mt-1">Top reads for runners</p>
-            </Link>
-            <Link href="/collections" className="p-4 border rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-colors text-center" data-testid="link-explore-collections">
-              <div className="font-bold text-sm">Collections</div>
-              <p className="text-xs text-muted-foreground mt-1">Curated race lists</p>
-            </Link>
+        <section aria-labelledby="running-resources" className="mt-12 rounded-lg border bg-muted/5 p-6">
+          <h2 id="running-resources" className="font-heading text-xl font-bold mb-3">Plan your next race</h2>
+          <p className="text-sm text-muted-foreground mb-4">Compare races and use the pace calculator to set a finish-time goal.</p>
+          <div className="flex flex-wrap gap-4">
+            <Link href="/race-shopper" className="text-sm font-medium text-primary underline">Find a race that fits your goals</Link>
+            <Link href="/tools" className="text-sm font-medium text-primary underline">Running tools and pace calculator</Link>
           </div>
-        </div>
+        </section>
       </div>
     </Layout>
   );
