@@ -1,0 +1,131 @@
+{
+  "date": "2026-11-23",
+  "runner": "Codex local scheduled run",
+  "checked_main": "3efc9e2fc37fa779dd0fee5e0389745e03958086",
+  "deployment_status": "No deployment. No qualifying changes.",
+  "active_worker_version": "3c8e9daa-e349-4d19-b0b3-be5496381b2a",
+  "stages": {
+    "seo-autopilot": "All eight sitemap documents parsed. The audit found no defects in the sample of 157 pages and 90 internal targets. Rechecked the prior repairs on 9 state-distance pages and 4 state and city hubs. All 100 currently displayed city links returned direct HTTP 200 responses. Google confirmed that the rebuilt Tools page is indexed and selected its declared canonical. The keyword map has ten distinct targets. No verified comparison opportunity qualified. Consumer AI mentions and citations remain unchecked.",
+    "blog-refresher": "The highest-impression page had five impressions in the 28-day Search Console window, below the 25-impression threshold for a page-and-query opportunity in positions 8–20. No refresh qualified and no earlier blog edit is pending.",
+    "seo-title-optimization": "The highest-impression page had five impressions, below the 100-impression cutoff for qualifying device-level comparisons. No title or H1 edit qualified, and no earlier measurement is pending."
+  },
+  "changed_urls": [],
+  "audit": {
+    "sitemaps": 8,
+    "sitemap_urls": 12075,
+    "pages_checked": 157,
+    "internal_targets_checked": 90,
+    "issues": []
+  },
+  "search_console": {
+    "source": "Signed-in Search Console in Chrome; verified running.services domain property and Web search",
+    "period": {
+      "start": "2026-10-25",
+      "end": "2026-11-21"
+    },
+    "clicks": 0,
+    "impressions": 5,
+    "ctr": 0,
+    "average_position": 16.4,
+    "maximum_page_impressions": 5,
+    "index_inspections": [
+      {
+        "url": "https://running.services/tools",
+        "previous_status": "Page is not indexed: URL is unknown to Google",
+        "previous_request": "Accepted November 22",
+        "status": "URL is on Google; page is indexed",
+        "indexed": true,
+        "last_crawl": "November 22, 2026, 7:24:42 a.m. as displayed in Search Console",
+        "crawler": "Googlebot smartphone",
+        "fetch": "Successful",
+        "crawl_allowed": true,
+        "indexing_allowed": true,
+        "user_declared_canonical": "https://running.services/tools",
+        "google_selected_canonical": "https://running.services/tools",
+        "sitemap_observation": "Search Console reported no referring sitemap for this inspection. The live pages sitemap includes the URL."
+      }
+    ]
+  },
+  "analytics": {
+    "source": "Signed-in Chrome; Running.Services GA4 property 523756658",
+    "period": {
+      "start": "2026-10-26",
+      "end": "2026-11-22"
+    },
+    "organic_search_sessions": 16,
+    "organic_search_engaged_sessions": 13,
+    "generate_lead_event_count": null,
+    "generate_lead_status": "The filtered Events report showed no data available. Conversion behavior is unconfirmed."
+  },
+  "ai_visibility": [
+    {
+      "query": "What websites let me compare upcoming running races in the United States?",
+      "ChatGPT Search": {
+        "unchecked": "No hosted consumer ChatGPT Search connector"
+      },
+      "Google AI Overviews": {
+        "unchecked": "Missing SERPAPI_KEY"
+      },
+      "Perplexity": {
+        "unchecked": "Missing PERPLEXITY_API_KEY"
+      }
+    },
+    {
+      "query": "Where can a race director claim and update a US running race listing?",
+      "ChatGPT Search": {
+        "unchecked": "No hosted consumer ChatGPT Search connector"
+      },
+      "Google AI Overviews": {
+        "unchecked": "Missing SERPAPI_KEY"
+      },
+      "Perplexity": {
+        "unchecked": "Missing PERPLEXITY_API_KEY"
+      }
+    },
+    {
+      "query": "What APIs provide upcoming US road race data for developers?",
+      "ChatGPT Search": {
+        "unchecked": "No hosted consumer ChatGPT Search connector"
+      },
+      "Google AI Overviews": {
+        "unchecked": "Missing SERPAPI_KEY"
+      },
+      "Perplexity": {
+        "unchecked": "Missing PERPLEXITY_API_KEY"
+      }
+    }
+  ],
+  "verification": [
+    "The live Tools page, server-rendered content and metadata, images, linked pages, and sitemap passed.",
+    "The initial exact-link recheck required yesterday’s displayed entries. The follow-up checked all currently rendered city links on the nine pages to account for daily race-list rotations.",
+    "The Worker checked on Cloudflare still serves the November 22 link repairs at 100% of production traffic."
+  ],
+  "live_link_recheck": {
+    "state_distance_pages": 9,
+    "city_links": 100,
+    "filtered_search_links": 24,
+    "state_and_city_hubs": 4,
+    "previous_city_entries_no_longer_shown": [
+      {
+        "page": "https://running.services/state/iowa/5k-races",
+        "previous_destination": "https://running.services/races?state=IA&distance=5K&city=Ottumwa"
+      },
+      {
+        "page": "https://running.services/state/kentucky/10k-races",
+        "previous_destination": "https://running.services/races?state=KY&distance=10K&city=Prospect"
+      },
+      {
+        "page": "https://running.services/state/kentucky/5k-races",
+        "previous_destination": "https://running.services/races?state=KY&distance=5K&city=Prospect"
+      },
+      {
+        "page": "https://running.services/state/kentucky/trail-races",
+        "previous_destination": "https://running.services/races?state=KY&surface=Trail&city=Prospect"
+      }
+    ]
+  },
+  "blockers": [
+    "Search impressions are too sparse for editorial or title changes.",
+    "No available prompt-level consumer AI evidence or comparable SERP data. No services or keys were added."
+  ]
+}
