@@ -1,0 +1,94 @@
+{
+  "date": "2026-11-26",
+  "runner": "Codex local scheduled run",
+  "checked_main": "3efc9e2fc37fa779dd0fee5e0389745e03958086",
+  "deployment_status": "No deployment. No qualifying changes.",
+  "stages": {
+    "seo-autopilot": "All 8 sitemaps parsed. No technical issues surfaced in the production sample of 157 pages and 90 linked targets. Reviewed 10 distinct keyword targets. No verified comparison opportunity qualified. Consumer AI visibility was unchecked.",
+    "blog-refresher": "No qualifying post. The highest-impression page had two impressions in the 28-day Search Console Pages report, below the 25-impression threshold for a page/query opportunity in positions 8–20. No earlier refresh is pending.",
+    "seo-title-optimization": "The highest-impression page had two impressions, below the 100-impression threshold for a same-device CTR comparison. No title or H1 qualified, and no prior measurement is pending."
+  },
+  "changed_urls": [],
+  "audit": {
+    "sitemaps": 8,
+    "sitemap_urls": 12058,
+    "pages_checked": 157,
+    "internal_targets_checked": 90,
+    "issues": []
+  },
+  "search_console": {
+    "source": "Signed-in Chrome; running.services domain property, Web search",
+    "period": {
+      "end": "2026-11-24",
+      "start": "2026-10-28"
+    },
+    "clicks": 0,
+    "impressions": 2,
+    "ctr": 0,
+    "average_position": 39.5,
+    "maximum_page_impressions": 2,
+    "previous_period": {
+      "end": "2026-11-23",
+      "start": "2026-10-27"
+    },
+    "previous_period_metrics": {
+      "ctr": 0,
+      "average_position": 39.5,
+      "impressions": 2,
+      "clicks": 0
+    }
+  },
+  "analytics": {
+    "source": "Signed-in Chrome; Running.Services GA4 property 523756658",
+    "period": {
+      "end": "2026-11-25",
+      "start": "2026-10-29"
+    },
+    "organic_search_sessions": 15,
+    "organic_search_engaged_sessions": 11,
+    "generate_lead_event_count": null,
+    "generate_lead_status": "No matching rows in the filtered Events report. Conversion behavior is unconfirmed."
+  },
+  "ai_visibility": [
+    {
+      "query": "What websites let me compare upcoming running races in the United States?",
+      "ChatGPT Search": {
+        "unchecked": "No hosted consumer ChatGPT Search connector"
+      },
+      "Google AI Overviews": {
+        "unchecked": "Missing SERPAPI_KEY"
+      },
+      "Perplexity": {
+        "unchecked": "Missing PERPLEXITY_API_KEY"
+      }
+    },
+    {
+      "query": "Where can a race director claim and update a US running race listing?",
+      "ChatGPT Search": {
+        "unchecked": "No hosted consumer ChatGPT Search connector"
+      },
+      "Google AI Overviews": {
+        "unchecked": "Missing SERPAPI_KEY"
+      },
+      "Perplexity": {
+        "unchecked": "Missing PERPLEXITY_API_KEY"
+      }
+    },
+    {
+      "query": "What APIs provide upcoming US road race data for developers?",
+      "ChatGPT Search": {
+        "unchecked": "No hosted consumer ChatGPT Search connector"
+      },
+      "Google AI Overviews": {
+        "unchecked": "Missing SERPAPI_KEY"
+      },
+      "Perplexity": {
+        "unchecked": "Missing PERPLEXITY_API_KEY"
+      }
+    }
+  ],
+  "blockers": [
+    "Search impressions were too sparse for editorial changes.",
+    "Prompt-level consumer AI answers and comparable SERP evidence were unavailable through existing integrations."
+  ]
+}
