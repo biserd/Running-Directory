@@ -37,7 +37,7 @@ import type { Race, RaceAlert } from "@shared/schema";
 import { getStateSlug, getStateName } from "@/lib/states";
 import { useAuth } from "@/hooks/use-auth";
 import { setPendingAction } from "@/lib/pending-action";
-import { trackLead } from "@/lib/analytics";
+import { trackClaimVerified, trackLead } from "@/lib/analytics";
 import { useToast } from "@/hooks/use-toast";
 import { useCompareCart } from "@/hooks/use-compare-cart";
 import { cn } from "@/lib/utils";
@@ -268,6 +268,12 @@ function ClaimRaceCard({ race }: { race: Race }) {
   const [message, setMessage] = useState("");
   const [done, setDone] = useState(false);
 
+  useEffect(() => {
+    if (window.location.hash !== "#claim-race") return;
+    setOpen(true);
+    document.getElementById("claim-race")?.scrollIntoView({ block: "start" });
+  }, [race.slug]);
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
@@ -277,6 +283,7 @@ function ClaimRaceCard({ race }: { race: Race }) {
       trackLead("race_claim");
       // High-trust: claimer email domain matched the race website domain. The
       // server already signed the user in; jump them straight to the dashboard.
+      if (res.verifiedVia === "domain-match") trackClaimVerified("domain_match");
       if (res.verifiedVia === "domain-match" && res.redirect) {
         toast({ title: "Verified instantly", description: res.message });
         setLocation(res.redirect);
@@ -293,7 +300,7 @@ function ClaimRaceCard({ race }: { race: Race }) {
   };
 
   return (
-    <div className="bg-card border border-t-4 border-blue-500 rounded-xl p-6 shadow-sm" data-testid="card-claim">
+    <div id="claim-race" className="scroll-mt-24 bg-card border border-t-4 border-blue-500 rounded-xl p-6 shadow-sm" data-testid="card-claim">
       <h3 className="font-heading font-semibold mb-2 flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-blue-500" />Are you the organizer?</h3>
       <p className="text-sm text-muted-foreground mb-3">Claim this race to update details, fix data, set pricing, and reach our runners.</p>
       {done ? (

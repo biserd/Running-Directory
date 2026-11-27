@@ -10,7 +10,10 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 from xml.etree import ElementTree
 
 ORIGIN = "https://running.services"
-PRIORITY = ["/", "/races", "/blog", "/for-organizers", "/pricing", "/developers", "/contact"]
+PRIORITY = [
+    "/", "/races", "/blog", "/for-organizers", "/pricing", "/developers", "/contact",
+    "/race-guides/2027", "/race-guides/2027/new-york", "/race-guides/2027/florida",
+]
 HOSTS = {"running.services", "www.running.services"}
 MAX_BODY = 2_000_000
 

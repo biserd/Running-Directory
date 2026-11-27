@@ -23,7 +23,7 @@ import { RACE_SIZE_BUCKETS, ELEVATION_BUCKETS } from "@shared/race-buckets";
 import type { Race } from "@shared/schema";
 import { CompareBar } from "@/components/compare-bar";
 import { RACE_CALENDAR_PAGE_SIZE, stateRaceCalendarHref } from "@shared/race-program";
-import { getRaceGuide, raceGuideHref, RACE_GUIDE_YEAR } from "@shared/race-guides";
+import { getRaceGuide, raceGuideHref, RACE_GUIDES_HREF, RACE_GUIDE_YEAR } from "@shared/race-guides";
 
 const DISTANCES = ["5K", "10K", "Half Marathon", "Marathon", "Ultra"];
 const SURFACES = ["Road", "Trail", "Track"];
@@ -638,7 +638,7 @@ export default function RacesSearchPage() {
   const statePaging = stateData && !filtersToUrlQs({ ...filters, page: 1 });
   const raceGuide = getRaceGuide(stateSlug);
 
-  const heading = stateData ? `${stateData.name} race calendar` : "All USA races";
+  const heading = stateData ? `${stateData.name} race calendar` : "U.S. running race calendar";
   const breadcrumbs: { label: string; href?: string }[] = [{ label: "Races", href: "/races" }];
   if (stateData) breadcrumbs.push({ label: stateData.name });
 
@@ -720,7 +720,11 @@ export default function RacesSearchPage() {
           <p className="text-sm text-muted-foreground" data-testid="text-search-result-count">
             {isLoading ? "Loading races…" : `Showing ${filtered.length} ${filtered.length === 1 ? "race" : "races"}`}
           </p>
-          {raceGuide && calendarPage === 1 && <Link href={raceGuideHref(raceGuide.slug)} className="text-sm font-semibold text-primary underline">{RACE_GUIDE_YEAR} {raceGuide.name} race picks and prices</Link>}
+          {calendarPage === 1 && <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-primary">
+            <Link href={raceGuide ? raceGuideHref(raceGuide.slug) : RACE_GUIDES_HREF} className="underline">{RACE_GUIDE_YEAR} {raceGuide ? `${raceGuide.name} race guide` : "race guides by state"}</Link>
+            {!stateData && <Link href="/races/usa" className="underline">Browse the state calendars</Link>}
+            <Link href="/for-organizers" className="underline">Claim your race listing</Link>
+          </div>}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

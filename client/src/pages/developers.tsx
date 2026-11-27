@@ -135,20 +135,24 @@ export default function DevelopersPage() {
         <div className="container mx-auto px-4 max-w-4xl">
           <Badge variant="secondary" className="mb-4" data-testid="badge-developers">Developer API</Badge>
           <h1 className="text-3xl md:text-5xl font-heading font-bold mb-4 leading-tight" data-testid="text-developers-title">
-            Race data your app can trust.
+            U.S. running race data API
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl" data-testid="text-developers-sub">
-            Pull our normalized race calendar, deterministic scores, and featured slots into your newsletter, club site, training app, or analysis tool.
+            Find U.S. running events by state, city, distance and surface. Use race dates, registration links and race scores in your training app, club site or newsletter.
           </p>
-          <Button size="lg" className="mt-6" onClick={() => setReqOpen(true)} data-testid="button-request-key">
-            <KeyRound className="h-4 w-4 mr-2" /> Request an API key
-          </Button>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button size="lg" onClick={() => setReqOpen(true)} data-testid="button-request-key">
+              <KeyRound className="h-4 w-4 mr-2" /> Request an API key
+            </Button>
+            <Button asChild size="lg" variant="outline"><a href="#race-search-mcp">Try public MCP search</a></Button>
+          </div>
+          <p className="mt-4 text-sm text-muted-foreground">The free API tier includes 1,000 requests per month. See the <a className="font-medium text-primary underline" href="/races">U.S. race calendar</a> for the public catalog.</p>
         </div>
       </section>
 
       <section className="py-10 md:py-14">
         <div className="container mx-auto px-4 max-w-4xl space-y-8">
-          <div id="race-search-mcp">
+          <div id="race-search-mcp" className="scroll-mt-24">
             <h2 className="text-2xl font-heading font-bold mb-3">Race search for MCP clients</h2>
             <Card>
               <CardContent className="p-5 text-sm space-y-3">
@@ -207,6 +211,7 @@ export default function DevelopersPage() {
 
           <div>
             <h2 className="text-2xl font-heading font-bold mb-3" data-testid="text-response-heading">Sample response</h2>
+            <p className="mb-3 text-sm text-muted-foreground">Illustrative JSON from the race search endpoint.</p>
             <Card>
               <CardContent className="p-0">
                 <pre className="bg-foreground text-background p-4 text-xs overflow-x-auto rounded-md" data-testid="code-response">{SAMPLE_RESPONSE}</pre>

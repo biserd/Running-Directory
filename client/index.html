@@ -25,7 +25,8 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-HZ1FH9MMRY');
+      const cleanAuthUrl = location.pathname.startsWith('/auth/') ? { page_location: location.origin + location.pathname } : {};
+      gtag('config', 'G-HZ1FH9MMRY', cleanAuthUrl);
     </script>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com">

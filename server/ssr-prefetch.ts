@@ -6,7 +6,7 @@ import { DISTANCE_SLUG_TO_LABEL, isValidDistanceSlug, isValidMonthSlug, MONTH_NA
 import { BEST_CONFIGS, buildBestSearchQs, resolveBestSearch, type BestSearchParams } from "@shared/best-configs";
 import { parseBlogPostSlug, blogPostHref } from "@shared/blog-months";
 import { computeRaceScore } from "@shared/race-score";
-import { canIndexRaceGuide, getRaceGuide, RACE_GUIDES, RACE_GUIDES_HREF, RACE_GUIDE_YEAR, raceGuideHref } from "@shared/race-guides";
+import { canIndexRaceGuide, getRaceGuide, RACE_GUIDES, RACE_GUIDES_HREF, RACE_GUIDE_YEAR, raceGuideHeadline, raceGuideHref } from "@shared/race-guides";
 import { loadGuideRaces } from "./race-guides";
 import { hasRaceListingValue, publishedRaceDistance, raceEventStartDate, raceListingDescription, stateRaceCalendarHref, RACE_CALENDAR_PAGE_SIZE } from "@shared/race-program";
 
@@ -22,7 +22,7 @@ const defaultMeta: PageMeta = {
 
 const prefetchRaceGuidesIndex: PrefetchFn = async () => {
   const title = `${RACE_GUIDE_YEAR} Running Race Guides by State | running.services`;
-  const description = "Compare dates and organizer-listed entry fees for running races in New York, Florida, Texas and Mississippi, with maps and signup links.";
+  const description = "Explore 2027 running race guides for all 50 U.S. states. Compare dates, distances and published entry fees, browse maps and visit official registration pages.";
   return {
     title, description, ogType: "website", canonicalUrl: `https://running.services${RACE_GUIDES_HREF}`,
     jsonLd: {
@@ -41,16 +41,25 @@ const prefetchRaceGuide: PrefetchFn = async (qc, params) => {
   const races = await loadGuideRaces(guide);
   qc.setQueryData(["/api/race-guides", guide.slug], races);
   const canonicalUrl = `https://running.services${raceGuideHref(guide.slug)}`;
-  const headline = `Best ${guide.name} running races in ${RACE_GUIDE_YEAR}`;
-  const indexable = canIndexRaceGuide(races);
+  const headline = raceGuideHeadline(guide);
+  const featured = guide.picks.length > 0;
+  const indexable = canIndexRaceGuide(guide, races);
+  const title = featured
+    ? `Best ${guide.name} Races in ${RACE_GUIDE_YEAR} | Entry Fees & Map`
+    : `${RACE_GUIDE_YEAR} ${guide.name} Running Race Guide | Dates & Map`;
   return {
-    title: `Best ${guide.name} Races in ${RACE_GUIDE_YEAR} | Entry Fees & Map`, description: guide.description,
-    canonicalUrl, ogTitle: headline, ogType: "article", noindex: !indexable,
-    jsonLd: indexable ? {
+    title, description: guide.description,
+    canonicalUrl, ogTitle: headline, ogType: featured ? "article" : "website", noindex: !indexable,
+    jsonLd: indexable && featured ? {
       "@context": "https://schema.org", "@type": "Article", headline, description: guide.description,
       mainEntityOfPage: canonicalUrl, author: { "@type": "Organization", name: "running.services", url: "https://running.services/" },
       publisher: { "@type": "Organization", name: "running.services" },
       about: { "@type": "Place", name: guide.name },
+    } : indexable ? {
+      "@context": "https://schema.org", "@type": "CollectionPage", name: headline, description: guide.description, url: canonicalUrl,
+      mainEntity: { "@type": "ItemList", itemListElement: races.map((race, index) => ({
+        "@type": "ListItem", position: index + 1, name: race.name, url: `https://running.services/races/${race.slug}`,
+      })) },
     } : undefined,
     breadcrumbJsonLd: {
       "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [
@@ -109,8 +118,8 @@ const prefetchRaces: PrefetchFn = async (qc) => {
   qc.setQueryData(["/api/states"], statesList);
 
   return {
-    title: "Find the right race | running.services",
-    description: "Search USA races and filter by distance, month, terrain, price, beginner-friendliness, PR potential, value, vibe, and more.",
+    title: "U.S. Running Race Calendar | 5Ks, Half Marathons & More",
+    description: "Find upcoming U.S. 5Ks, 10Ks, half marathons, marathons and trail races. Filter by date, state and distance, or compare race prices and course details.",
     ogType: "website",
     canonicalUrl: "https://running.services/races",
     jsonLd: {
@@ -801,9 +810,9 @@ const prefetchPricing: PrefetchFn = async () => ({
 });
 
 const prefetchDevelopers: PrefetchFn = async () => ({
-  title: "Developers & API | running.services",
-  description: "Public race API for partners — filtered race search, race detail, and featured listings under a simple JSON API with monthly metering.",
-  ogTitle: "running.services API",
+  title: "U.S. Running Race Data API & MCP Search | running.services",
+  description: "Build with U.S. race dates, distances and registration links. Explore the JSON API, request an API key or try public race search via MCP.",
+  ogTitle: "U.S. Running Race Data API & MCP Search",
   ogDescription: "Build with the running.services race data API.",
   ogType: "website",
   canonicalUrl: "https://running.services/developers",
@@ -1078,7 +1087,7 @@ const prefetchPriceWatch: PrefetchFn = async (qc) => {
 };
 
 const prefetchForOrganizers: PrefetchFn = async () => ({
-  title: "Claim Your Race Listing | running.services",
+  title: "Claim Your Race Listing for Free | running.services",
   description: "Claim your race listing for free. Update race details and see page views, saves, and registration clicks from runners.",
   ogType: "website",
   canonicalUrl: "https://running.services/for-organizers",

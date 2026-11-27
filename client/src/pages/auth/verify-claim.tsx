@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useSearch, Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { apiClaimVerify } from "@/lib/api";
+import { trackClaimVerified } from "@/lib/analytics";
 import { Layout } from "@/components/layout";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,8 @@ export default function AuthVerifyClaimPage() {
   const [status, setStatus] = useState<"verifying" | "success" | "error">("verifying");
   const [errorMessage, setErrorMessage] = useState("");
   const [raceName, setRaceName] = useState("");
+  const verification = useRef<{ token: string; request: ReturnType<typeof apiClaimVerify> }>(undefined);
+  const trackedToken = useRef<string>(undefined);
 
   useEffect(() => {
     const params = new URLSearchParams(search);
@@ -22,17 +25,30 @@ export default function AuthVerifyClaimPage() {
       setErrorMessage("No verification token in the link.");
       return;
     }
-    apiClaimVerify(token)
-      .then(async (data) => {
-        setRaceName(data.race.name);
-        setStatus("success");
-        await refreshUser();
-        setTimeout(() => navigate("/organizers/dashboard"), 1400);
-      })
-      .catch((err) => {
-        setStatus("error");
-        setErrorMessage(err.message || "Verification failed. The link may have expired.");
-      });
+    if (verification.current?.token !== token) {
+      verification.current = { token, request: apiClaimVerify(token) };
+    }
+    let active = true;
+    let redirect: ReturnType<typeof setTimeout> | undefined;
+    void verification.current.request.then(data => {
+      if (!active) return;
+      setRaceName(data.race.name);
+      setStatus("success");
+      if (trackedToken.current !== token) {
+        trackedToken.current = token;
+        trackClaimVerified("email_link");
+        void refreshUser();
+      }
+      redirect = setTimeout(() => navigate("/organizers/dashboard"), 1400);
+    }, err => {
+      if (!active) return;
+      setStatus("error");
+      setErrorMessage(err.message || "Verification failed. The link may have expired.");
+    });
+    return () => {
+      active = false;
+      clearTimeout(redirect);
+    };
   }, [search, navigate, refreshUser]);
 
   return (

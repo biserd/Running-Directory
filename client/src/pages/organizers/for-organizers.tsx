@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Layout } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,11 +22,11 @@ export default function ForOrganizersPage() {
   const [q, setQ] = useState("");
   const debounced = useDebounced(q.trim(), 250);
 
-  const { data: results, isFetching } = useQuery<Race[]>({
-    queryKey: ["/api/races/search", { q: debounced }],
+  const { data: results, isFetching, isError } = useQuery<Race[]>({
+    queryKey: ["/api/races/search", { q: debounced, limit: 8 }],
     queryFn: async () => {
       const res = await fetch(`/api/races/search?q=${encodeURIComponent(debounced)}&limit=8`);
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error("Race search is unavailable.");
       return res.json();
     },
     enabled: debounced.length >= 2,
@@ -39,10 +39,10 @@ export default function ForOrganizersPage() {
           <div className="text-center mb-10">
             <Badge variant="secondary" className="mb-4" data-testid="badge-for-organizers">For race organizers</Badge>
             <h1 className="text-4xl md:text-5xl font-heading font-bold mb-4 leading-tight" data-testid="text-organizers-hero-title">
-              Own your race listing.<br />Reach runners actually shopping.
+              Claim your race listing for free
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto" data-testid="text-organizers-hero-sub">
-              Claim your race in a minute. Edit your registration link, pricing, refund policy, and course details. See who's looking — for free.
+              Find and verify your race to update registration links, entry fees and course details. Your organizer dashboard shows views, saves and registration clicks.
             </p>
           </div>
 
@@ -60,22 +60,22 @@ export default function ForOrganizersPage() {
                   placeholder="Search by race name or city…"
                   className="pl-9"
                   data-testid="input-claim-search"
-                  autoFocus
                 />
               </div>
               {debounced.length >= 2 && (
                 <div className="mt-4 border rounded-lg divide-y bg-card max-h-80 overflow-y-auto" data-testid="list-claim-search-results">
                   {isFetching && <p className="p-4 text-sm text-muted-foreground" data-testid="text-claim-search-loading">Searching…</p>}
-                  {!isFetching && (results || []).length === 0 && (
+                  {isError && <p className="p-4 text-sm text-destructive" role="status">Race search is temporarily unavailable. Try again or <Link href="/races" className="underline">browse the race calendar</Link>.</p>}
+                  {!isFetching && !isError && (results || []).length === 0 && (
                     <p className="p-4 text-sm text-muted-foreground" data-testid="text-claim-search-empty">
                       No matches. Try a different name, or <Link href="/contact" className="text-primary hover:underline">tell us about your race</Link>.
                     </p>
                   )}
                   {!isFetching && (results || []).slice(0, 8).map((r) => (
-                    <Link key={r.id} href={`/races/${r.slug}`} className="flex items-center justify-between p-3 hover-elevate" data-testid={`link-claim-result-${r.slug}`}>
+                    <Link key={r.id} href={`/races/${r.slug}${r.isClaimed ? "" : "#claim-race"}`} className="flex items-center justify-between p-3 hover-elevate" data-testid={`link-claim-result-${r.slug}`}>
                       <div className="min-w-0 flex-1">
                         <div className="font-medium truncate">{r.name}</div>
-                        <div className="text-xs text-muted-foreground truncate">{r.city}, {r.state} · {r.distance} {r.isClaimed ? "· Claimed" : ""}</div>
+                        <div className="text-xs text-muted-foreground truncate">{r.city}, {r.state} · {r.distance} {r.isClaimed ? "· Already claimed" : "· Open claim form"}</div>
                       </div>
                       <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0 ml-3" />
                     </Link>

@@ -1,3 +1,5 @@
+import { getStateCentroid, US_STATES } from "./states";
+
 export const RACE_GUIDE_YEAR = 2027;
 export const RACE_GUIDES_HREF = `/race-guides/${RACE_GUIDE_YEAR}`;
 
@@ -24,29 +26,35 @@ export interface RaceGuide {
 
 export interface GuideRace {
   slug: string;
+  name: string;
+  city: string;
+  distance: string;
+  surface: string;
+  coordinates?: [number, number];
   date: string;
   source: string;
   checkedDate?: string;
   venue?: string;
-  entries: { name: string; distance?: string; date: string; fee?: number }[];
+  startTime?: string;
+  entries: { name: string; distance?: string; date: string; fee?: number; startTime?: string }[];
 }
 
 // City and borough reference points are from the 2025 U.S. Census Gazetteer.
-export const RACE_GUIDES: readonly RaceGuide[] = [
+export const FEATURED_RACE_GUIDES: readonly RaceGuide[] = [
   {
     slug: "new-york", state: "NY", name: "New York",
     description: "Compare 2027 New York race entry fees, dates and distances in Brooklyn, Rochester, Lake Placid and Syracuse. Browse the map and organizer links.",
     intro: "Start with the distance you want, then decide how far you want to travel. These four picks cover a Brooklyn winter ultra, a Rochester spring weekend, a June trip to the Adirondacks and a fall marathon weekend in Syracuse.",
     advice: "For an upstate race, price the whole weekend before registering. Lake Placid and Syracuse both offer a full marathon, with shorter options for friends or family. If you want a lower entry fee without committing to a long training block, compare Rochester’s 5K with Syracuse’s 5K. Brooklyn’s basic 50K entry is a separate choice for runners already prepared for the distance.",
     faqs: [
-      { question: "Which New York races offer a 5K and a half marathon on the same weekend?", answer: "Flower City in Rochester and Loop the Lake in Syracuse both list a 5K and a half marathon. Check each event schedule before booking. A single festival can start different distances on different days." },
+      { question: "Which New York races offer a 5K and a half marathon on the same weekend?", answer: "Flower City in Rochester and Loop the Lake in Syracuse both list a 5K and a half marathon. Check both days of the schedule before booking. Syracuse lists its 5K and 10K on Saturday and the half and full marathon on Sunday." },
       { question: "Which New York race should I choose for an Adirondack weekend?", answer: "Lake Placid offers a marathon, half marathon and 10K. Choose the distance before comparing registration costs and check the organizer’s course and race-morning logistics separately." },
     ],
     picks: [
       { slug: "the-ted-corbitt-50k-brooklyn-ny", title: "Ted Corbitt 50K", label: "Budget ultra", city: "Brooklyn", center: [40.635, -73.9506], entries: ["Ted Corbitt 50K - In Person Basic Registration (No Shirt & No Medal)"], reason: "Compare the basic in-person entry with the shirt and medal packages. It’s the most relevant option here for an experienced ultra runner watching the entry fee." },
-      { slug: "rochester-regional-health-flower-city-challenge-rochester-ny", title: "Flower City Challenge", label: "Spring weekend", city: "Rochester", center: [43.1699, -77.6169], entries: ["Flower City Family 5K", "Rochester Regional Health Flower City Half Marathon"], reason: "The separate 5K and half marathon entries make this a good spring option for a group with different training goals. The standard half marathon has its own registration tier." },
+      { slug: "rochester-regional-health-flower-city-challenge-rochester-ny", title: "Flower City Challenge", label: "Spring weekend", city: "Rochester", center: [43.1699, -77.6169], entries: ["Flower City Family 5K", "Rochester Regional Health Flower City Half Marathon"], reason: "The separate 5K and half marathon entries make this a good spring option for a group with different training goals. When comparing the 5K with the half, check the start times as well as the fees so the group can plan where to meet." },
       { slug: "lake-placid-marathon-and-half-and-10k-lake-placid-ny", title: "Lake Placid Marathon, Half & 10K", label: "Adirondack trip", city: "Lake Placid", center: [44.2842, -73.9864], entries: ["10K:", "1/2 Marathon:", "Marathon:"], reason: "Three distances make it easy to plan one weekend together. Compare the 10K and half before paying for a full marathon entry if the trip is the main draw." },
-      { slug: "loop-the-lake-the-great-new-york-state-marathon-weekend-syracuse-ny", title: "Loop the Lake", label: "Fall goal race", city: "Syracuse", center: [43.041, -76.1436], entries: ["5K Race", "10K Race", "Great New York State Marathon"], reason: "A fall option where the 5K, 10K and marathon have separate prices. Choose a single distance if you’re comparing standard entry fees. Challenge packages are priced separately." },
+      { slug: "loop-the-lake-the-great-new-york-state-marathon-weekend-syracuse-ny", title: "Loop the Lake", label: "Fall goal race", city: "Syracuse", center: [43.041, -76.1436], entries: ["5K Race", "10K Race", "Half Marathon", "Great New York State Marathon"], reason: "Plan around the two-day schedule. The 5K and 10K are Saturday and the half and full marathon are Sunday. Compare the standalone entry for your distance before looking at the challenge packages." },
     ],
   },
   {
@@ -59,10 +67,10 @@ export const RACE_GUIDES: readonly RaceGuide[] = [
       { question: "Which of these Florida races offers a full marathon?", answer: "The Town of Celebration race lists both a full and half marathon. Pensacola Beach, Marco Island and Clewiston offer shorter choices in this guide." },
     ],
     picks: [
-      { slug: "pensacola-beach-run-half-marathon-gulf-breeze-fl", title: "Pensacola Beach Run", label: "Panhandle race", city: "Gulf Breeze / Pensacola Beach", center: [30.3683, -87.1734], entries: ["5k", "10K", "1/2 Marathon"], reason: "Three distances share a beach race weekend. Use the organizer’s Casino Beach details for race-morning directions, since the directory lists Gulf Breeze." },
+      { slug: "pensacola-beach-run-half-marathon-gulf-breeze-fl", title: "Pensacola Beach Run", label: "Panhandle race", city: "Gulf Breeze / Pensacola Beach", center: [30.3683, -87.1734], entries: ["5k", "10K", "1/2 Marathon"], reason: "Three distances share a beach race weekend. Use Casino Beach for race-morning directions. The organizer lists race-day packet pickup there and says there is no late registration on race day." },
       { slug: "town-of-celebration-marathon-half-marathon-celebration-fl", title: "Town of Celebration Marathon", label: "Central Florida marathon", city: "Celebration", center: [28.3103, -81.5511], entries: ["1/2 Marathon", "Marathon"], reason: "The full-distance option in this guide, with a separate half marathon entry for runners who want the same destination and a shorter race." },
-      { slug: "marco-island-half-marathon-and-5k-marco-island-fl", title: "Marco Island Half Marathon & 5K", label: "Gulf Coast half", city: "Marco Island", center: [25.932, -81.7048], entries: ["5K", "Half Marathon"], reason: "A South Florida choice with a half marathon and a 5K. Compare it with Clewiston at the same distance before choosing where to stay." },
-      { slug: "country-music-half-marathon-5k-10k-clewiston-fl", title: "Country Music Half Marathon, 10K & 5K", label: "South Florida value", city: "Clewiston", center: [26.7528, -80.9392], entries: ["5K RUN", "10K RUN", "Half Marathon"], reason: "Three standalone options make it easy to compare 5K, 10K and half marathon prices without relying on a bundled entry." },
+      { slug: "marco-island-half-marathon-and-5k-marco-island-fl", title: "Marco Island Half Marathon & 5K", label: "Gulf Coast half", city: "Marco Island", center: [25.932, -81.7048], entries: ["5K", "Half Marathon"], reason: "The half crosses Goodland Bridge and has a published three-hour time limit. The organizer lists separate 5K and half starts and marks the permit as pending. Check that status before booking nonrefundable travel." },
+      { slug: "country-music-half-marathon-5k-10k-clewiston-fl", title: "Country Music Half Marathon, 10K & 5K", label: "South Florida value", city: "Clewiston", center: [26.7528, -80.9392], entries: ["5K RUN", "10K RUN", "Half Marathon"], reason: "The races are part of the Clewiston Sugar Festival. Compare the standalone 5K, 10K, and half entries, then check the festival schedule if the trip includes spectators." },
     ],
   },
   {
@@ -99,6 +107,37 @@ export const RACE_GUIDES: readonly RaceGuide[] = [
   },
 ];
 
+export const RACE_GUIDES: readonly RaceGuide[] = US_STATES.map(({ code, name, slug }) =>
+  FEATURED_RACE_GUIDES.find(guide => guide.state === code) ?? {
+    state: code, name, slug,
+    description: `Plan a ${RACE_GUIDE_YEAR} race in ${name}. Compare upcoming running events by city, date, distance and published entry fee, and explore the state race map.`,
+    intro: `Compare upcoming ${name} races by city, distance and date. Use the map to see which starts are close together and check the organizer’s entry terms before booking your trip.`,
+    advice: "",
+    faqs: [],
+    picks: [],
+  },
+);
+
+export function raceGuideHeadline(guide: RaceGuide) {
+  return guide.picks.length
+    ? `Best ${guide.name} running races in ${RACE_GUIDE_YEAR}`
+    : `${RACE_GUIDE_YEAR} ${guide.name} running race guide`;
+}
+
+export function relatedRaceGuides(guide: RaceGuide) {
+  const origin = getStateCentroid(guide.state)!;
+  const longitudeScale = Math.cos(origin.lat * Math.PI / 180);
+  return RACE_GUIDES.filter(candidate => candidate.state !== guide.state)
+    .map(candidate => {
+      const center = getStateCentroid(candidate.state)!;
+      const distance = Math.hypot(center.lat - origin.lat, (center.lng - origin.lng) * longitudeScale);
+      return { candidate, distance };
+    })
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, 4)
+    .map(({ candidate }) => candidate);
+}
+
 export function getRaceGuide(slug?: string) {
   return RACE_GUIDES.find(guide => guide.slug === slug);
 }
@@ -111,6 +150,12 @@ export function raceGuideMapHref(state?: string) {
   return `/map?${state ? `state=${encodeURIComponent(state)}&` : ""}year=${RACE_GUIDE_YEAR}`;
 }
 
-export function canIndexRaceGuide(races: GuideRace[]) {
-  return races.length >= 3 && races.filter(race => race.entries.some(entry => entry.fee != null)).length >= 3;
+export function canIndexRaceGuide(guide: RaceGuide, races: GuideRace[]) {
+  const cities = new Set(races.map(race => race.city.trim().toLowerCase()));
+  const priced = races.filter(race => race.entries.some(entry => entry.fee != null));
+  const picks = new Set(guide.picks.map(pick => pick.slug));
+  if (priced.filter(race => picks.has(race.slug)).length >= 3 && cities.size >= 3) return true;
+  const months = new Set(races.map(race => race.date.slice(0, 7)));
+  const documented = races.filter(race => race.venue || race.startTime || race.entries.some(entry => entry.fee != null));
+  return races.length >= 5 && cities.size >= 3 && months.size >= 2 && documented.length >= 3;
 }

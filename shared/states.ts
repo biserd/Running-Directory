@@ -52,6 +52,10 @@ const STATE_MAP: Record<string, { name: string; slug: string }> = {
   WY: { name: "Wyoming", slug: "wyoming" },
 };
 
+export const US_STATES = Object.entries(STATE_MAP)
+  .filter(([code]) => code !== "DC")
+  .map(([code, state]) => ({ code, ...state }));
+
 export function getStateSlug(stateAbbr: string): string {
   return STATE_MAP[stateAbbr.toUpperCase()]?.slug || stateAbbr.toLowerCase().replace(/\s+/g, "-");
 }
