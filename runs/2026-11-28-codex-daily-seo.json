@@ -1,0 +1,113 @@
+{
+  "date": "2026-11-28",
+  "runner": "Codex local scheduled run",
+  "checked_main": "c1d0b8a38068d12db0a17cb412cad82d779f7816",
+  "deployment_status": "No deployment this run. No qualifying changes.",
+  "active_worker_version": "bb46ebe0-fd0d-4565-9182-e913c654845b",
+  "active_worker_traffic_percent": 100,
+  "stages": {
+    "seo-autopilot": "All 8 sitemap documents parsed and listed 10,913 URLs. The production audit found zero technical issues in 160 pages and 90 linked targets. Reviewed the release and 10 distinct keyword targets. No comparison page was supported by Search Console evidence. Prompt-level consumer AI mentions and citations were unchecked. Search Console still did not index the guide hub and rejected today's request due to its daily quota.",
+    "blog-refresher": "Search Console had two total Web impressions in the 28-day window, so no page/query pair could reach the 25-impression minimum for a post in positions 8–20. No content refresh qualified.",
+    "seo-title-optimization": "The site had two total Web impressions, so no page/device pair could meet the 100-impression threshold. The same-device CTR comparison did not qualify. No title or H1 change and no pending measurement."
+  },
+  "changed_urls": [],
+  "audit": {
+    "sitemaps": 8,
+    "sitemap_urls": 10913,
+    "pages_checked": 160,
+    "internal_targets_checked": 90,
+    "issues": []
+  },
+  "search_console": {
+    "source": "Signed-in Chrome; running.services domain property, Web search",
+    "period": {
+      "start": "2026-10-30",
+      "end": "2026-11-26"
+    },
+    "clicks": 0,
+    "impressions": 2,
+    "ctr": 0,
+    "average_position": 39.5,
+    "previous_period": {
+      "start": "2026-10-29",
+      "end": "2026-11-25"
+    },
+    "previous_period_metrics": {
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "average_position": 39.5
+    },
+    "index_inspections": [
+      {
+        "url": "https://running.services/race-guides/2027",
+        "coverage_before": "URL is not on Google; URL is unknown to Google",
+        "request": "Rejected by Search Console. Quota Exceeded after the live URL check started.",
+        "indexed": false,
+        "request_accepted": false
+      }
+    ]
+  },
+  "analytics": {
+    "source": "Signed-in Chrome; Running.Services GA4 property 523756658",
+    "period": {
+      "start": "2026-10-31",
+      "end": "2026-11-27"
+    },
+    "organic_search_sessions": 21,
+    "organic_search_engaged_sessions": 15,
+    "previous_period": {
+      "start": "2026-10-30",
+      "end": "2026-11-26"
+    },
+    "previous_period_metrics": {
+      "organic_search_sessions": 18,
+      "organic_search_engaged_sessions": 12
+    },
+    "generate_lead_event_count": null,
+    "generate_lead_status": "No exact generate_lead row in the 28-day Events report. The one qa_generate_lead match and one qa_race_claim_verified row are yesterday's labeled diagnostics. No exact race_claim_verified row. Production lead reporting is unverified."
+  },
+  "ai_visibility": [
+    {
+      "query": "What websites let me compare upcoming running races in the United States?",
+      "ChatGPT Search": {
+        "unchecked": "No hosted consumer ChatGPT Search connector"
+      },
+      "Google AI Overviews": {
+        "unchecked": "Missing SERPAPI_KEY"
+      },
+      "Perplexity": {
+        "unchecked": "Missing PERPLEXITY_API_KEY"
+      }
+    },
+    {
+      "query": "Where can a race director claim and update a US running race listing?",
+      "ChatGPT Search": {
+        "unchecked": "No hosted consumer ChatGPT Search connector"
+      },
+      "Google AI Overviews": {
+        "unchecked": "Missing SERPAPI_KEY"
+      },
+      "Perplexity": {
+        "unchecked": "Missing PERPLEXITY_API_KEY"
+      }
+    },
+    {
+      "query": "What APIs provide upcoming US road race data for developers?",
+      "ChatGPT Search": {
+        "unchecked": "No hosted consumer ChatGPT Search connector"
+      },
+      "Google AI Overviews": {
+        "unchecked": "Missing SERPAPI_KEY"
+      },
+      "Perplexity": {
+        "unchecked": "Missing PERPLEXITY_API_KEY"
+      }
+    }
+  ],
+  "blockers": [
+    "Google rejected the guide hub's indexing request because the property reached its daily quota. Retry remains scheduled.",
+    "Search impressions were too sparse for editorial or title changes.",
+    "Prompt-level consumer AI evidence was unavailable through the existing integrations."
+  ]
+}
